@@ -50,6 +50,7 @@ function App() {
                   smoothingConfig={smoothingConfig}
                   shadows={shadows}
                   averageShadows={averageShadows}
+                  onSeriesUpdate={setSeries}
                 />
               </div>
             </div>

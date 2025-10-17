@@ -13,6 +13,7 @@ interface TimeSeriesChartProps {
   averageShadows?: boolean;
   width?: number;
   height?: number;
+  onSeriesUpdate?: (series: Series) => void;
 }
 
 interface HoverData {
@@ -166,7 +167,8 @@ export function TimeSeriesChart({
   shadows = [],
   averageShadows = false,
   width = 400,
-  height = 500
+  height = 500,
+  onSeriesUpdate
 }: TimeSeriesChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -174,6 +176,10 @@ export function TimeSeriesChart({
   const [currentDomain, setCurrentDomain] = useState<[Date, Date] | null>(null);
   const [currentYDomain, setCurrentYDomain] = useState<[number, number] | null>(null);
   const [chartWidth, setChartWidth] = useState(width);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editedName, setEditedName] = useState(series.metadata.name);
+  const [editedDescription, setEditedDescription] = useState(series.metadata.description || '');
 
   // Update chart width when container resizes
   useEffect(() => {
@@ -963,23 +969,101 @@ export function TimeSeriesChart({
     });
   }, [shadows, series.data, averageShadows]);
 
+  const handleNameSave = () => {
+    if (onSeriesUpdate && editedName.trim()) {
+      onSeriesUpdate({
+        ...series,
+        metadata: {
+          ...series.metadata,
+          name: editedName.trim()
+        }
+      });
+    }
+    setIsEditingName(false);
+  };
+
+  const handleDescriptionSave = () => {
+    if (onSeriesUpdate) {
+      onSeriesUpdate({
+        ...series,
+        metadata: {
+          ...series.metadata,
+          description: editedDescription.trim()
+        }
+      });
+    }
+    setIsEditingDescription(false);
+  };
+
   return (
     <div className="relative">
       <div className="mb-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{series.metadata.name}</h2>
-          {series.metadata.description && (
-            <p className="text-sm text-gray-600 mt-1">{series.metadata.description}</p>
-          )}
-          <p className="text-xs text-gray-500 mt-1">
-            Click and drag to select zoom window • Shift+drag to pan • Double-click to reset
-          </p>
+          <div className="mb-2">
+            {isEditingName ? (
+              <input
+                type="text"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                onBlur={handleNameSave}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleNameSave();
+                  if (e.key === 'Escape') {
+                    setEditedName(series.metadata.name);
+                    setIsEditingName(false);
+                  }
+                }}
+                autoFocus
+                className="text-2xl font-bold text-gray-900 border-2 border-blue-500 rounded px-2 py-1 w-full"
+              />
+            ) : (
+              <h2
+                className="text-2xl font-bold text-gray-900 cursor-pointer hover:bg-gray-100 rounded px-2 py-1 inline-block"
+                onDoubleClick={() => setIsEditingName(true)}
+                title="Double-click to edit"
+              >
+                {series.metadata.name}
+              </h2>
+            )}
+          </div>
+          <div>
+            {isEditingDescription ? (
+              <input
+                type="text"
+                value={editedDescription}
+                onChange={(e) => setEditedDescription(e.target.value)}
+                onBlur={handleDescriptionSave}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleDescriptionSave();
+                  if (e.key === 'Escape') {
+                    setEditedDescription(series.metadata.description || '');
+                    setIsEditingDescription(false);
+                  }
+                }}
+                autoFocus
+                placeholder="Add a description..."
+                className="text-sm text-gray-600 border-2 border-blue-500 rounded px-2 py-1 w-full"
+              />
+            ) : (
+              <p
+                className="text-sm text-gray-600 cursor-pointer hover:bg-gray-100 rounded px-2 py-1 inline-block"
+                onDoubleClick={() => setIsEditingDescription(true)}
+                title="Double-click to edit"
+              >
+                {series.metadata.description || 'Double-click to add description'}
+              </p>
+            )}
+          </div>
         </div>
       </div>
       <div className="flex gap-6 w-full">
         {/* Chart - takes remaining space */}
-        <div ref={containerRef} className="flex-1 min-w-0">
+        <div ref={containerRef} className="flex-1 min-w-0 relative">
           <svg ref={svgRef} className="border border-gray-200 rounded-lg bg-white" />
+          {/* Zoom instructions overlay */}
+          <div className="absolute top-3 left-3 text-xs text-gray-500 bg-white/90 px-2 py-1 rounded pointer-events-none">
+            Click and drag to select zoom window • Shift+drag to pan • Double-click to reset
+          </div>
         </div>
         {/* Info panels - 2 columns x 3 rows */}
         <div className="grid grid-cols-2 gap-2 content-start flex-shrink-0" style={{ width: '600px' }}>

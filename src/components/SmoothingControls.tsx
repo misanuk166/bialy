@@ -10,7 +10,12 @@ export function SmoothingControls({ config, onChange }: SmoothingControlsProps) 
   const [isExpanded, setIsExpanded] = React.useState(true);
 
   const handleToggle = () => {
-    onChange({ ...config, enabled: !config.enabled });
+    const newEnabled = !config.enabled;
+    // Auto-expand when toggling on
+    if (newEnabled) {
+      setIsExpanded(true);
+    }
+    onChange({ ...config, enabled: newEnabled });
   };
 
   const handlePeriodChange = (e: React.ChangeEvent<HTMLInputElement>) => {

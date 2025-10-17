@@ -39,7 +39,12 @@ export function ShadowControls({
   }, [enabled, period, unit, count, onChange]);
 
   const handleToggle = () => {
-    setEnabled(!enabled);
+    const newEnabled = !enabled;
+    // Auto-expand when toggling on
+    if (newEnabled) {
+      setIsExpanded(true);
+    }
+    setEnabled(newEnabled);
   };
 
   const handlePeriodChange = (e: React.ChangeEvent<HTMLInputElement>) => {
