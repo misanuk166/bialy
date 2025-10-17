@@ -236,9 +236,6 @@ export function TimeSeriesChart({
       value: d.numerator / d.denominator
     }));
 
-    // Fill gaps with null values to create visual breaks in the line
-    const dataWithGaps = fillGapsWithNulls(dataWithValues);
-
     // Calculate the maximum precision from the raw data
     const dataPrecision = Math.max(
       ...dataWithValues.slice(0, 100).map(d => getDecimalPrecision(d.value))
@@ -260,6 +257,15 @@ export function TimeSeriesChart({
       }));
     }
 
+    // Create scales - use smoothed data for domain if available
+    const displayData = smoothingConfig?.enabled && smoothedDataWithValues.length > 0
+      ? smoothedDataWithValues
+      : dataWithValues;
+
+    // Fill gaps with null values to create visual breaks in the line
+    // Use displayData so gaps are detected in the currently displayed data (smoothed or raw)
+    const dataWithGaps = fillGapsWithNulls(displayData);
+
     // Generate shadow data
     const shadowsData = generateShadowsData(series.data, shadows);
 
@@ -277,11 +283,6 @@ export function TimeSeriesChart({
     const averagedShadowData = averageShadows && shadowsData.length > 1
       ? calculateShadowAverage(shadowsData)
       : [];
-
-    // Create scales - use smoothed data for domain if available
-    const displayData = smoothingConfig?.enabled && smoothedDataWithValues.length > 0
-      ? smoothedDataWithValues
-      : dataWithValues;
 
     // Initialize hover data with most recent point if not already set
     if (!hoverData && displayData.length > 0) {
@@ -422,20 +423,30 @@ export function TimeSeriesChart({
 
     // If smoothing is enabled, draw original data as points
     if (smoothingConfig?.enabled && smoothedDataWithValues.length > 0) {
-      chartGroup.selectAll('.data-point')
-        .data(dataWithValues)
-        .enter()
-        .append('circle')
-        .attr('class', 'data-point')
-        .attr('cx', d => xScale(d.date))
-        .attr('cy', d => yScale(d.value))
-        .attr('r', 3)
-        .attr('fill', '#93c5fd')
-        .attr('opacity', 0.6);
+      // Only render points within the visible date range for performance
+      const visibleData = dataWithValues.filter(d => {
+        const dateTime = d.date.getTime();
+        return dateTime >= initialDomain[0].getTime() && dateTime <= initialDomain[1].getTime();
+      });
 
-      // Draw smoothed line
+      chartGroup.selectAll('.data-point')
+        .data(visibleData)
+        .join(
+          enter => enter
+            .append('circle')
+            .attr('class', 'data-point')
+            .attr('r', 3)
+            .attr('fill', '#93c5fd')
+            .attr('opacity', 0.6),
+          update => update,
+          exit => exit.remove()
+        )
+        .attr('cx', d => xScale(d.date))
+        .attr('cy', d => yScale(d.value));
+
+      // Draw smoothed line with gaps
       chartGroup.append('path')
-        .datum(smoothedDataWithValues)
+        .datum(dataWithGaps)
         .attr('class', 'smoothed-line')
         .attr('fill', 'none')
         .attr('stroke', '#2563eb')
@@ -881,10 +892,29 @@ export function TimeSeriesChart({
           .attr('d', meanLine as any);
       }
 
-      // Update points
-      g.selectAll('.data-point')
-        .attr('cx', (d: any) => xScale(d.date))
-        .attr('cy', (d: any) => yScale(d.value));
+      // Update points - filter to only visible data for performance
+      if (smoothingConfig?.enabled) {
+        const currentDomain = xScale.domain() as [Date, Date];
+        const visibleData = dataWithValues.filter(d => {
+          const dateTime = d.date.getTime();
+          return dateTime >= currentDomain[0].getTime() && dateTime <= currentDomain[1].getTime();
+        });
+
+        chartGroup.selectAll('.data-point')
+          .data(visibleData, (d: any) => d.date.getTime())
+          .join(
+            enter => enter
+              .append('circle')
+              .attr('class', 'data-point')
+              .attr('r', 3)
+              .attr('fill', '#93c5fd')
+              .attr('opacity', 0.6),
+            update => update,
+            exit => exit.remove()
+          )
+          .attr('cx', d => xScale(d.date))
+          .attr('cy', d => yScale(d.value));
+      }
     }
 
   }, [series, smoothingConfig, shadows, averageShadows, currentDomain, chartWidth, height]);
