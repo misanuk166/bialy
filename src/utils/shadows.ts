@@ -12,14 +12,20 @@ export function createShadowData(
 ): TimeSeriesPoint[] {
   if (!shadow.enabled) return [];
 
-  return data.map(point => ({
-    date: new Date(
-      point.date.getTime() +
-      getTimeOffset(shadow.periods, shadow.unit)
-    ),
-    numerator: point.numerator,
-    denominator: point.denominator
-  }));
+  return data.map(point => {
+    // Normalize to midnight to avoid time-of-day issues
+    const normalizedDate = new Date(point.date);
+    normalizedDate.setHours(0, 0, 0, 0);
+
+    return {
+      date: new Date(
+        normalizedDate.getTime() +
+        getTimeOffset(shadow.periods, shadow.unit)
+      ),
+      numerator: point.numerator,
+      denominator: point.denominator
+    };
+  });
 }
 
 /**
@@ -109,7 +115,11 @@ export function calculateShadowAverage(
 
   shadowsData.forEach(shadowData => {
     shadowData.data.forEach(point => {
-      const dateKey = point.date.getTime();
+      // Normalize to midnight to ensure consistent grouping by day
+      const normalizedDate = new Date(point.date);
+      normalizedDate.setHours(0, 0, 0, 0);
+      const dateKey = normalizedDate.getTime();
+
       const value = point.numerator / point.denominator;
 
       if (!isNaN(value) && isFinite(value)) {

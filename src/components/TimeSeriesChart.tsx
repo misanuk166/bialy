@@ -334,8 +334,22 @@ export function TimeSeriesChart({
       .defined(d => d.value != null && !isNaN(d.value) && isFinite(d.value))
       .curve(d3.curveLinear);
 
-    // Draw axes
-    const xAxis = d3.axisBottom(xScale);
+    // Draw axes with custom formatting
+    // Custom x-axis formatter that shows year when it changes
+    let previousYear: number | null = null;
+    const xAxis = d3.axisBottom(xScale).tickFormat((domainValue) => {
+      const date = domainValue as Date;
+      const currentYear = date.getFullYear();
+      const shouldShowYear = previousYear === null || currentYear !== previousYear;
+      previousYear = currentYear;
+
+      // Format: "Oct 27" or "Oct 27, 2024" (with year when it changes)
+      const month = date.toLocaleDateString('en-US', { month: 'short' });
+      const day = date.getDate();
+
+      return shouldShowYear ? `${month} ${day}, ${currentYear}` : `${month} ${day}`;
+    });
+
     const yAxis = d3.axisLeft(yScale);
 
     g.append('g')
@@ -758,8 +772,76 @@ export function TimeSeriesChart({
       updateChart();
     });
 
+    // Wheel/trackpad pinch zoom
+    svg.on('wheel', function(event) {
+      event.preventDefault();
+
+      // Get mouse position relative to the chart
+      const [mouseX, mouseY] = d3.pointer(event);
+
+      // Adjust mouseX and mouseY to be relative to the chart area
+      const chartMouseX = mouseX - margin.left;
+      const chartMouseY = mouseY - margin.top;
+
+      // Only zoom if mouse is within chart bounds
+      if (chartMouseX < 0 || chartMouseX > innerWidth || chartMouseY < 0 || chartMouseY > innerHeight) {
+        return;
+      }
+
+      // Determine zoom factor
+      // For trackpad pinch: event.ctrlKey is true and deltaY represents pinch amount
+      // For mouse wheel: event.ctrlKey is false and deltaY represents scroll amount
+      const zoomIntensity = 0.002;
+      const delta = event.deltaY * zoomIntensity; // Reversed: positive deltaY = zoom out
+      const zoomFactor = Math.exp(delta);
+
+      // Get current domains
+      const currentXDomain = xScale.domain() as [Date, Date];
+      const currentYDomain = yScale.domain() as [number, number];
+
+      // Get mouse position in data coordinates
+      const mouseDate = xScale.invert(chartMouseX);
+      const mouseValue = yScale.invert(chartMouseY);
+
+      // Calculate new X domain centered on mouse position
+      const xDomainMs = [currentXDomain[0].getTime(), currentXDomain[1].getTime()];
+      const mouseDateMs = mouseDate.getTime();
+      const xLeftDistance = mouseDateMs - xDomainMs[0];
+      const xRightDistance = xDomainMs[1] - mouseDateMs;
+      const newXLeftMs = mouseDateMs - xLeftDistance * zoomFactor;
+      const newXRightMs = mouseDateMs + xRightDistance * zoomFactor;
+
+      // Clamp X domain to data extent
+      const clampedXLeftMs = Math.max(fullExtent[0].getTime(), newXLeftMs);
+      const clampedXRightMs = Math.min(fullExtent[1].getTime(), newXRightMs);
+      const newXDomain = [new Date(clampedXLeftMs), new Date(clampedXRightMs)] as [Date, Date];
+
+      // Calculate new Y domain centered on mouse position
+      const yTopDistance = currentYDomain[1] - mouseValue;
+      const yBottomDistance = mouseValue - currentYDomain[0];
+      const newYTop = mouseValue + yTopDistance * zoomFactor;
+      const newYBottom = mouseValue - yBottomDistance * zoomFactor;
+
+      // Clamp Y domain to data extent
+      const fullYExtent = [0, d3.max(dataWithValues, d => d.value) as number * 1.1];
+      const clampedYBottom = Math.max(fullYExtent[0], newYBottom);
+      const clampedYTop = Math.min(fullYExtent[1], newYTop);
+      const newYDomain = [clampedYBottom, clampedYTop] as [number, number];
+
+      // Update scales and state
+      xScale.domain(newXDomain);
+      yScale.domain(newYDomain);
+      setCurrentDomain(newXDomain);
+      setCurrentYDomain(newYDomain);
+
+      updateChart();
+    });
+
     // Function to update chart elements after zoom/pan
     function updateChart() {
+      // Reset year tracker for axis formatting
+      previousYear = null;
+
       // Update axes
       g.select('.x-axis')
         .call(xAxis as any);
