@@ -7,6 +7,8 @@ interface SmoothingControlsProps {
 }
 
 export function SmoothingControls({ config, onChange }: SmoothingControlsProps) {
+  const [isExpanded, setIsExpanded] = React.useState(true);
+
   const handleToggle = () => {
     onChange({ ...config, enabled: !config.enabled });
   };
@@ -23,7 +25,23 @@ export function SmoothingControls({ config, onChange }: SmoothingControlsProps) 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Smoothing</h3>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-gray-500 hover:text-gray-700 transition-colors"
+            aria-label={isExpanded ? "Collapse" : "Expand"}
+          >
+            <svg
+              className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+          <h3 className="text-lg font-semibold text-gray-900">Smoothing</h3>
+        </div>
         <label className="relative inline-flex items-center cursor-pointer">
           <input
             type="checkbox"
@@ -35,7 +53,7 @@ export function SmoothingControls({ config, onChange }: SmoothingControlsProps) 
         </label>
       </div>
 
-      {config.enabled && (
+      {config.enabled && isExpanded && (
         <div className="space-y-3">
           <p className="text-sm text-gray-600">
             Apply rolling average to smooth the time series data

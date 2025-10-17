@@ -15,11 +15,12 @@ function App() {
     unit: 'days'
   });
   const [shadows, setShadows] = useState<Shadow[]>([]);
+  const [averageShadows, setAverageShadows] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4">
-        <header className="mb-8">
+    <div className="min-h-screen bg-gray-50 py-6">
+      <div className="mx-auto px-6" style={{ maxWidth: '1800px' }}>
+        <header className="mb-6">
           <h1 className="text-4xl font-bold text-gray-900">Bialy</h1>
           <p className="text-gray-600 mt-2">
             Time series data visualization and analysis
@@ -30,8 +31,8 @@ function App() {
           <CSVUpload onSeriesLoaded={setSeries} />
         ) : (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              <div className="lg:col-span-1 space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+              <div className="space-y-4">
                 <SmoothingControls
                   config={smoothingConfig}
                   onChange={setSmoothingConfig}
@@ -39,13 +40,16 @@ function App() {
                 <ShadowControls
                   shadows={shadows}
                   onChange={setShadows}
+                  averageTogether={averageShadows}
+                  onAverageTogetherChange={setAverageShadows}
                 />
               </div>
-              <div className="lg:col-span-3">
+              <div className="w-full">
                 <TimeSeriesChart
                   series={series}
                   smoothingConfig={smoothingConfig}
                   shadows={shadows}
+                  averageShadows={averageShadows}
                 />
               </div>
             </div>

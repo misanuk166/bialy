@@ -88,3 +88,65 @@ export function createShadow(
     label: label || `${periods} ${unit}${periods > 1 ? 's' : ''} ago`
   };
 }
+
+/**
+ * Calculate average and standard deviation across shadow periods
+ * Groups data by date and computes statistics
+ */
+export interface AveragedShadowData {
+  date: Date;
+  mean: number;
+  stdDev: number;
+}
+
+export function calculateShadowAverage(
+  shadowsData: ShadowData[]
+): AveragedShadowData[] {
+  if (shadowsData.length === 0) return [];
+
+  // Group all shadow data points by date
+  const dateMap = new Map<number, number[]>();
+
+  shadowsData.forEach(shadowData => {
+    shadowData.data.forEach(point => {
+      const dateKey = point.date.getTime();
+      const value = point.numerator / point.denominator;
+
+      if (!isNaN(value) && isFinite(value)) {
+        if (!dateMap.has(dateKey)) {
+          dateMap.set(dateKey, []);
+        }
+        dateMap.get(dateKey)!.push(value);
+      }
+    });
+  });
+
+  // Calculate mean and standard deviation for each date
+  const results: AveragedShadowData[] = [];
+
+  dateMap.forEach((values, dateKey) => {
+    if (values.length === 0) return;
+
+    // Calculate mean
+    const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+
+    // Calculate standard deviation
+    let variance = 0;
+    if (values.length > 1) {
+      const squaredDiffs = values.map(val => Math.pow(val - mean, 2));
+      variance = squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
+    }
+    const stdDev = Math.sqrt(variance);
+
+    results.push({
+      date: new Date(dateKey),
+      mean,
+      stdDev
+    });
+  });
+
+  // Sort by date
+  results.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  return results;
+}
