@@ -20,6 +20,8 @@ interface HoverData {
   value: number;
   rawValue?: number;
   precision?: number;
+  shadowValue?: number;
+  shadowLabel?: string;
 }
 
 // Helper function to determine decimal precision from a number
@@ -37,12 +39,133 @@ function formatWithPrecision(num: number, precision: number): string {
   });
 }
 
+// Helper function to find shadow value for a given date
+function findShadowValue(
+  date: Date,
+  shadowsData: Array<{ shadow: Shadow; data: Array<{ date: Date; value: number }> }>,
+  averagedShadowData?: Array<{ date: Date; mean: number; stdDev: number }>,
+  useAverage?: boolean
+): number | undefined {
+  // If using averaged shadow data
+  if (useAverage && averagedShadowData && averagedShadowData.length > 0) {
+    const dateTime = date.getTime();
+    const point = averagedShadowData.find(p => {
+      const diff = Math.abs(p.date.getTime() - dateTime);
+      // Allow 1 day tolerance for matching
+      return diff < 24 * 60 * 60 * 1000;
+    });
+    return point?.mean;
+  }
+
+  // Otherwise use the first enabled shadow
+  if (shadowsData.length === 0) return undefined;
+
+  const shadowData = shadowsData[0];
+  if (!shadowData) return undefined;
+
+  // Find the data point matching this date (with tolerance for time differences)
+  const dateTime = date.getTime();
+  const point = shadowData.data.find(p => {
+    const diff = Math.abs(p.date.getTime() - dateTime);
+    // Allow 1 day tolerance for matching
+    return diff < 24 * 60 * 60 * 1000;
+  });
+
+  return point?.value;
+}
+
+// Helper function to detect expected interval between dates (in milliseconds)
+function detectInterval(data: Array<{ date: Date; value: number }>): number {
+  if (data.length < 2) return 0;
+
+  // Calculate intervals between consecutive points
+  const intervals: number[] = [];
+  for (let i = 1; i < Math.min(data.length, 10); i++) {
+    intervals.push(data[i].date.getTime() - data[i - 1].date.getTime());
+  }
+
+  // Find the most common interval (mode)
+  const intervalCounts = new Map<number, number>();
+  intervals.forEach(interval => {
+    intervalCounts.set(interval, (intervalCounts.get(interval) || 0) + 1);
+  });
+
+  let maxCount = 0;
+  let commonInterval = 0;
+  intervalCounts.forEach((count, interval) => {
+    if (count > maxCount) {
+      maxCount = count;
+      commonInterval = interval;
+    }
+  });
+
+  return commonInterval;
+}
+
+// Helper function to fill gaps in data with null values
+function fillGapsWithNulls(
+  data: Array<{ date: Date; value: number }>,
+  threshold: number = 1.5
+): Array<{ date: Date; value: number | null }> {
+  if (data.length < 2) return data;
+
+  const expectedInterval = detectInterval(data);
+  if (expectedInterval === 0) return data;
+
+  const result: Array<{ date: Date; value: number | null }> = [];
+
+  for (let i = 0; i < data.length; i++) {
+    result.push(data[i]);
+
+    // Check if there's a gap to the next point
+    if (i < data.length - 1) {
+      const currentTime = data[i].date.getTime();
+      const nextTime = data[i + 1].date.getTime();
+      const actualInterval = nextTime - currentTime;
+
+      // If gap is larger than threshold * expected interval, insert null
+      if (actualInterval > expectedInterval * threshold) {
+        // Insert null point right after current point
+        result.push({
+          date: new Date(currentTime + expectedInterval),
+          value: null
+        });
+        // Insert null point right before next point
+        result.push({
+          date: new Date(nextTime - expectedInterval),
+          value: null
+        });
+      }
+    }
+  }
+
+  return result;
+}
+
+// Helper function to generate averaged shadow label
+function getAveragedShadowLabel(shadows: Shadow[]): string {
+  const enabledShadows = shadows.filter(s => s.enabled);
+  if (enabledShadows.length === 0) return '';
+
+  // Get the period and unit from the first shadow (assuming they're all the same type)
+  const period = enabledShadows[0].periods;
+  const unit = enabledShadows[0].unit;
+  const count = enabledShadows.length;
+
+  // Format: "avg of 5 2-month periods" or "3-year average" (if period is 1)
+  if (period > 1) {
+    return `avg of ${count} ${period}-${unit} periods`;
+  } else {
+    return `${count}-${unit} average`;
+  }
+}
+
 export function TimeSeriesChart({
   series,
   smoothingConfig,
   shadows = [],
   averageShadows = false,
-  width = 650,
+  width = 400,
   height = 500
 }: TimeSeriesChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -113,6 +236,9 @@ export function TimeSeriesChart({
       value: d.numerator / d.denominator
     }));
 
+    // Fill gaps with null values to create visual breaks in the line
+    const dataWithGaps = fillGapsWithNulls(dataWithValues);
+
     // Calculate the maximum precision from the raw data
     const dataPrecision = Math.max(
       ...dataWithValues.slice(0, 100).map(d => getDecimalPrecision(d.value))
@@ -137,6 +263,16 @@ export function TimeSeriesChart({
     // Generate shadow data
     const shadowsData = generateShadowsData(series.data, shadows);
 
+    // Convert shadow data to include calculated values for comparison
+    const shadowsDataWithValues = shadowsData.map(sd => ({
+      shadow: sd.shadow,
+      data: sd.data.map(d => ({
+        date: d.date,
+        value: d.numerator / d.denominator
+      })),
+      color: sd.color
+    }));
+
     // Calculate averaged shadow data if enabled
     const averagedShadowData = averageShadows && shadowsData.length > 1
       ? calculateShadowAverage(shadowsData)
@@ -150,9 +286,26 @@ export function TimeSeriesChart({
     // Initialize hover data with most recent point if not already set
     if (!hoverData && displayData.length > 0) {
       const mostRecent = displayData[displayData.length - 1];
+
+      // Find shadow value and label for comparison
+      const shadowValue = findShadowValue(
+        mostRecent.date,
+        shadowsDataWithValues,
+        averagedShadowData,
+        averageShadows
+      );
+      const shadowLabel = averageShadows && shadowsDataWithValues.length > 1
+        ? getAveragedShadowLabel(shadows)
+        : shadowsDataWithValues.length > 0
+        ? shadowsDataWithValues[0].shadow.label
+        : undefined;
+
       setHoverData({
         date: mostRecent.date.toLocaleDateString(),
-        value: mostRecent.value
+        value: mostRecent.value,
+        precision: dataPrecision,
+        shadowValue,
+        shadowLabel
       });
     }
 
@@ -175,9 +328,10 @@ export function TimeSeriesChart({
 
     // Create line generator
     const line = d3
-      .line<typeof dataWithValues[0]>()
+      .line<{ date: Date; value: number | null }>()
       .x(d => xScale(d.date))
-      .y(d => yScale(d.value))
+      .y(d => yScale(d.value as number))
+      .defined(d => d.value != null && !isNaN(d.value) && isFinite(d.value))
       .curve(d3.curveLinear);
 
     // Draw axes
@@ -201,6 +355,7 @@ export function TimeSeriesChart({
         .x(d => xScale(d.date))
         .y0(d => yScale(Math.max(0, d.mean - d.stdDev)))
         .y1(d => yScale(d.mean + d.stdDev))
+        .defined(d => d.mean != null && d.stdDev != null && !isNaN(d.mean) && isFinite(d.mean) && !isNaN(d.stdDev) && isFinite(d.stdDev))
         .curve(d3.curveLinear);
 
       chartGroup.append('path')
@@ -215,6 +370,7 @@ export function TimeSeriesChart({
         .line<typeof averagedShadowData[0]>()
         .x(d => xScale(d.date))
         .y(d => yScale(d.mean))
+        .defined(d => d.mean != null && !isNaN(d.mean) && isFinite(d.mean))
         .curve(d3.curveLinear);
 
       chartGroup.append('path')
@@ -272,9 +428,9 @@ export function TimeSeriesChart({
         .attr('stroke-width', 2)
         .attr('d', line);
     } else {
-      // Draw regular line (no smoothing)
+      // Draw regular line (no smoothing) with gaps
       chartGroup.append('path')
-        .datum(dataWithValues)
+        .datum(dataWithGaps)
         .attr('class', 'line')
         .attr('fill', 'none')
         .attr('stroke', '#2563eb')
@@ -322,28 +478,35 @@ export function TimeSeriesChart({
       .attr('pointer-events', 'all')
       .style('cursor', 'crosshair');
 
-    // Bisector for finding closest data point
-    const bisect = d3.bisector<typeof dataWithValues[0], Date>(d => d.date).left;
+    // Bisector for finding closest data point (including gaps)
+    const bisect = d3.bisector<{ date: Date; value: number | null }, Date>(d => d.date).left;
 
     // Mouse move handler
     overlay.on('mousemove', function(event) {
       const [mouseX] = d3.pointer(event);
-      const x0 = xScale.invert(mouseX);
-      const index = bisect(displayData, x0, 1);
-      const d0 = displayData[index - 1];
-      const d1 = displayData[index];
+      const hoveredDate = xScale.invert(mouseX);
 
-      // Find closest point
-      const d = !d1 ? d0 : x0.getTime() - d0.date.getTime() > d1.date.getTime() - x0.getTime() ? d1 : d0;
+      // Always show the vertical line at mouse position
+      hoverLine
+        .attr('x1', mouseX)
+        .attr('x2', mouseX)
+        .style('opacity', 1);
 
-      if (d) {
+      // Search within dataWithGaps to find if we're in a gap
+      const index = bisect(dataWithGaps, hoveredDate, 1);
+      const d0 = dataWithGaps[index - 1];
+      const d1 = dataWithGaps[index];
+
+      // Find closest point in dataWithGaps (which includes null points for gaps)
+      const d = !d1 ? d0 : !d0 ? d1 :
+        hoveredDate.getTime() - d0.date.getTime() > d1.date.getTime() - hoveredDate.getTime() ? d1 : d0;
+
+      // Check if we're hovering over a real data point or a gap
+      const hasValue = d && d.value != null && !isNaN(d.value);
+
+      if (hasValue) {
         const x = xScale(d.date);
-        const y = yScale(d.value);
-
-        hoverLine
-          .attr('x1', x)
-          .attr('x2', x)
-          .style('opacity', 1);
+        const y = yScale(d.value as number);
 
         hoverCircle
           .attr('cx', x)
@@ -368,10 +531,36 @@ export function TimeSeriesChart({
           hoverCircleRaw.style('opacity', 0);
         }
 
+        // Find shadow value and label for comparison
+        const shadowValue = findShadowValue(
+          d.date,
+          shadowsDataWithValues,
+          averagedShadowData,
+          averageShadows
+        );
+        const shadowLabel = averageShadows && shadowsDataWithValues.length > 1
+          ? getAveragedShadowLabel(shadows)
+          : shadowsDataWithValues.length > 0
+          ? shadowsDataWithValues[0].shadow.label
+          : undefined;
+
         setHoverData({
           date: d.date.toLocaleDateString(),
-          value: d.value,
+          value: d.value as number,
           rawValue,
+          precision: dataPrecision,
+          shadowValue,
+          shadowLabel
+        });
+      } else {
+        // Hovering over a gap - hide circles but show date
+        hoverCircle.style('opacity', 0);
+        hoverCircleRaw.style('opacity', 0);
+
+        // Show the date we're hovering over even if there's no data
+        setHoverData({
+          date: hoveredDate.toLocaleDateString(),
+          value: NaN, // Use NaN to indicate no data
           precision: dataPrecision
         });
       }
@@ -391,11 +580,26 @@ export function TimeSeriesChart({
           rawValue = rawPoint?.value;
         }
 
+        // Find shadow value and label for comparison
+        const shadowValue = findShadowValue(
+          mostRecent.date,
+          shadowsDataWithValues,
+          averagedShadowData,
+          averageShadows
+        );
+        const shadowLabel = averageShadows && shadowsDataWithValues.length > 1
+          ? getAveragedShadowLabel(shadows)
+          : shadowsDataWithValues.length > 0
+          ? shadowsDataWithValues[0].shadow.label
+          : undefined;
+
         setHoverData({
           date: mostRecent.date.toLocaleDateString(),
           value: mostRecent.value,
           rawValue,
-          precision: dataPrecision
+          precision: dataPrecision,
+          shadowValue,
+          shadowLabel
         });
       }
     });
@@ -578,12 +782,14 @@ export function TimeSeriesChart({
           .x(d => xScale(d.date))
           .y0(d => yScale(Math.max(0, d.mean - d.stdDev)))
           .y1(d => yScale(d.mean + d.stdDev))
+          .defined(d => d.mean != null && d.stdDev != null && !isNaN(d.mean) && isFinite(d.mean) && !isNaN(d.stdDev) && isFinite(d.stdDev))
           .curve(d3.curveLinear);
 
         const meanLine = d3
           .line<typeof averagedShadowData[0]>()
           .x(d => xScale(d.date))
           .y(d => yScale(d.mean))
+          .defined(d => d.mean != null && !isNaN(d.mean) && isFinite(d.mean))
           .curve(d3.curveLinear);
 
         g.select('.shadow-std-area')
@@ -600,6 +806,50 @@ export function TimeSeriesChart({
     }
 
   }, [series, smoothingConfig, shadows, averageShadows, currentDomain, chartWidth, height]);
+
+  // Update hover data when shadows or averageShadows change
+  useEffect(() => {
+    if (!hoverData) return;
+
+    // Recalculate shadow data
+    const shadowsData = generateShadowsData(series.data, shadows);
+    const shadowsDataWithValues = shadowsData.map(sd => ({
+      shadow: sd.shadow,
+      data: sd.data.map(d => ({
+        date: d.date,
+        value: d.numerator / d.denominator
+      })),
+      color: sd.color
+    }));
+
+    // Calculate averaged shadow data if enabled
+    const averagedShadowData = averageShadows && shadowsData.length > 1
+      ? calculateShadowAverage(shadowsData)
+      : [];
+
+    // Parse the date back from the string
+    const currentDate = new Date(hoverData.date);
+
+    // Find shadow value and label for the current hover date
+    const shadowValue = findShadowValue(
+      currentDate,
+      shadowsDataWithValues,
+      averagedShadowData,
+      averageShadows
+    );
+    const shadowLabel = averageShadows && shadowsDataWithValues.length > 1
+      ? getAveragedShadowLabel(shadows)
+      : shadowsDataWithValues.length > 0
+      ? shadowsDataWithValues[0].shadow.label
+      : undefined;
+
+    // Update hover data with new shadow information
+    setHoverData({
+      ...hoverData,
+      shadowValue,
+      shadowLabel
+    });
+  }, [shadows, series.data, averageShadows]);
 
   return (
     <div className="relative">
@@ -620,7 +870,7 @@ export function TimeSeriesChart({
           <svg ref={svgRef} className="border border-gray-200 rounded-lg bg-white" />
         </div>
         {/* Info panels - 2 columns x 3 rows */}
-        <div className="grid grid-cols-2 gap-2 content-start flex-shrink-0" style={{ width: '300px' }}>
+        <div className="grid grid-cols-2 gap-2 content-start flex-shrink-0" style={{ width: '600px' }}>
           {/* Panel 1 - Current position data */}
           <div className="bg-white border border-gray-300 rounded-lg p-3 h-[100px] flex flex-col">
             <div className="text-xs font-semibold text-gray-500 mb-1">Selection</div>
@@ -631,7 +881,14 @@ export function TimeSeriesChart({
                   {hoverData?.date || '—'}
                 </span>
               </div>
-              {hoverData?.rawValue !== undefined ? (
+              {hoverData && isNaN(hoverData.value) ? (
+                <div className="text-gray-600">
+                  <span className="font-medium">Value:</span>{' '}
+                  <span className="font-semibold text-gray-500 italic">
+                    No data
+                  </span>
+                </div>
+              ) : hoverData?.rawValue !== undefined ? (
                 <>
                   <div className="text-gray-600">
                     <span className="font-medium">Point:</span>{' '}
@@ -656,8 +913,51 @@ export function TimeSeriesChart({
               )}
             </div>
           </div>
-          {/* Panels 2-6 */}
-          {[2, 3, 4, 5, 6].map(num => (
+          {/* Panel 2 */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 h-[100px] flex items-center justify-center">
+            <div className="text-xs text-gray-400">Panel 2</div>
+          </div>
+
+          {/* Panel 3 - Shadow Comparison */}
+          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[100px] flex flex-col col-span-1">
+            {hoverData?.shadowValue !== undefined && hoverData?.shadowLabel ? (
+              <>
+                <div className="text-xs font-semibold text-gray-500 mb-1">
+                  vs. {hoverData.shadowLabel}
+                </div>
+                <div className="font-mono text-xs space-y-1 flex-1 flex flex-col justify-center">
+                  <div className="text-gray-600">
+                    <span className="font-medium">Difference (%):</span>{' '}
+                    <span className={`font-semibold ${
+                      ((hoverData.value - hoverData.shadowValue) / hoverData.shadowValue * 100) >= 0
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}>
+                      {((hoverData.value - hoverData.shadowValue) / hoverData.shadowValue * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="text-gray-600">
+                    <span className="font-medium">Delta:</span>{' '}
+                    <span className={`font-semibold ${
+                      (hoverData.value - hoverData.shadowValue) >= 0
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}>
+                      {(hoverData.value - hoverData.shadowValue) >= 0 ? '+' : ''}
+                      {formatWithPrecision(hoverData.value - hoverData.shadowValue, hoverData.precision || 0)}
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-xs text-gray-400">No shadow selected</div>
+              </div>
+            )}
+          </div>
+
+          {/* Panels 4-6 */}
+          {[4, 5, 6].map(num => (
             <div key={num} className="bg-gray-50 border border-gray-200 rounded-lg p-3 h-[100px] flex items-center justify-center">
               <div className="text-xs text-gray-400">Panel {num}</div>
             </div>
