@@ -3,14 +3,17 @@ import * as d3 from 'd3';
 import type { Series, TimeSeriesPoint } from '../types/series';
 import type { SmoothingConfig } from '../utils/smoothing';
 import type { Shadow } from '../types/shadow';
+import type { Goal } from '../types/goal';
 import { calculateRollingAverage } from '../utils/smoothing';
 import { generateShadowsData, calculateShadowAverage } from '../utils/shadows';
+import { generateGoalsData } from '../utils/goals';
 
 interface TimeSeriesChartProps {
   series: Series;
   smoothingConfig?: SmoothingConfig;
   shadows?: Shadow[];
   averageShadows?: boolean;
+  goals?: Goal[];
   width?: number;
   height?: number;
   onSeriesUpdate?: (series: Series) => void;
@@ -23,6 +26,8 @@ interface HoverData {
   precision?: number;
   shadowValue?: number;
   shadowLabel?: string;
+  goalValue?: number;
+  goalLabel?: string;
 }
 
 // Helper function to determine decimal precision from a number
@@ -38,6 +43,60 @@ function formatWithPrecision(num: number, precision: number): string {
     minimumFractionDigits: precision,
     maximumFractionDigits: precision
   });
+}
+
+// Helper function to find goal value for a given date
+function findGoalValue(
+  date: Date,
+  goalsData: Array<{ goal: Goal; data: Array<{ date: Date; value: number }> }>,
+  selectedIndex: number = 0
+): number | undefined {
+  if (goalsData.length === 0) return undefined;
+
+  const goalData = goalsData[selectedIndex];
+  if (!goalData || goalData.data.length === 0) return undefined;
+
+  // For continuous goals (only 2 points), return the constant value if date is within range
+  if (goalData.goal.type === 'continuous' && goalData.data.length === 2) {
+    const startDate = goalData.data[0].date;
+    const endDate = goalData.data[1].date;
+    if (date >= startDate && date <= endDate) {
+      return goalData.data[0].value; // Constant value
+    }
+  }
+
+  // For end-of-period goals, find the closest point or interpolate
+  const dateTime = date.getTime();
+
+  // First try exact match with tolerance
+  const exactMatch = goalData.data.find(p => {
+    const diff = Math.abs(p.date.getTime() - dateTime);
+    return diff < 24 * 60 * 60 * 1000; // 1 day tolerance
+  });
+
+  if (exactMatch) return exactMatch.value;
+
+  // If no exact match, find surrounding points and interpolate
+  let before = null;
+  let after = null;
+
+  for (let i = 0; i < goalData.data.length - 1; i++) {
+    if (goalData.data[i].date <= date && goalData.data[i + 1].date >= date) {
+      before = goalData.data[i];
+      after = goalData.data[i + 1];
+      break;
+    }
+  }
+
+  if (before && after) {
+    // Linear interpolation
+    const totalTime = after.date.getTime() - before.date.getTime();
+    const elapsedTime = dateTime - before.date.getTime();
+    const ratio = elapsedTime / totalTime;
+    return before.value + (after.value - before.value) * ratio;
+  }
+
+  return undefined;
 }
 
 // Helper function to find shadow value for a given date
@@ -166,6 +225,7 @@ export function TimeSeriesChart({
   smoothingConfig,
   shadows = [],
   averageShadows = false,
+  goals = [],
   width = 400,
   height = 500,
   onSeriesUpdate
@@ -180,6 +240,7 @@ export function TimeSeriesChart({
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedName, setEditedName] = useState(series.metadata.name);
   const [editedDescription, setEditedDescription] = useState(series.metadata.description || '');
+  const [selectedGoalIndex, setSelectedGoalIndex] = useState(0);
 
   // Update chart width when container resizes
   useEffect(() => {
@@ -290,6 +351,19 @@ export function TimeSeriesChart({
       ? calculateShadowAverage(shadowsData)
       : [];
 
+    // Generate goal data
+    const goalsData = generateGoalsData(series.data, goals);
+
+    // Convert goal data to include calculated values for comparison
+    const goalsDataWithValues = goalsData.map(gd => ({
+      goal: gd.goal,
+      data: gd.data.map(d => ({
+        date: d.date,
+        value: d.numerator / d.denominator
+      })),
+      color: gd.color
+    }));
+
     // Initialize hover data with most recent point if not already set
     if (!hoverData && displayData.length > 0) {
       const mostRecent = displayData[displayData.length - 1];
@@ -307,17 +381,34 @@ export function TimeSeriesChart({
         ? shadowsDataWithValues[0].shadow.label
         : undefined;
 
+      // Find goal value and label for comparison
+      const goalValue = findGoalValue(mostRecent.date, goalsDataWithValues, selectedGoalIndex);
+      const goalLabel = goalsDataWithValues[selectedGoalIndex]?.goal.label;
+
       setHoverData({
         date: mostRecent.date.toLocaleDateString(),
         value: mostRecent.value,
         precision: dataPrecision,
         shadowValue,
-        shadowLabel
+        shadowLabel,
+        goalValue,
+        goalLabel
       });
     }
 
     // Get full extent and use current domain if zoomed
-    const fullExtent = d3.extent(dataWithValues, d => d.date) as [Date, Date];
+    // Include goal dates in the extent calculation
+    let fullExtent = d3.extent(dataWithValues, d => d.date) as [Date, Date];
+
+    // Extend the extent if goals go beyond the data range
+    goalsData.forEach(goalData => {
+      if (goalData.data.length > 0) {
+        const goalExtent = d3.extent(goalData.data, d => d.date) as [Date, Date];
+        if (goalExtent[0] < fullExtent[0]) fullExtent[0] = goalExtent[0];
+        if (goalExtent[1] > fullExtent[1]) fullExtent[1] = goalExtent[1];
+      }
+    });
+
     const initialDomain = currentDomain || fullExtent;
 
     const xScale = d3
@@ -325,8 +416,25 @@ export function TimeSeriesChart({
       .domain(initialDomain)
       .range([0, innerWidth]);
 
-    // Use currentYDomain if zoomed, otherwise calculate from data
-    const yDomain = currentYDomain || [0, d3.max(dataWithValues, d => d.value) as number * 1.1];
+    // Use currentYDomain if zoomed, otherwise calculate from data and goals
+    let yDomain: [number, number];
+    if (currentYDomain) {
+      yDomain = currentYDomain;
+    } else {
+      // Get max from data
+      const dataMax = d3.max(dataWithValues, d => d.value) as number;
+
+      // Get max from goals
+      let goalMax = 0;
+      goalsDataWithValues.forEach(gd => {
+        const gdMax = d3.max(gd.data, d => d.value) as number;
+        if (gdMax > goalMax) goalMax = gdMax;
+      });
+
+      // Use the higher of data max or goal max, with 10% padding
+      const overallMax = Math.max(dataMax, goalMax) * 1.1;
+      yDomain = [0, overallMax];
+    }
 
     const yScale = d3
       .scaleLinear()
@@ -426,6 +534,79 @@ export function TimeSeriesChart({
         }
       });
     }
+
+    // Draw goals (after shadows, before primary series)
+    goalsData.forEach(goalData => {
+      const goalValues = goalData.data
+        .map(d => ({
+          date: d.date,
+          value: d.numerator / d.denominator
+        }))
+        .filter(d => !isNaN(d.value) && isFinite(d.value));
+
+      if (goalValues.length > 0) {
+        // Create line generator for goals
+        const goalLine = d3
+          .line<{ date: Date; value: number }>()
+          .x(d => xScale(d.date))
+          .y(d => yScale(d.value))
+          .defined(d => !isNaN(d.value) && isFinite(d.value))
+          .curve(d3.curveLinear);
+
+        chartGroup.append('path')
+          .datum(goalValues)
+          .attr('class', `goal-line-${goalData.goal.id}`)
+          .attr('fill', 'none')
+          .attr('stroke', goalData.color)
+          .attr('stroke-width', 2)
+          .attr('stroke-dasharray', '5,5') // Dashed line
+          .attr('opacity', 0.8)
+          .attr('d', goalLine);
+
+        // Add text label for the goal
+        if (goalData.goal.type === 'continuous') {
+          // For continuous goals, place label on the right side of y-axis (inside chart), above the line
+          const yPosition = yScale(goalValues[0].value);
+          chartGroup.append('text')
+            .attr('class', `goal-label-${goalData.goal.id}`)
+            .attr('x', 5)
+            .attr('y', yPosition - 5)
+            .attr('text-anchor', 'start')
+            .attr('font-size', '10px')
+            .attr('fill', goalData.color)
+            .attr('font-weight', 'bold')
+            .text(goalData.goal.label);
+        } else if (goalData.goal.type === 'end-of-period') {
+          // For end-of-period goals, place label above and to the left of the end point
+          const lastPoint = goalValues[goalValues.length - 1];
+          const xPosition = xScale(lastPoint.date);
+          const yPosition = yScale(lastPoint.value);
+
+          const labelWidth = goalData.goal.label.length * 6 + 4;
+
+          // Add background rectangle for better visibility
+          chartGroup.append('rect')
+            .attr('class', `goal-label-bg-${goalData.goal.id}`)
+            .attr('x', xPosition - labelWidth - 5)
+            .attr('y', yPosition - 18)
+            .attr('width', labelWidth)
+            .attr('height', 14)
+            .attr('fill', 'white')
+            .attr('opacity', 0.8)
+            .attr('rx', 2);
+
+          chartGroup.append('text')
+            .attr('class', `goal-label-${goalData.goal.id}`)
+            .attr('x', xPosition - 7)
+            .attr('y', yPosition - 8)
+            .attr('text-anchor', 'end')
+            .attr('font-size', '10px')
+            .attr('fill', goalData.color)
+            .attr('font-weight', 'bold')
+            .text(goalData.goal.label);
+        }
+      }
+    });
 
     // If smoothing is enabled, draw original data as points
     if (smoothingConfig?.enabled && smoothedDataWithValues.length > 0) {
@@ -575,13 +756,19 @@ export function TimeSeriesChart({
           ? shadowsDataWithValues[0].shadow.label
           : undefined;
 
+        // Find goal value and label for comparison
+        const goalValue = findGoalValue(d.date, goalsDataWithValues, selectedGoalIndex);
+        const goalLabel = goalsDataWithValues[selectedGoalIndex]?.goal.label;
+
         setHoverData({
           date: d.date.toLocaleDateString(),
           value: d.value as number,
           rawValue,
           precision: dataPrecision,
           shadowValue,
-          shadowLabel
+          shadowLabel,
+          goalValue,
+          goalLabel
         });
       } else {
         // Hovering over a gap - hide circles but show date
@@ -624,13 +811,19 @@ export function TimeSeriesChart({
           ? shadowsDataWithValues[0].shadow.label
           : undefined;
 
+        // Find goal value and label for comparison
+        const goalValue = findGoalValue(mostRecent.date, goalsDataWithValues, selectedGoalIndex);
+        const goalLabel = goalsDataWithValues[selectedGoalIndex]?.goal.label;
+
         setHoverData({
           date: mostRecent.date.toLocaleDateString(),
           value: mostRecent.value,
           rawValue,
           precision: dataPrecision,
           shadowValue,
-          shadowLabel
+          shadowLabel,
+          goalValue,
+          goalLabel
         });
       }
     });
@@ -678,7 +871,6 @@ export function TimeSeriesChart({
       .on('mousemove', function(event) {
         // Forward mousemove events to overlay when not brushing
         if (!event.buttons) {
-          const [mouseX, mouseY] = d3.pointer(event);
           const overlayEvent = new MouseEvent('mousemove', {
             bubbles: true,
             clientX: event.clientX,
@@ -688,9 +880,9 @@ export function TimeSeriesChart({
         }
       });
 
-    // Shift + click + drag for panning (both x and y axes)
+    // Alt + click + drag for panning (both x and y axes)
     svg.on('mousedown', function(event) {
-      if (!event.shiftKey) return;
+      if (!event.altKey) return;
 
       event.preventDefault();
 
@@ -707,8 +899,8 @@ export function TimeSeriesChart({
       const fullYExtent = [0, d3.max(dataWithValues, d => d.value) as number * 1.1];
 
       function onMouseMove(e: MouseEvent) {
-        // Stop panning if shift key is released or mouse button released
-        if (!e.shiftKey || e.buttons === 0) {
+        // Stop panning if alt key is released or mouse button released
+        if (!e.altKey || e.buttons === 0) {
           cleanup();
           return;
         }
@@ -874,6 +1066,46 @@ export function TimeSeriesChart({
       g.selectAll('[class^="shadow-line-"]')
         .attr('d', line as any);
 
+      // Update goals
+      g.selectAll('[class^="goal-line-"]')
+        .attr('d', (d: any) => {
+          const goalLine = d3
+            .line<{ date: Date; value: number }>()
+            .x(d => xScale(d.date))
+            .y(d => yScale(d.value))
+            .defined(d => !isNaN(d.value) && isFinite(d.value))
+            .curve(d3.curveLinear);
+          return goalLine(d);
+        });
+
+      // Update goal labels
+      goalsData.forEach(goalData => {
+        const goalValues = goalData.data
+          .map(d => ({
+            date: d.date,
+            value: d.numerator / d.denominator
+          }))
+          .filter(d => !isNaN(d.value) && isFinite(d.value));
+
+        if (goalValues.length > 0) {
+          if (goalData.goal.type === 'continuous') {
+            const yPosition = yScale(goalValues[0].value);
+            chartGroup.select(`.goal-label-${goalData.goal.id}`)
+              .attr('y', yPosition - 5);
+          } else if (goalData.goal.type === 'end-of-period') {
+            const lastPoint = goalValues[goalValues.length - 1];
+            const xPosition = xScale(lastPoint.date);
+            const yPosition = yScale(lastPoint.value);
+            chartGroup.select(`.goal-label-bg-${goalData.goal.id}`)
+              .attr('x', xPosition + 5)
+              .attr('y', yPosition - 18);
+            chartGroup.select(`.goal-label-${goalData.goal.id}`)
+              .attr('x', xPosition + 7)
+              .attr('y', yPosition - 8);
+          }
+        }
+      });
+
       // Update averaged shadow if present
       if (averageShadows && averagedShadowData.length > 0) {
         const area = d3
@@ -923,7 +1155,7 @@ export function TimeSeriesChart({
       }
     }
 
-  }, [series, smoothingConfig, shadows, averageShadows, currentDomain, chartWidth, height]);
+  }, [series, smoothingConfig, shadows, averageShadows, goals, currentDomain, chartWidth, height, selectedGoalIndex]);
 
   // Update hover data when shadows or averageShadows change
   useEffect(() => {
@@ -1152,12 +1384,121 @@ export function TimeSeriesChart({
             )}
           </div>
 
-          {/* Panels 4-6 */}
-          {[4, 5, 6].map(num => (
-            <div key={num} className="bg-gray-50 border border-gray-200 rounded-lg p-3 h-[100px] flex items-center justify-center">
-              <div className="text-xs text-gray-400">Panel {num}</div>
-            </div>
-          ))}
+          {/* Panel 4 */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 h-[100px] flex items-center justify-center">
+            <div className="text-xs text-gray-400">Panel 4</div>
+          </div>
+
+          {/* Panel 5 - Goal Comparison */}
+          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[100px] flex flex-col col-span-1">
+            {hoverData?.goalValue !== undefined && hoverData?.goalLabel ? (
+              <>
+                <div className="text-xs font-semibold text-gray-500 mb-1 flex items-center justify-between">
+                  <span>vs. {hoverData.goalLabel}</span>
+                  {goals.filter(g => g.enabled).length > 1 && (
+                    <div className="flex gap-0.5 items-center">
+                      <button
+                        onClick={() => {
+                          const newIndex = Math.max(0, selectedGoalIndex - 1);
+                          setSelectedGoalIndex(newIndex);
+                          // Force re-render of hover data with new goal
+                          if (hoverData) {
+                            const goalsData = generateGoalsData(series.data, goals);
+                            const goalsDataWithValues = goalsData.map(gd => ({
+                              goal: gd.goal,
+                              data: gd.data.map(d => ({
+                                date: d.date,
+                                value: d.numerator / d.denominator
+                              })),
+                              color: gd.color
+                            }));
+                            const goalValue = findGoalValue(new Date(hoverData.date), goalsDataWithValues, newIndex);
+                            const goalLabel = goalsDataWithValues[newIndex]?.goal.label;
+                            setHoverData({
+                              ...hoverData,
+                              goalValue,
+                              goalLabel
+                            });
+                          }
+                        }}
+                        disabled={selectedGoalIndex === 0}
+                        className="p-0.5 text-gray-400 hover:text-gray-600 disabled:text-gray-200 disabled:cursor-not-allowed"
+                        title="Previous goal"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => {
+                          const newIndex = Math.min(goals.filter(g => g.enabled).length - 1, selectedGoalIndex + 1);
+                          setSelectedGoalIndex(newIndex);
+                          // Force re-render of hover data with new goal
+                          if (hoverData) {
+                            const goalsData = generateGoalsData(series.data, goals);
+                            const goalsDataWithValues = goalsData.map(gd => ({
+                              goal: gd.goal,
+                              data: gd.data.map(d => ({
+                                date: d.date,
+                                value: d.numerator / d.denominator
+                              })),
+                              color: gd.color
+                            }));
+                            const goalValue = findGoalValue(new Date(hoverData.date), goalsDataWithValues, newIndex);
+                            const goalLabel = goalsDataWithValues[newIndex]?.goal.label;
+                            setHoverData({
+                              ...hoverData,
+                              goalValue,
+                              goalLabel
+                            });
+                          }
+                        }}
+                        disabled={selectedGoalIndex === goals.filter(g => g.enabled).length - 1}
+                        className="p-0.5 text-gray-400 hover:text-gray-600 disabled:text-gray-200 disabled:cursor-not-allowed"
+                        title="Next goal"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="font-mono text-xs space-y-1 flex-1 flex flex-col justify-center">
+                  <div className="text-gray-600">
+                    <span className="font-medium">Difference (%):</span>{' '}
+                    <span className={`font-semibold ${
+                      ((hoverData.value - hoverData.goalValue) / hoverData.goalValue * 100) >= 0
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}>
+                      {((hoverData.value - hoverData.goalValue) / hoverData.goalValue * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="text-gray-600">
+                    <span className="font-medium">Delta:</span>{' '}
+                    <span className={`font-semibold ${
+                      (hoverData.value - hoverData.goalValue) >= 0
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}>
+                      {(hoverData.value - hoverData.goalValue) >= 0 ? '+' : ''}
+                      {formatWithPrecision(hoverData.value - hoverData.goalValue, hoverData.precision || 0)}
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-xs text-gray-400">No goal selected</div>
+              </div>
+            )}
+          </div>
+
+          {/* Panel 6 */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 h-[100px] flex items-center justify-center">
+            <div className="text-xs text-gray-400">Panel 6</div>
+          </div>
         </div>
       </div>
     </div>
