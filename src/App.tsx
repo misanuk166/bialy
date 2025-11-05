@@ -4,10 +4,14 @@ import { TimeSeriesChart } from './components/TimeSeriesChart';
 import { SmoothingControls } from './components/SmoothingControls';
 import { ShadowControls } from './components/ShadowControls';
 import { GoalControls } from './components/GoalControls';
+import { ForecastControls } from './components/ForecastControls';
+import { FocusPeriodControls } from './components/FocusPeriodControls';
 import type { Series } from './types/series';
 import type { SmoothingConfig } from './utils/smoothing';
 import type { Shadow } from './types/shadow';
 import type { Goal } from './types/goal';
+import type { ForecastConfig } from './types/forecast';
+import type { FocusPeriod } from './types/focusPeriod';
 
 function App() {
   const [series, setSeries] = useState<Series | null>(null);
@@ -19,6 +23,18 @@ function App() {
   const [shadows, setShadows] = useState<Shadow[]>([]);
   const [averageShadows, setAverageShadows] = useState(false);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [forecastConfig, setForecastConfig] = useState<ForecastConfig>({
+    enabled: false,
+    type: 'auto',
+    horizon: 30,
+    interpolation: 'linear',
+    seasonal: 'none',
+    showConfidenceIntervals: true,
+    confidenceLevel: 95
+  });
+  const [focusPeriod, setFocusPeriod] = useState<FocusPeriod>({
+    enabled: false
+  });
 
   // Load goals from localStorage when series is loaded
   useEffect(() => {
@@ -81,6 +97,15 @@ function App() {
                   goals={goals}
                   onChange={setGoals}
                 />
+                <ForecastControls
+                  config={forecastConfig}
+                  onChange={setForecastConfig}
+                />
+                <FocusPeriodControls
+                  focusPeriod={focusPeriod}
+                  onChange={setFocusPeriod}
+                  dataExtent={series.data.length > 0 ? [series.data[0].date, series.data[series.data.length - 1].date] : undefined}
+                />
               </div>
               <div className="w-full">
                 <TimeSeriesChart
@@ -89,6 +114,8 @@ function App() {
                   shadows={shadows}
                   averageShadows={averageShadows}
                   goals={goals}
+                  forecastConfig={forecastConfig}
+                  focusPeriod={focusPeriod}
                   onSeriesUpdate={setSeries}
                 />
               </div>

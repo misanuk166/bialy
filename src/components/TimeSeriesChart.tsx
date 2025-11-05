@@ -4,9 +4,12 @@ import type { Series, TimeSeriesPoint } from '../types/series';
 import type { SmoothingConfig } from '../utils/smoothing';
 import type { Shadow } from '../types/shadow';
 import type { Goal } from '../types/goal';
+import type { ForecastConfig } from '../types/forecast';
+import type { FocusPeriod } from '../types/focusPeriod';
 import { calculateRollingAverage } from '../utils/smoothing';
 import { generateShadowsData, calculateShadowAverage } from '../utils/shadows';
 import { generateGoalsData } from '../utils/goals';
+import { generateForecast } from '../utils/forecasting';
 
 interface TimeSeriesChartProps {
   series: Series;
@@ -14,6 +17,8 @@ interface TimeSeriesChartProps {
   shadows?: Shadow[];
   averageShadows?: boolean;
   goals?: Goal[];
+  forecastConfig?: ForecastConfig;
+  focusPeriod?: FocusPeriod;
   width?: number;
   height?: number;
   onSeriesUpdate?: (series: Series) => void;
@@ -28,6 +33,8 @@ interface HoverData {
   shadowLabel?: string;
   goalValue?: number;
   goalLabel?: string;
+  forecastValue?: number;
+  isForecast?: boolean;
 }
 
 // Helper function to determine decimal precision from a number
@@ -226,6 +233,8 @@ export function TimeSeriesChart({
   shadows = [],
   averageShadows = false,
   goals = [],
+  forecastConfig,
+  focusPeriod,
   width = 400,
   height = 500,
   onSeriesUpdate
@@ -241,6 +250,18 @@ export function TimeSeriesChart({
   const [editedName, setEditedName] = useState(series.metadata.name);
   const [editedDescription, setEditedDescription] = useState(series.metadata.description || '');
   const [selectedGoalIndex, setSelectedGoalIndex] = useState(0);
+  const [focusPeriodStats, setFocusPeriodStats] = useState<{
+    mean: number;
+    min: number;
+    max: number;
+    count: number;
+    precision: number;
+    label?: string;
+    shadowMean?: number;
+    shadowLabel?: string;
+    goalMean?: number;
+    goalLabel?: string;
+  } | null>(null);
 
   // Update chart width when container resizes
   useEffect(() => {
@@ -351,8 +372,16 @@ export function TimeSeriesChart({
       ? calculateShadowAverage(shadowsData)
       : [];
 
-    // Generate goal data
-    const goalsData = generateGoalsData(series.data, goals);
+    // Generate forecast data first so we can extend goals through it
+    const forecastResult = forecastConfig ? generateForecast(dataWithValues, forecastConfig) : null;
+
+    // Get forecast end date if available
+    const forecastEndDate = forecastResult && forecastResult.forecast.length > 0
+      ? forecastResult.forecast[forecastResult.forecast.length - 1].date
+      : undefined;
+
+    // Generate goal data (continuous goals will extend through forecast period)
+    const goalsData = generateGoalsData(series.data, goals, forecastEndDate);
 
     // Convert goal data to include calculated values for comparison
     const goalsDataWithValues = goalsData.map(gd => ({
@@ -363,6 +392,82 @@ export function TimeSeriesChart({
       })),
       color: gd.color
     }));
+
+    // Debug logging
+    if (forecastConfig?.enabled) {
+      console.log('Forecast config:', forecastConfig);
+      console.log('Forecast result:', forecastResult);
+      console.log('Data points:', dataWithValues.length);
+    }
+
+    // Calculate focus period statistics
+    if (focusPeriod?.enabled && focusPeriod.startDate && focusPeriod.endDate) {
+      const focusData = displayData.filter(d =>
+        d.date >= focusPeriod.startDate! && d.date <= focusPeriod.endDate!
+      );
+
+      if (focusData.length > 0) {
+        const values = focusData.map(d => d.value);
+        const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+
+        // Calculate shadow mean over focus period
+        let shadowMean: number | undefined;
+        let shadowLabel: string | undefined;
+        if (shadowsDataWithValues.length > 0 || (averageShadows && averagedShadowData.length > 0)) {
+          const shadowValues: number[] = [];
+          focusData.forEach(d => {
+            const shadowVal = findShadowValue(d.date, shadowsDataWithValues, averagedShadowData, averageShadows);
+            if (shadowVal !== undefined) {
+              shadowValues.push(shadowVal);
+            }
+          });
+          if (shadowValues.length > 0) {
+            shadowMean = shadowValues.reduce((sum, v) => sum + v, 0) / shadowValues.length;
+            shadowLabel = averageShadows && shadowsDataWithValues.length > 1
+              ? getAveragedShadowLabel(shadows)
+              : shadowsDataWithValues.length > 0
+              ? shadowsDataWithValues[0].shadow.label
+              : undefined;
+          }
+        }
+
+        // Calculate goal mean over focus period
+        let goalMean: number | undefined;
+        let goalLabel: string | undefined;
+        if (goalsDataWithValues.length > 0) {
+          const goalValues: number[] = [];
+          focusData.forEach(d => {
+            const goalVal = findGoalValue(d.date, goalsDataWithValues, selectedGoalIndex);
+            if (goalVal !== undefined) {
+              goalValues.push(goalVal);
+            }
+          });
+          if (goalValues.length > 0) {
+            goalMean = goalValues.reduce((sum, v) => sum + v, 0) / goalValues.length;
+            goalLabel = goalsDataWithValues[selectedGoalIndex]?.goal.label;
+          }
+        }
+
+        setFocusPeriodStats({
+          mean,
+          min,
+          max,
+          count: focusData.length,
+          precision: dataPrecision,
+          label: focusPeriod.label,
+          shadowMean,
+          shadowLabel,
+          goalMean,
+          goalLabel
+        });
+      } else {
+        setFocusPeriodStats(null);
+      }
+    } else {
+      setFocusPeriodStats(null);
+    }
 
     // Initialize hover data with most recent point if not already set
     if (!hoverData && displayData.length > 0) {
@@ -397,7 +502,7 @@ export function TimeSeriesChart({
     }
 
     // Get full extent and use current domain if zoomed
-    // Include goal dates in the extent calculation
+    // Include goal dates and forecast dates in the extent calculation
     let fullExtent = d3.extent(dataWithValues, d => d.date) as [Date, Date];
 
     // Extend the extent if goals go beyond the data range
@@ -409,7 +514,26 @@ export function TimeSeriesChart({
       }
     });
 
-    const initialDomain = currentDomain || fullExtent;
+    // Extend the extent if forecast goes beyond the data range
+    if (forecastResult && forecastResult.forecast.length > 0) {
+      const forecastExtent = d3.extent(forecastResult.forecast, d => d.date) as [Date, Date];
+      if (forecastExtent[1] > fullExtent[1]) fullExtent[1] = forecastExtent[1];
+    }
+
+    // If we have a current domain (zoomed/panned), extend it to include forecast
+    let initialDomain: [Date, Date];
+    if (currentDomain) {
+      initialDomain = [currentDomain[0], currentDomain[1]];
+      // Extend the right side to include forecast if needed
+      if (forecastResult && forecastResult.forecast.length > 0) {
+        const forecastEnd = forecastResult.forecast[forecastResult.forecast.length - 1].date;
+        if (forecastEnd > initialDomain[1]) {
+          initialDomain[1] = forecastEnd;
+        }
+      }
+    } else {
+      initialDomain = fullExtent;
+    }
 
     const xScale = d3
       .scaleTime()
@@ -431,8 +555,21 @@ export function TimeSeriesChart({
         if (gdMax > goalMax) goalMax = gdMax;
       });
 
-      // Use the higher of data max or goal max, with 10% padding
-      const overallMax = Math.max(dataMax, goalMax) * 1.1;
+      // Get max from forecast (including confidence intervals)
+      let forecastMax = 0;
+      if (forecastResult) {
+        const fMax = d3.max(forecastResult.forecast, d => d.value) as number;
+        if (fMax > forecastMax) forecastMax = fMax;
+
+        // Include confidence interval upper bound
+        if (forecastResult.confidenceIntervals) {
+          const ciMax = d3.max(forecastResult.confidenceIntervals.upper) as number;
+          if (ciMax > forecastMax) forecastMax = ciMax;
+        }
+      }
+
+      // Use the higher of data max, goal max, or forecast max, with 10% padding
+      const overallMax = Math.max(dataMax, goalMax, forecastMax) * 1.1;
       yDomain = [0, overallMax];
     }
 
@@ -475,6 +612,24 @@ export function TimeSeriesChart({
     g.append('g')
       .attr('class', 'y-axis')
       .call(yAxis);
+
+    // Draw focus period highlight (if enabled)
+    if (focusPeriod?.enabled && focusPeriod.startDate && focusPeriod.endDate) {
+      const startX = xScale(focusPeriod.startDate);
+      const endX = xScale(focusPeriod.endDate);
+
+      chartGroup.append('rect')
+        .attr('class', 'focus-period-highlight')
+        .attr('x', startX)
+        .attr('y', 0)
+        .attr('width', endX - startX)
+        .attr('height', innerHeight)
+        .attr('fill', '#fbbf24')
+        .attr('fill-opacity', 0.1)
+        .attr('stroke', '#fbbf24')
+        .attr('stroke-width', 1)
+        .attr('stroke-opacity', 0.3);
+    }
 
     // Draw shadows or averaged shadow (drawn first so they appear behind main line)
     if (averageShadows && averagedShadowData.length > 0) {
@@ -650,6 +805,82 @@ export function TimeSeriesChart({
         .attr('d', line);
     }
 
+    // Draw forecast if enabled
+    if (forecastResult && forecastResult.forecast.length > 0) {
+      console.log('Rendering forecast with', forecastResult.forecast.length, 'points');
+      console.log('First forecast point:', forecastResult.forecast[0]);
+      console.log('Last data point:', displayData[displayData.length - 1]);
+
+      // Draw confidence intervals first (as filled area)
+      if (forecastResult.confidenceIntervals) {
+        const areaGenerator = d3.area<{ date: Date; upper: number; lower: number }>()
+          .x(d => xScale(d.date))
+          .y0(d => yScale(d.lower))
+          .y1(d => yScale(d.upper));
+
+        const ciData = forecastResult.forecast.map((fp, i) => ({
+          date: fp.date,
+          upper: forecastResult.confidenceIntervals!.upper[i],
+          lower: forecastResult.confidenceIntervals!.lower[i]
+        }));
+
+        console.log('CI data sample:', ciData[0]);
+
+        chartGroup.append('path')
+          .datum(ciData)
+          .attr('class', 'forecast-confidence')
+          .attr('fill', '#93c5fd')
+          .attr('fill-opacity', 0.3)
+          .attr('d', areaGenerator);
+      }
+
+      // Create a line generator specifically for forecast (without null handling)
+      const forecastLine = d3
+        .line<{ date: Date; value: number }>()
+        .x(d => xScale(d.date))
+        .y(d => yScale(d.value))
+        .curve(d3.curveLinear);
+
+      // Connect last data point to first forecast point with a thin line
+      const lastDataPoint = displayData[displayData.length - 1];
+      const firstForecastPoint = forecastResult.forecast[0];
+
+      chartGroup.append('line')
+        .attr('class', 'forecast-connector')
+        .attr('x1', xScale(lastDataPoint.date))
+        .attr('y1', yScale(lastDataPoint.value))
+        .attr('x2', xScale(firstForecastPoint.date))
+        .attr('y2', yScale(firstForecastPoint.value))
+        .attr('stroke', '#3b82f6')
+        .attr('stroke-width', 1)
+        .attr('stroke-dasharray', '2,2')
+        .attr('opacity', 0.5);
+
+      // Draw forecast line (dashed)
+      const forecastPath = chartGroup.append('path')
+        .datum(forecastResult.forecast)
+        .attr('class', 'forecast-line')
+        .attr('fill', 'none')
+        .attr('stroke', '#3b82f6')
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', '5,5')
+        .attr('d', forecastLine);
+
+      // Draw forecast points (circles) for better visibility
+      chartGroup.selectAll('.forecast-point')
+        .data(forecastResult.forecast)
+        .enter()
+        .append('circle')
+        .attr('class', 'forecast-point')
+        .attr('cx', d => xScale(d.date))
+        .attr('cy', d => yScale(d.value))
+        .attr('r', 2)
+        .attr('fill', '#3b82f6')
+        .attr('opacity', 0.6);
+
+      console.log('Forecast path d attribute:', forecastPath.attr('d'));
+    }
+
     // Create hover line and circle in main group (not clipped)
     const hoverLine = g
       .append('line')
@@ -704,19 +935,79 @@ export function TimeSeriesChart({
         .attr('x2', mouseX)
         .style('opacity', 1);
 
-      // Search within dataWithGaps to find if we're in a gap
-      const index = bisect(dataWithGaps, hoveredDate, 1);
-      const d0 = dataWithGaps[index - 1];
-      const d1 = dataWithGaps[index];
+      // Check if we're hovering over the forecast period
+      const lastDataDate = displayData[displayData.length - 1]?.date;
+      const isForecastPeriod = forecastResult && lastDataDate && hoveredDate > lastDataDate;
 
-      // Find closest point in dataWithGaps (which includes null points for gaps)
-      const d = !d1 ? d0 : !d0 ? d1 :
-        hoveredDate.getTime() - d0.date.getTime() > d1.date.getTime() - hoveredDate.getTime() ? d1 : d0;
+      if (isForecastPeriod && forecastResult) {
+        // Find closest forecast point
+        const forecastBisect = d3.bisector<{ date: Date; value: number }, Date>(d => d.date).left;
+        const forecastIndex = forecastBisect(forecastResult.forecast, hoveredDate, 1);
+        const f0 = forecastResult.forecast[forecastIndex - 1];
+        const f1 = forecastResult.forecast[forecastIndex];
 
-      // Check if we're hovering over a real data point or a gap
-      const hasValue = d && d.value != null && !isNaN(d.value);
+        const closestForecast = !f1 ? f0 : !f0 ? f1 :
+          hoveredDate.getTime() - f0.date.getTime() > f1.date.getTime() - hoveredDate.getTime() ? f1 : f0;
 
-      if (hasValue) {
+        if (closestForecast) {
+          const x = xScale(closestForecast.date);
+          const y = yScale(closestForecast.value);
+
+          hoverCircle
+            .attr('cx', x)
+            .attr('cy', y)
+            .style('opacity', 1);
+
+          hoverCircleRaw.style('opacity', 0);
+
+          // Get the last actual value for comparison
+          const lastActualValue = displayData[displayData.length - 1].value;
+
+          // Find shadow value and label for comparison (for the forecast date)
+          const shadowValue = findShadowValue(
+            closestForecast.date,
+            shadowsDataWithValues,
+            averagedShadowData,
+            averageShadows
+          );
+          const shadowLabel = averageShadows && shadowsDataWithValues.length > 1
+            ? getAveragedShadowLabel(shadows)
+            : shadowsDataWithValues.length > 0
+            ? shadowsDataWithValues[0].shadow.label
+            : undefined;
+
+          // Find goal value and label for comparison (for the forecast date)
+          const goalValue = findGoalValue(closestForecast.date, goalsDataWithValues, selectedGoalIndex);
+          const goalLabel = goalsDataWithValues[selectedGoalIndex]?.goal.label;
+
+          setHoverData({
+            date: closestForecast.date.toLocaleDateString(),
+            value: closestForecast.value,
+            precision: dataPrecision,
+            forecastValue: closestForecast.value,
+            isForecast: true,
+            rawValue: lastActualValue, // Use last actual value as reference
+            shadowValue,
+            shadowLabel,
+            goalValue,
+            goalLabel
+          });
+        }
+      } else {
+        // Original logic for hovering over actual data
+        // Search within dataWithGaps to find if we're in a gap
+        const index = bisect(dataWithGaps, hoveredDate, 1);
+        const d0 = dataWithGaps[index - 1];
+        const d1 = dataWithGaps[index];
+
+        // Find closest point in dataWithGaps (which includes null points for gaps)
+        const d = !d1 ? d0 : !d0 ? d1 :
+          hoveredDate.getTime() - d0.date.getTime() > d1.date.getTime() - hoveredDate.getTime() ? d1 : d0;
+
+        // Check if we're hovering over a real data point or a gap
+        const hasValue = d && d.value != null && !isNaN(d.value);
+
+        if (hasValue) {
         const x = xScale(d.date);
         const y = yScale(d.value as number);
 
@@ -768,7 +1059,8 @@ export function TimeSeriesChart({
           shadowValue,
           shadowLabel,
           goalValue,
-          goalLabel
+          goalLabel,
+          isForecast: false
         });
       } else {
         // Hovering over a gap - hide circles but show date
@@ -779,8 +1071,10 @@ export function TimeSeriesChart({
         setHoverData({
           date: hoveredDate.toLocaleDateString(),
           value: NaN, // Use NaN to indicate no data
-          precision: dataPrecision
+          precision: dataPrecision,
+          isForecast: false
         });
+        }
       }
     });
 
@@ -1155,7 +1449,7 @@ export function TimeSeriesChart({
       }
     }
 
-  }, [series, smoothingConfig, shadows, averageShadows, goals, currentDomain, chartWidth, height, selectedGoalIndex]);
+  }, [series, smoothingConfig, shadows, averageShadows, goals, forecastConfig, focusPeriod, currentDomain, chartWidth, height, selectedGoalIndex]);
 
   // Update hover data when shadows or averageShadows change
   useEffect(() => {
@@ -1298,10 +1592,12 @@ export function TimeSeriesChart({
           </div>
         </div>
         {/* Info panels - 2 columns x 3 rows */}
-        <div className="grid grid-cols-2 gap-2 content-start flex-shrink-0" style={{ width: '600px' }}>
+        <div className="grid grid-cols-2 gap-2 content-start flex-shrink-0" style={{ width: '480px' }}>
           {/* Panel 1 - Current position data */}
           <div className="bg-white border border-gray-300 rounded-lg p-3 h-[100px] flex flex-col">
-            <div className="text-xs font-semibold text-gray-500 mb-1">Selection</div>
+            <div className="text-xs font-semibold text-gray-500 mb-1">
+              {hoverData?.isForecast ? 'Forecast' : 'Selection'}
+            </div>
             <div className="font-mono text-xs space-y-1 flex-1 flex flex-col justify-center">
               <div className="text-gray-600">
                 <span className="font-medium">Date:</span>{' '}
@@ -1316,6 +1612,27 @@ export function TimeSeriesChart({
                     No data
                   </span>
                 </div>
+              ) : hoverData?.isForecast ? (
+                <>
+                  <div className="text-gray-600">
+                    <span className="font-medium">Forecast:</span>{' '}
+                    <span className="font-semibold text-blue-600">
+                      {formatWithPrecision(hoverData.forecastValue || hoverData.value, hoverData.precision || 0)}
+                    </span>
+                  </div>
+                  {hoverData.rawValue !== undefined && (
+                    <div className="text-gray-600">
+                      <span className="font-medium">vs Current:</span>{' '}
+                      <span className={`font-semibold ${
+                        (hoverData.value - hoverData.rawValue) >= 0
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                      }`}>
+                        {((hoverData.value - hoverData.rawValue) / hoverData.rawValue * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  )}
+                </>
               ) : hoverData?.rawValue !== undefined ? (
                 <>
                   <div className="text-gray-600">
@@ -1341,9 +1658,33 @@ export function TimeSeriesChart({
               )}
             </div>
           </div>
-          {/* Panel 2 */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 h-[100px] flex items-center justify-center">
-            <div className="text-xs text-gray-400">Panel 2</div>
+          {/* Panel 2 - Focus Period Stats */}
+          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[100px] flex flex-col">
+            {focusPeriodStats ? (
+              <>
+                <div className="text-xs font-semibold text-gray-500 mb-1">
+                  {focusPeriodStats.label || 'Focus Period'}
+                </div>
+                <div className="font-mono text-xs space-y-1 flex-1 flex flex-col justify-center">
+                  <div className="text-gray-600">
+                    <span className="font-medium">Mean:</span>{' '}
+                    <span className="font-semibold text-gray-900">
+                      {formatWithPrecision(focusPeriodStats.mean, focusPeriodStats.precision)}
+                    </span>
+                  </div>
+                  <div className="text-gray-600">
+                    <span className="font-medium">Range:</span>{' '}
+                    <span className="font-semibold text-gray-900">
+                      {formatWithPrecision(focusPeriodStats.min, focusPeriodStats.precision)} - {formatWithPrecision(focusPeriodStats.max, focusPeriodStats.precision)}
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-xs text-gray-400">No focus period</div>
+              </div>
+            )}
           </div>
 
           {/* Panel 3 - Shadow Comparison */}
@@ -1357,22 +1698,22 @@ export function TimeSeriesChart({
                   <div className="text-gray-600">
                     <span className="font-medium">Difference (%):</span>{' '}
                     <span className={`font-semibold ${
-                      ((hoverData.value - hoverData.shadowValue) / hoverData.shadowValue * 100) >= 0
+                      (((hoverData.forecastValue || hoverData.value) - hoverData.shadowValue) / hoverData.shadowValue * 100) >= 0
                         ? 'text-green-600'
                         : 'text-red-600'
                     }`}>
-                      {((hoverData.value - hoverData.shadowValue) / hoverData.shadowValue * 100).toFixed(1)}%
+                      {(((hoverData.forecastValue || hoverData.value) - hoverData.shadowValue) / hoverData.shadowValue * 100).toFixed(1)}%
                     </span>
                   </div>
                   <div className="text-gray-600">
                     <span className="font-medium">Delta:</span>{' '}
                     <span className={`font-semibold ${
-                      (hoverData.value - hoverData.shadowValue) >= 0
+                      ((hoverData.forecastValue || hoverData.value) - hoverData.shadowValue) >= 0
                         ? 'text-green-600'
                         : 'text-red-600'
                     }`}>
-                      {(hoverData.value - hoverData.shadowValue) >= 0 ? '+' : ''}
-                      {formatWithPrecision(hoverData.value - hoverData.shadowValue, hoverData.precision || 0)}
+                      {((hoverData.forecastValue || hoverData.value) - hoverData.shadowValue) >= 0 ? '+' : ''}
+                      {formatWithPrecision((hoverData.forecastValue || hoverData.value) - hoverData.shadowValue, hoverData.precision || 0)}
                     </span>
                   </div>
                 </div>
@@ -1384,9 +1725,42 @@ export function TimeSeriesChart({
             )}
           </div>
 
-          {/* Panel 4 */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 h-[100px] flex items-center justify-center">
-            <div className="text-xs text-gray-400">Panel 4</div>
+          {/* Panel 4 - Focus Period vs Shadow */}
+          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[100px] flex flex-col">
+            {focusPeriodStats?.shadowMean !== undefined && focusPeriodStats?.shadowLabel ? (
+              <>
+                <div className="text-xs font-semibold text-gray-500 mb-1">
+                  {focusPeriodStats.label || 'Focus'} vs. {focusPeriodStats.shadowLabel}
+                </div>
+                <div className="font-mono text-xs space-y-1 flex-1 flex flex-col justify-center">
+                  <div className="text-gray-600">
+                    <span className="font-medium">Difference (%):</span>{' '}
+                    <span className={`font-semibold ${
+                      ((focusPeriodStats.mean - focusPeriodStats.shadowMean) / focusPeriodStats.shadowMean * 100) >= 0
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}>
+                      {((focusPeriodStats.mean - focusPeriodStats.shadowMean) / focusPeriodStats.shadowMean * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="text-gray-600">
+                    <span className="font-medium">Delta:</span>{' '}
+                    <span className={`font-semibold ${
+                      (focusPeriodStats.mean - focusPeriodStats.shadowMean) >= 0
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}>
+                      {(focusPeriodStats.mean - focusPeriodStats.shadowMean) >= 0 ? '+' : ''}
+                      {formatWithPrecision(focusPeriodStats.mean - focusPeriodStats.shadowMean, focusPeriodStats.precision)}
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-xs text-gray-400">No focus period or shadow</div>
+              </div>
+            )}
           </div>
 
           {/* Panel 5 - Goal Comparison */}
@@ -1403,15 +1777,6 @@ export function TimeSeriesChart({
                           setSelectedGoalIndex(newIndex);
                           // Force re-render of hover data with new goal
                           if (hoverData) {
-                            const goalsData = generateGoalsData(series.data, goals);
-                            const goalsDataWithValues = goalsData.map(gd => ({
-                              goal: gd.goal,
-                              data: gd.data.map(d => ({
-                                date: d.date,
-                                value: d.numerator / d.denominator
-                              })),
-                              color: gd.color
-                            }));
                             const goalValue = findGoalValue(new Date(hoverData.date), goalsDataWithValues, newIndex);
                             const goalLabel = goalsDataWithValues[newIndex]?.goal.label;
                             setHoverData({
@@ -1435,15 +1800,6 @@ export function TimeSeriesChart({
                           setSelectedGoalIndex(newIndex);
                           // Force re-render of hover data with new goal
                           if (hoverData) {
-                            const goalsData = generateGoalsData(series.data, goals);
-                            const goalsDataWithValues = goalsData.map(gd => ({
-                              goal: gd.goal,
-                              data: gd.data.map(d => ({
-                                date: d.date,
-                                value: d.numerator / d.denominator
-                              })),
-                              color: gd.color
-                            }));
                             const goalValue = findGoalValue(new Date(hoverData.date), goalsDataWithValues, newIndex);
                             const goalLabel = goalsDataWithValues[newIndex]?.goal.label;
                             setHoverData({
@@ -1468,22 +1824,22 @@ export function TimeSeriesChart({
                   <div className="text-gray-600">
                     <span className="font-medium">Difference (%):</span>{' '}
                     <span className={`font-semibold ${
-                      ((hoverData.value - hoverData.goalValue) / hoverData.goalValue * 100) >= 0
+                      (((hoverData.forecastValue || hoverData.value) - hoverData.goalValue) / hoverData.goalValue * 100) >= 0
                         ? 'text-green-600'
                         : 'text-red-600'
                     }`}>
-                      {((hoverData.value - hoverData.goalValue) / hoverData.goalValue * 100).toFixed(1)}%
+                      {(((hoverData.forecastValue || hoverData.value) - hoverData.goalValue) / hoverData.goalValue * 100).toFixed(1)}%
                     </span>
                   </div>
                   <div className="text-gray-600">
                     <span className="font-medium">Delta:</span>{' '}
                     <span className={`font-semibold ${
-                      (hoverData.value - hoverData.goalValue) >= 0
+                      ((hoverData.forecastValue || hoverData.value) - hoverData.goalValue) >= 0
                         ? 'text-green-600'
                         : 'text-red-600'
                     }`}>
-                      {(hoverData.value - hoverData.goalValue) >= 0 ? '+' : ''}
-                      {formatWithPrecision(hoverData.value - hoverData.goalValue, hoverData.precision || 0)}
+                      {((hoverData.forecastValue || hoverData.value) - hoverData.goalValue) >= 0 ? '+' : ''}
+                      {formatWithPrecision((hoverData.forecastValue || hoverData.value) - hoverData.goalValue, hoverData.precision || 0)}
                     </span>
                   </div>
                 </div>
@@ -1495,9 +1851,42 @@ export function TimeSeriesChart({
             )}
           </div>
 
-          {/* Panel 6 */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 h-[100px] flex items-center justify-center">
-            <div className="text-xs text-gray-400">Panel 6</div>
+          {/* Panel 6 - Focus Period vs Goal */}
+          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[100px] flex flex-col">
+            {focusPeriodStats?.goalMean !== undefined && focusPeriodStats?.goalLabel ? (
+              <>
+                <div className="text-xs font-semibold text-gray-500 mb-1">
+                  {focusPeriodStats.label || 'Focus'} vs. {focusPeriodStats.goalLabel}
+                </div>
+                <div className="font-mono text-xs space-y-1 flex-1 flex flex-col justify-center">
+                  <div className="text-gray-600">
+                    <span className="font-medium">Difference (%):</span>{' '}
+                    <span className={`font-semibold ${
+                      ((focusPeriodStats.mean - focusPeriodStats.goalMean) / focusPeriodStats.goalMean * 100) >= 0
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}>
+                      {((focusPeriodStats.mean - focusPeriodStats.goalMean) / focusPeriodStats.goalMean * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="text-gray-600">
+                    <span className="font-medium">Delta:</span>{' '}
+                    <span className={`font-semibold ${
+                      (focusPeriodStats.mean - focusPeriodStats.goalMean) >= 0
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}>
+                      {(focusPeriodStats.mean - focusPeriodStats.goalMean) >= 0 ? '+' : ''}
+                      {formatWithPrecision(focusPeriodStats.mean - focusPeriodStats.goalMean, focusPeriodStats.precision)}
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-xs text-gray-400">No focus period or goal</div>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -191,7 +191,8 @@ export function getGoalColor(index: number): string {
  */
 export function generateGoalsData(
   seriesData: TimeSeriesPoint[],
-  goals: Goal[]
+  goals: Goal[],
+  forecastEndDate?: Date
 ): GoalData[] {
   const enabledGoals = goals.filter(g => g.enabled);
 
@@ -204,9 +205,14 @@ export function generateGoalsData(
     color: getGoalColor(index)
   }));
 
-  // Calculate full date extent including all goals
+  // Calculate full date extent including all goals and forecast
   let minDate = seriesData[0].date;
   let maxDate = seriesData[seriesData.length - 1].date;
+
+  // Extend maxDate to include forecast if available
+  if (forecastEndDate && forecastEndDate > maxDate) {
+    maxDate = forecastEndDate;
+  }
 
   initialGoalsData.forEach(gd => {
     if (gd.data.length > 0) {
