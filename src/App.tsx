@@ -23,6 +23,7 @@ function App() {
   const [shadows, setShadows] = useState<Shadow[]>([]);
   const [averageShadows, setAverageShadows] = useState(false);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [goalsEnabled, setGoalsEnabled] = useState(false);
   const [forecastConfig, setForecastConfig] = useState<ForecastConfig>({
     enabled: false,
     type: 'auto',
@@ -96,6 +97,8 @@ function App() {
                 <GoalControls
                   goals={goals}
                   onChange={setGoals}
+                  enabled={goalsEnabled}
+                  onEnabledChange={setGoalsEnabled}
                 />
                 <ForecastControls
                   config={forecastConfig}
@@ -113,7 +116,7 @@ function App() {
                   smoothingConfig={smoothingConfig}
                   shadows={shadows}
                   averageShadows={averageShadows}
-                  goals={goals}
+                  goals={goalsEnabled ? goals : []}
                   forecastConfig={forecastConfig}
                   focusPeriod={focusPeriod}
                   onSeriesUpdate={setSeries}

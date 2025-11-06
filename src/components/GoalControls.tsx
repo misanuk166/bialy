@@ -4,11 +4,15 @@ import type { Goal, GoalType } from '../types/goal';
 interface GoalControlsProps {
   goals: Goal[];
   onChange: (goals: Goal[]) => void;
+  enabled: boolean;
+  onEnabledChange: (enabled: boolean) => void;
 }
 
 export function GoalControls({
   goals,
-  onChange
+  onChange,
+  enabled,
+  onEnabledChange
 }: GoalControlsProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -141,6 +145,15 @@ export function GoalControls({
     setEditingGoalId(null);
   };
 
+  const handleToggle = () => {
+    const newEnabled = !enabled;
+    // Auto-expand when toggling on
+    if (newEnabled) {
+      setIsExpanded(true);
+    }
+    onEnabledChange(newEnabled);
+  };
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
       <div className="flex items-center justify-between">
@@ -161,21 +174,22 @@ export function GoalControls({
           </button>
           <h3 className="text-lg font-semibold text-gray-900">Goals</h3>
         </div>
-        {isExpanded && !isCreating && !editingGoalId && (
-          <button
-            onClick={() => setIsCreating(true)}
-            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
-          >
-            + Add Goal
-          </button>
-        )}
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={handleToggle}
+            className="sr-only peer"
+          />
+          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+        </label>
       </div>
 
-      {isExpanded && (
+      {enabled && isExpanded && (
         <div className="space-y-3">
           {/* Creation/Edit form */}
           {(isCreating || editingGoalId) && (
-            <div className="border border-blue-300 bg-blue-50 rounded-lg p-4 space-y-3">
+            <div className="border border-gray-200 bg-white rounded-lg p-4 space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Goal Type
@@ -199,7 +213,7 @@ export function GoalControls({
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
                   placeholder="e.g., Q4 Target"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
               </div>
 
@@ -214,7 +228,7 @@ export function GoalControls({
                     value={targetValue}
                     onChange={(e) => setTargetValue(e.target.value)}
                     placeholder="e.g., 100"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   />
                 </div>
               ) : (
@@ -229,7 +243,7 @@ export function GoalControls({
                       value={endValue}
                       onChange={(e) => setEndValue(e.target.value)}
                       placeholder="e.g., 150"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     />
                   </div>
 
@@ -241,7 +255,7 @@ export function GoalControls({
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     />
                   </div>
 
@@ -253,7 +267,7 @@ export function GoalControls({
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     />
                   </div>
                 </>
@@ -291,12 +305,15 @@ export function GoalControls({
                   className="flex items-center justify-between p-3 bg-gray-50 rounded border border-gray-200"
                 >
                   <div className="flex items-center gap-3 flex-1">
-                    <input
-                      type="checkbox"
-                      checked={goal.enabled}
-                      onChange={() => handleToggleGoal(goal.id)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={goal.enabled}
+                        onChange={() => handleToggleGoal(goal.id)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
                     <div className="flex-1">
                       <div className="text-sm font-medium text-gray-900">{goal.label}</div>
                       <div className="text-xs text-gray-500">
@@ -334,6 +351,15 @@ export function GoalControls({
               No goals created yet. Click "Add Goal" to create one.
             </div>
           ) : null}
+
+          {!isCreating && !editingGoalId && (
+            <button
+              onClick={() => setIsCreating(true)}
+              className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+            >
+              + Add Goal
+            </button>
+          )}
         </div>
       )}
     </div>

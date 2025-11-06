@@ -63,10 +63,11 @@ function findGoalValue(
   const goalData = goalsData[selectedIndex];
   if (!goalData || goalData.data.length === 0) return undefined;
 
-  // For continuous goals (only 2 points), return the constant value if date is within range
+  // For continuous goals (2 points representing a horizontal line), return the constant value if date is within or after range
   if (goalData.goal.type === 'continuous' && goalData.data.length === 2) {
     const startDate = goalData.data[0].date;
     const endDate = goalData.data[1].date;
+    // Return the constant value if date is within the range (including the forecast period)
     if (date >= startDate && date <= endDate) {
       return goalData.data[0].value; // Constant value
     }
@@ -261,6 +262,9 @@ export function TimeSeriesChart({
     shadowLabel?: string;
     goalMean?: number;
     goalLabel?: string;
+    isForecast?: boolean;
+    forecastCount?: number;
+    actualCount?: number;
   } | null>(null);
 
   // Update chart width when container resizes
@@ -402,22 +406,36 @@ export function TimeSeriesChart({
 
     // Calculate focus period statistics
     if (focusPeriod?.enabled && focusPeriod.startDate && focusPeriod.endDate) {
+      // Get actual data within focus period
       const focusData = displayData.filter(d =>
         d.date >= focusPeriod.startDate! && d.date <= focusPeriod.endDate!
       );
 
-      if (focusData.length > 0) {
-        const values = focusData.map(d => d.value);
+      // Get forecast data within focus period (if available)
+      const focusForecastData = forecastResult?.forecast.filter(f =>
+        f.date >= focusPeriod.startDate! && f.date <= focusPeriod.endDate!
+      ) || [];
+
+      // Combine actual and forecast data for statistics
+      const allFocusData = [...focusData, ...focusForecastData.map(f => ({ date: f.date, value: f.value }))];
+
+      if (allFocusData.length > 0) {
+        const values = allFocusData.map(d => d.value);
         const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
         const min = Math.min(...values);
         const max = Math.max(...values);
+
+        // Track if this includes forecast data
+        const isForecast = focusForecastData.length > 0;
+        const forecastCount = focusForecastData.length;
+        const actualCount = focusData.length;
 
         // Calculate shadow mean over focus period
         let shadowMean: number | undefined;
         let shadowLabel: string | undefined;
         if (shadowsDataWithValues.length > 0 || (averageShadows && averagedShadowData.length > 0)) {
           const shadowValues: number[] = [];
-          focusData.forEach(d => {
+          allFocusData.forEach(d => {
             const shadowVal = findShadowValue(d.date, shadowsDataWithValues, averagedShadowData, averageShadows);
             if (shadowVal !== undefined) {
               shadowValues.push(shadowVal);
@@ -438,7 +456,7 @@ export function TimeSeriesChart({
         let goalLabel: string | undefined;
         if (goalsDataWithValues.length > 0) {
           const goalValues: number[] = [];
-          focusData.forEach(d => {
+          allFocusData.forEach(d => {
             const goalVal = findGoalValue(d.date, goalsDataWithValues, selectedGoalIndex);
             if (goalVal !== undefined) {
               goalValues.push(goalVal);
@@ -454,13 +472,16 @@ export function TimeSeriesChart({
           mean,
           min,
           max,
-          count: focusData.length,
+          count: allFocusData.length,
           precision: dataPrecision,
           label: focusPeriod.label,
           shadowMean,
           shadowLabel,
           goalMean,
-          goalLabel
+          goalLabel,
+          isForecast,
+          forecastCount,
+          actualCount
         });
       } else {
         setFocusPeriodStats(null);
@@ -1664,17 +1685,23 @@ export function TimeSeriesChart({
               <>
                 <div className="text-xs font-semibold text-gray-500 mb-1">
                   {focusPeriodStats.label || 'Focus Period'}
+                  {focusPeriodStats.isForecast && focusPeriodStats.actualCount === 0 && (
+                    <span className="text-blue-600"> (Forecast)</span>
+                  )}
+                  {focusPeriodStats.isForecast && focusPeriodStats.actualCount! > 0 && (
+                    <span className="text-blue-600"> (w/ Forecast)</span>
+                  )}
                 </div>
                 <div className="font-mono text-xs space-y-1 flex-1 flex flex-col justify-center">
                   <div className="text-gray-600">
                     <span className="font-medium">Mean:</span>{' '}
-                    <span className="font-semibold text-gray-900">
+                    <span className={`font-semibold ${focusPeriodStats.isForecast ? 'text-blue-600' : 'text-gray-900'}`}>
                       {formatWithPrecision(focusPeriodStats.mean, focusPeriodStats.precision)}
                     </span>
                   </div>
                   <div className="text-gray-600">
                     <span className="font-medium">Range:</span>{' '}
-                    <span className="font-semibold text-gray-900">
+                    <span className={`font-semibold ${focusPeriodStats.isForecast ? 'text-blue-600' : 'text-gray-900'}`}>
                       {formatWithPrecision(focusPeriodStats.min, focusPeriodStats.precision)} - {formatWithPrecision(focusPeriodStats.max, focusPeriodStats.precision)}
                     </span>
                   </div>
@@ -1730,7 +1757,11 @@ export function TimeSeriesChart({
             {focusPeriodStats?.shadowMean !== undefined && focusPeriodStats?.shadowLabel ? (
               <>
                 <div className="text-xs font-semibold text-gray-500 mb-1">
-                  {focusPeriodStats.label || 'Focus'} vs. {focusPeriodStats.shadowLabel}
+                  {focusPeriodStats.label || 'Focus'}
+                  {focusPeriodStats.isForecast && focusPeriodStats.actualCount === 0 && (
+                    <span className="text-blue-600"> (Forecast)</span>
+                  )}
+                  {' '}vs. {focusPeriodStats.shadowLabel}
                 </div>
                 <div className="font-mono text-xs space-y-1 flex-1 flex flex-col justify-center">
                   <div className="text-gray-600">
@@ -1856,7 +1887,11 @@ export function TimeSeriesChart({
             {focusPeriodStats?.goalMean !== undefined && focusPeriodStats?.goalLabel ? (
               <>
                 <div className="text-xs font-semibold text-gray-500 mb-1">
-                  {focusPeriodStats.label || 'Focus'} vs. {focusPeriodStats.goalLabel}
+                  {focusPeriodStats.label || 'Focus'}
+                  {focusPeriodStats.isForecast && focusPeriodStats.actualCount === 0 && (
+                    <span className="text-blue-600"> (Forecast)</span>
+                  )}
+                  {' '}vs. {focusPeriodStats.goalLabel}
                 </div>
                 <div className="font-mono text-xs space-y-1 flex-1 flex flex-col justify-center">
                   <div className="text-gray-600">
