@@ -1799,7 +1799,7 @@ export function TimeSeriesChart({
             {hoverData?.goalValue !== undefined && hoverData?.goalLabel ? (
               <>
                 <div className="text-xs font-semibold text-gray-500 mb-1 flex items-center justify-between">
-                  <span>vs. {hoverData.goalLabel}</span>
+                  <span>vs. {hoverData.goalLabel} goal</span>
                   {goals.filter(g => g.enabled).length > 1 && (
                     <div className="flex gap-0.5 items-center">
                       <button
@@ -1891,7 +1891,7 @@ export function TimeSeriesChart({
                   {focusPeriodStats.isForecast && focusPeriodStats.actualCount === 0 && (
                     <span className="text-blue-600"> (Forecast)</span>
                   )}
-                  {' '}vs. {focusPeriodStats.goalLabel}
+                  {' '}vs. {focusPeriodStats.goalLabel} goal
                 </div>
                 <div className="font-mono text-xs space-y-1 flex-1 flex flex-col justify-center">
                   <div className="text-gray-600">
