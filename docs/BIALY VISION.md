@@ -42,17 +42,31 @@ Shadows should always be show in shades of gray, with further back periods a lig
 
 **2.3. Goal**
 
+For any given series, users should be able to create a "Goal" which represents either (a) A continuously valid target value or (b) an end-of-period target value. In the case for (a) it would be something like "above 80%" or "more than 10,000" and be manifest as a horizontal line across the entire series. For (b) it would be a new series itself which has a start date, end date, and values throughout. The final value should be set by the user. The starting value should be the original series value at start date OR the most recent available series value. Lastly, for (b) the interpolation between start and end value should default to "linear", but other methods should be available in the future.
+
+**2.4. Breakout - by Dimension**
+
+Users should be able to "breakout" a series by a dimension, creating a small multiples view where each chart represents the data for a single value of that dimension.
+
+For example, if analyzing "Revenue" and the data includes a "Region" dimension with values [North, South, East, West], the breakout would create 4 separate charts, one for each region, arranged in a grid layout.
+
+Key requirements:
+- All existing features (smoothing, shadows, goals, forecast, focus period) should work within each small multiple chart
+- The dimension must be present in the source data (e.g., an additional column in the CSV)
+- Charts should be synchronized for easier comparison (same axes, zoom/pan behavior)
+- Users should be able to toggle between single series view and breakout view
+
+\[Detailed requirements to be created in planning phase\]
+
+**2.5. Forecast**
+
+\[completed - see forecasting implementation\]
+
+**2.6. Annotation**
+
 \[to be detailed later\]
 
-**2.4. Forecast**
-
-\[to be detailed later\]
-
-**2.5. Annotation**
-
-\[to be detailed later\]
-
-**2.6. Series Metadata**
+**2.7. Series Metadata**
 
 \[to be detailed later\]
 
