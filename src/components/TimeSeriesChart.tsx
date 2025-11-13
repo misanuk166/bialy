@@ -1613,36 +1613,33 @@ export function TimeSeriesChart({
           </div>
         </div>
         {/* Info panels - 2 columns x 3 rows */}
-        <div className="grid grid-cols-2 gap-2 content-start flex-shrink-0" style={{ width: '480px' }}>
+        <div className="flex-shrink-0" style={{ width: '480px' }}>
+          {/* Column titles */}
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <div className="text-center font-semibold text-gray-700" style={{ fontSize: '18px' }}>
+              {hoverData?.date || '—'}
+            </div>
+            <div className="text-center font-semibold text-gray-700" style={{ fontSize: '18px' }}>
+              {focusPeriodStats?.label || 'Focus Period'}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 content-start">
           {/* Panel 1 - Current position data */}
-          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[100px] flex flex-col">
+          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[140px] flex flex-col">
             <div className="text-xs font-semibold text-gray-500 mb-1">
               {hoverData?.isForecast ? 'Forecast' : 'Selection'}
             </div>
-            <div className="font-mono text-xs space-y-1 flex-1 flex flex-col justify-center">
-              <div className="text-gray-600">
-                <span className="font-medium">Date:</span>{' '}
-                <span className="font-semibold text-gray-900">
-                  {hoverData?.date || '—'}
-                </span>
-              </div>
+            <div className="flex-1 flex flex-col items-center justify-center">
               {hoverData && isNaN(hoverData.value) ? (
-                <div className="text-gray-600">
-                  <span className="font-medium">Value:</span>{' '}
-                  <span className="font-semibold text-gray-500 italic">
-                    No data
-                  </span>
-                </div>
+                <div className="text-gray-500 italic text-sm">No data</div>
               ) : hoverData?.isForecast ? (
                 <>
-                  <div className="text-gray-600">
-                    <span className="font-medium">Forecast:</span>{' '}
-                    <span className="font-semibold text-blue-600">
-                      {formatWithPrecision(hoverData.forecastValue || hoverData.value, hoverData.precision || 0)}
-                    </span>
+                  <div style={{ fontSize: '60px', lineHeight: '1' }} className="font-bold text-blue-600 mb-1">
+                    {formatWithPrecision(hoverData.forecastValue || hoverData.value, hoverData.precision || 0)}
                   </div>
                   {hoverData.rawValue !== undefined && (
-                    <div className="text-gray-600">
+                    <div className="text-xs text-gray-600">
                       <span className="font-medium">vs Current:</span>{' '}
                       <span className={`font-semibold ${
                         (hoverData.value - hoverData.rawValue) >= 0
@@ -1656,52 +1653,42 @@ export function TimeSeriesChart({
                 </>
               ) : hoverData?.rawValue !== undefined ? (
                 <>
-                  <div className="text-gray-600">
-                    <span className="font-medium">Point:</span>{' '}
-                    <span className="font-semibold text-gray-900">
-                      {formatWithPrecision(hoverData.rawValue, hoverData.precision || 0)}
-                    </span>
+                  <div style={{ fontSize: '60px', lineHeight: '1' }} className="font-bold text-gray-900 mb-1">
+                    {formatWithPrecision(hoverData.value, hoverData.precision || 0)}
                   </div>
-                  <div className="text-gray-600">
-                    <span className="font-medium">Smoothed:</span>{' '}
-                    <span className="font-semibold text-gray-900">
-                      {formatWithPrecision(hoverData.value, hoverData.precision || 0)}
+                  <div className="text-xs text-gray-600">
+                    <span className="font-medium">Point:</span>{' '}
+                    <span className="font-semibold">
+                      {formatWithPrecision(hoverData.rawValue, hoverData.precision || 0)}
                     </span>
                   </div>
                 </>
               ) : (
-                <div className="text-gray-600">
-                  <span className="font-medium">Value:</span>{' '}
-                  <span className="font-semibold text-gray-900">
-                    {hoverData ? formatWithPrecision(hoverData.value, hoverData.precision || 0) : '—'}
-                  </span>
+                <div style={{ fontSize: '60px', lineHeight: '1' }} className="font-bold text-gray-900">
+                  {hoverData ? formatWithPrecision(hoverData.value, hoverData.precision || 0) : '—'}
                 </div>
               )}
             </div>
           </div>
           {/* Panel 2 - Focus Period Stats */}
-          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[100px] flex flex-col">
+          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[140px] flex flex-col">
             {focusPeriodStats ? (
               <>
                 <div className="text-xs font-semibold text-gray-500 mb-1">
-                  {focusPeriodStats.label || 'Focus Period'}
                   {focusPeriodStats.isForecast && focusPeriodStats.actualCount === 0 && (
-                    <span className="text-blue-600"> (Forecast)</span>
+                    <span className="text-blue-600">(Forecast)</span>
                   )}
                   {focusPeriodStats.isForecast && focusPeriodStats.actualCount! > 0 && (
-                    <span className="text-blue-600"> (w/ Forecast)</span>
+                    <span className="text-blue-600">(w/ Forecast)</span>
                   )}
                 </div>
-                <div className="font-mono text-xs space-y-1 flex-1 flex flex-col justify-center">
-                  <div className="text-gray-600">
-                    <span className="font-medium">Mean:</span>{' '}
-                    <span className={`font-semibold ${focusPeriodStats.isForecast ? 'text-blue-600' : 'text-gray-900'}`}>
-                      {formatWithPrecision(focusPeriodStats.mean, focusPeriodStats.precision)}
-                    </span>
+                <div className="flex-1 flex flex-col items-center justify-center">
+                  <div style={{ fontSize: '60px', lineHeight: '1' }} className={`font-bold mb-1 ${focusPeriodStats.isForecast ? 'text-blue-600' : 'text-gray-900'}`}>
+                    {formatWithPrecision(focusPeriodStats.mean, focusPeriodStats.precision)}
                   </div>
-                  <div className="text-gray-600">
+                  <div className="text-xs text-gray-600">
                     <span className="font-medium">Range:</span>{' '}
-                    <span className={`font-semibold ${focusPeriodStats.isForecast ? 'text-blue-600' : 'text-gray-900'}`}>
+                    <span className="font-semibold">
                       {formatWithPrecision(focusPeriodStats.min, focusPeriodStats.precision)} - {formatWithPrecision(focusPeriodStats.max, focusPeriodStats.precision)}
                     </span>
                   </div>
@@ -1715,32 +1702,29 @@ export function TimeSeriesChart({
           </div>
 
           {/* Panel 3 - Shadow Comparison */}
-          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[100px] flex flex-col col-span-1">
+          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[140px] flex flex-col col-span-1">
             {hoverData?.shadowValue !== undefined && hoverData?.shadowLabel ? (
               <>
                 <div className="text-xs font-semibold text-gray-500 mb-1">
                   vs. {hoverData.shadowLabel}
                 </div>
-                <div className="font-mono text-xs space-y-1 flex-1 flex flex-col justify-center">
-                  <div className="text-gray-600">
-                    <span className="font-medium">Difference (%):</span>{' '}
+                <div className="flex-1 flex flex-col items-center justify-center">
+                  <div style={{ fontSize: '60px', lineHeight: '1' }} className={`font-bold mb-1 ${
+                    ((hoverData.forecastValue || hoverData.value) - hoverData.shadowValue) >= 0
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}>
+                    {((hoverData.forecastValue || hoverData.value) - hoverData.shadowValue) >= 0 ? '+' : ''}
+                    {formatWithPrecision((hoverData.forecastValue || hoverData.value) - hoverData.shadowValue, hoverData.precision || 0)}
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    <span className="font-medium">Difference:</span>{' '}
                     <span className={`font-semibold ${
                       (((hoverData.forecastValue || hoverData.value) - hoverData.shadowValue) / hoverData.shadowValue * 100) >= 0
                         ? 'text-green-600'
                         : 'text-red-600'
                     }`}>
                       {(((hoverData.forecastValue || hoverData.value) - hoverData.shadowValue) / hoverData.shadowValue * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="text-gray-600">
-                    <span className="font-medium">Delta:</span>{' '}
-                    <span className={`font-semibold ${
-                      ((hoverData.forecastValue || hoverData.value) - hoverData.shadowValue) >= 0
-                        ? 'text-green-600'
-                        : 'text-red-600'
-                    }`}>
-                      {((hoverData.forecastValue || hoverData.value) - hoverData.shadowValue) >= 0 ? '+' : ''}
-                      {formatWithPrecision((hoverData.forecastValue || hoverData.value) - hoverData.shadowValue, hoverData.precision || 0)}
                     </span>
                   </div>
                 </div>
@@ -1753,36 +1737,32 @@ export function TimeSeriesChart({
           </div>
 
           {/* Panel 4 - Focus Period vs Shadow */}
-          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[100px] flex flex-col">
+          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[140px] flex flex-col">
             {focusPeriodStats?.shadowMean !== undefined && focusPeriodStats?.shadowLabel ? (
               <>
                 <div className="text-xs font-semibold text-gray-500 mb-1">
-                  {focusPeriodStats.label || 'Focus'}
                   {focusPeriodStats.isForecast && focusPeriodStats.actualCount === 0 && (
-                    <span className="text-blue-600"> (Forecast)</span>
+                    <span className="text-blue-600">(Forecast) </span>
                   )}
-                  {' '}vs. {focusPeriodStats.shadowLabel}
+                  vs. {focusPeriodStats.shadowLabel}
                 </div>
-                <div className="font-mono text-xs space-y-1 flex-1 flex flex-col justify-center">
-                  <div className="text-gray-600">
-                    <span className="font-medium">Difference (%):</span>{' '}
+                <div className="flex-1 flex flex-col items-center justify-center">
+                  <div style={{ fontSize: '60px', lineHeight: '1' }} className={`font-bold mb-1 ${
+                    (focusPeriodStats.mean - focusPeriodStats.shadowMean) >= 0
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}>
+                    {(focusPeriodStats.mean - focusPeriodStats.shadowMean) >= 0 ? '+' : ''}
+                    {formatWithPrecision(focusPeriodStats.mean - focusPeriodStats.shadowMean, focusPeriodStats.precision)}
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    <span className="font-medium">Difference:</span>{' '}
                     <span className={`font-semibold ${
                       ((focusPeriodStats.mean - focusPeriodStats.shadowMean) / focusPeriodStats.shadowMean * 100) >= 0
                         ? 'text-green-600'
                         : 'text-red-600'
                     }`}>
                       {((focusPeriodStats.mean - focusPeriodStats.shadowMean) / focusPeriodStats.shadowMean * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="text-gray-600">
-                    <span className="font-medium">Delta:</span>{' '}
-                    <span className={`font-semibold ${
-                      (focusPeriodStats.mean - focusPeriodStats.shadowMean) >= 0
-                        ? 'text-green-600'
-                        : 'text-red-600'
-                    }`}>
-                      {(focusPeriodStats.mean - focusPeriodStats.shadowMean) >= 0 ? '+' : ''}
-                      {formatWithPrecision(focusPeriodStats.mean - focusPeriodStats.shadowMean, focusPeriodStats.precision)}
                     </span>
                   </div>
                 </div>
@@ -1795,7 +1775,7 @@ export function TimeSeriesChart({
           </div>
 
           {/* Panel 5 - Goal Comparison */}
-          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[100px] flex flex-col col-span-1">
+          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[140px] flex flex-col col-span-1">
             {hoverData?.goalValue !== undefined && hoverData?.goalLabel ? (
               <>
                 <div className="text-xs font-semibold text-gray-500 mb-1 flex items-center justify-between">
@@ -1851,26 +1831,23 @@ export function TimeSeriesChart({
                     </div>
                   )}
                 </div>
-                <div className="font-mono text-xs space-y-1 flex-1 flex flex-col justify-center">
-                  <div className="text-gray-600">
-                    <span className="font-medium">Difference (%):</span>{' '}
+                <div className="flex-1 flex flex-col items-center justify-center">
+                  <div style={{ fontSize: '60px', lineHeight: '1' }} className={`font-bold mb-1 ${
+                    ((hoverData.forecastValue || hoverData.value) - hoverData.goalValue) >= 0
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}>
+                    {((hoverData.forecastValue || hoverData.value) - hoverData.goalValue) >= 0 ? '+' : ''}
+                    {formatWithPrecision((hoverData.forecastValue || hoverData.value) - hoverData.goalValue, hoverData.precision || 0)}
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    <span className="font-medium">Difference:</span>{' '}
                     <span className={`font-semibold ${
                       (((hoverData.forecastValue || hoverData.value) - hoverData.goalValue) / hoverData.goalValue * 100) >= 0
                         ? 'text-green-600'
                         : 'text-red-600'
                     }`}>
                       {(((hoverData.forecastValue || hoverData.value) - hoverData.goalValue) / hoverData.goalValue * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="text-gray-600">
-                    <span className="font-medium">Delta:</span>{' '}
-                    <span className={`font-semibold ${
-                      ((hoverData.forecastValue || hoverData.value) - hoverData.goalValue) >= 0
-                        ? 'text-green-600'
-                        : 'text-red-600'
-                    }`}>
-                      {((hoverData.forecastValue || hoverData.value) - hoverData.goalValue) >= 0 ? '+' : ''}
-                      {formatWithPrecision((hoverData.forecastValue || hoverData.value) - hoverData.goalValue, hoverData.precision || 0)}
                     </span>
                   </div>
                 </div>
@@ -1883,36 +1860,32 @@ export function TimeSeriesChart({
           </div>
 
           {/* Panel 6 - Focus Period vs Goal */}
-          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[100px] flex flex-col">
+          <div className="bg-white border border-gray-300 rounded-lg p-3 h-[140px] flex flex-col">
             {focusPeriodStats?.goalMean !== undefined && focusPeriodStats?.goalLabel ? (
               <>
                 <div className="text-xs font-semibold text-gray-500 mb-1">
-                  {focusPeriodStats.label || 'Focus'}
                   {focusPeriodStats.isForecast && focusPeriodStats.actualCount === 0 && (
-                    <span className="text-blue-600"> (Forecast)</span>
+                    <span className="text-blue-600">(Forecast) </span>
                   )}
-                  {' '}vs. {focusPeriodStats.goalLabel} goal
+                  vs. {focusPeriodStats.goalLabel} goal
                 </div>
-                <div className="font-mono text-xs space-y-1 flex-1 flex flex-col justify-center">
-                  <div className="text-gray-600">
-                    <span className="font-medium">Difference (%):</span>{' '}
+                <div className="flex-1 flex flex-col items-center justify-center">
+                  <div style={{ fontSize: '60px', lineHeight: '1' }} className={`font-bold mb-1 ${
+                    (focusPeriodStats.mean - focusPeriodStats.goalMean) >= 0
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}>
+                    {(focusPeriodStats.mean - focusPeriodStats.goalMean) >= 0 ? '+' : ''}
+                    {formatWithPrecision(focusPeriodStats.mean - focusPeriodStats.goalMean, focusPeriodStats.precision)}
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    <span className="font-medium">Difference:</span>{' '}
                     <span className={`font-semibold ${
                       ((focusPeriodStats.mean - focusPeriodStats.goalMean) / focusPeriodStats.goalMean * 100) >= 0
                         ? 'text-green-600'
                         : 'text-red-600'
                     }`}>
                       {((focusPeriodStats.mean - focusPeriodStats.goalMean) / focusPeriodStats.goalMean * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="text-gray-600">
-                    <span className="font-medium">Delta:</span>{' '}
-                    <span className={`font-semibold ${
-                      (focusPeriodStats.mean - focusPeriodStats.goalMean) >= 0
-                        ? 'text-green-600'
-                        : 'text-red-600'
-                    }`}>
-                      {(focusPeriodStats.mean - focusPeriodStats.goalMean) >= 0 ? '+' : ''}
-                      {formatWithPrecision(focusPeriodStats.mean - focusPeriodStats.goalMean, focusPeriodStats.precision)}
                     </span>
                   </div>
                 </div>
@@ -1925,6 +1898,7 @@ export function TimeSeriesChart({
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }
