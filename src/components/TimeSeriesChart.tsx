@@ -334,13 +334,28 @@ export function TimeSeriesChart({
       ...dataWithValues.slice(0, 100).map(d => getDecimalPrecision(d.value))
     );
 
-    // Calculate aggregated data if enabled
+    // Generate forecast data FIRST from raw data
+    const rawForecastResult = forecastConfig ? generateForecast(dataWithValues, forecastConfig) : null;
+
+    // Convert forecast to TimeSeriesPoint format for aggregation
+    const forecastAsTimeSeriesPoints: TimeSeriesPoint[] = rawForecastResult
+      ? rawForecastResult.forecast.map(f => ({
+          date: f.date,
+          numerator: f.value,
+          denominator: 1
+        }))
+      : [];
+
+    // Combine historical data with forecast for aggregation
+    const combinedData = [...series.data, ...forecastAsTimeSeriesPoints];
+
+    // Calculate aggregated data if enabled (includes both historical and forecast)
     let aggregatedData: TimeSeriesPoint[] = [];
     let aggregatedDataWithValues: Array<{ date: Date; value: number }> = [];
 
     if (aggregationConfig?.enabled) {
       aggregatedData = applyAggregation(
-        series.data,
+        combinedData,
         aggregationConfig
       );
       aggregatedDataWithValues = aggregatedData.map(d => ({
@@ -349,10 +364,23 @@ export function TimeSeriesChart({
       }));
     }
 
-    // Create scales - use aggregated data for domain if available
-    const displayData = aggregationConfig?.enabled && aggregatedDataWithValues.length > 0
-      ? aggregatedDataWithValues
+    // Separate aggregated historical from aggregated forecast
+    const lastHistoricalDate = series.data[series.data.length - 1].date;
+    const aggregatedHistorical = aggregationConfig?.enabled
+      ? aggregatedDataWithValues.filter(d => d.date <= lastHistoricalDate)
       : dataWithValues;
+    const aggregatedForecast = aggregationConfig?.enabled
+      ? aggregatedDataWithValues.filter(d => d.date > lastHistoricalDate)
+      : rawForecastResult?.forecast || [];
+
+    // Create forecast result with aggregated values
+    const forecastResult = rawForecastResult ? {
+      ...rawForecastResult,
+      forecast: aggregatedForecast
+    } : null;
+
+    // Create scales - use aggregated historical data for domain if available
+    const displayData = aggregatedHistorical;
 
     // Fill gaps with null values to create visual breaks in the line
     // Use displayData so gaps are detected in the currently displayed data (smoothed or raw)
@@ -384,9 +412,6 @@ export function TimeSeriesChart({
     const averagedShadowData = averageShadows && aggregatedShadowsData.length > 1
       ? calculateShadowAverage(aggregatedShadowsData)
       : [];
-
-    // Generate forecast data - use displayData which includes aggregation if enabled
-    const forecastResult = forecastConfig ? generateForecast(displayData, forecastConfig) : null;
 
     // Get forecast end date if available
     const forecastEndDate = forecastResult && forecastResult.forecast.length > 0
