@@ -1,73 +1,80 @@
-# React + TypeScript + Vite
+# Bialy
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Time series data visualization and analysis tool**
 
-Currently, two official plugins are available:
+## Purpose
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Bialy is a web-based application for analyzing time series metrics with advanced visualization features. It enables users to:
 
-## React Compiler
+- Upload and visualize CSV time series data (date, numerator, denominator)
+- Apply data aggregation (smoothing or grouping by time periods)
+- Compare historical periods using shadow overlays
+- Set and track goals against actual performance
+- Generate forecasts with confidence intervals
+- Focus analysis on specific time periods
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The tool is designed for data analysts and decision-makers who need to understand trends, patterns, and performance metrics over time.
 
-## Expanding the ESLint configuration
+## Technology Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Frontend Framework
+- **React 18** with TypeScript for type-safe component development
+- **Vite** for fast development and optimized production builds
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Visualization
+- **D3.js** for interactive SVG-based charts with zoom, pan, and hover interactions
+- Custom time series chart component with multiple overlay capabilities
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### UI & Styling
+- **Tailwind CSS** for utility-first styling
+- **date-fns** for date manipulation and formatting
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Data Processing
+- Client-side CSV parsing with PapaParse
+- Time series aggregation (rolling averages, period grouping)
+- Statistical forecasting algorithms (linear regression, exponential smoothing)
+- Shadow period calculations for year-over-year comparisons
+
+## Project Structure
+
+```
+src/
+├── components/        # React components
+│   ├── TimeSeriesChart.tsx      # Main D3 chart component
+│   ├── AggregateControls.tsx    # Data aggregation UI
+│   ├── ShadowControls.tsx       # Historical comparison UI
+│   ├── GoalControls.tsx         # Goal management UI
+│   ├── ForecastControls.tsx     # Forecasting configuration
+│   └── FocusPeriodControls.tsx  # Time period selection
+├── types/            # TypeScript type definitions
+├── utils/            # Business logic and calculations
+│   ├── aggregation.ts   # Data smoothing and grouping
+│   ├── shadows.ts       # Shadow period calculations
+│   ├── goals.ts         # Goal line generation
+│   └── forecasting.ts   # Time series forecasting
+└── App.tsx           # Main application component
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Getting Started
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+# Install dependencies
+npm install
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
 ```
+
+The application runs on `http://localhost:5173` by default.
+
+## Key Features
+
+- **Aggregate**: Smooth data with rolling averages or group by Week/Month/Quarter/Year
+- **Shadows**: Overlay historical data for period-over-period comparisons
+- **Goals**: Set target values or growth trajectories to track against
+- **Forecasts**: Generate predictions with configurable algorithms and confidence intervals
+- **Focus Period**: Analyze specific date ranges with comparative statistics
+- **Interactive Charts**: Zoom, pan, and hover to explore data in detail
