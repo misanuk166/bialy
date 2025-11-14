@@ -29,7 +29,9 @@
       "Bash(git log:*)",
       "Bash(awk:*)",
       "Bash(mv:*)",
-      "Bash(rmdir:*)"
+      "Bash(rmdir:*)",
+      "Bash(git fetch:*)",
+      "Read(///**)"
     ],
     "deny": [],
     "ask": []

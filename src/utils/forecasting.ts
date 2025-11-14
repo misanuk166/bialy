@@ -148,7 +148,6 @@ function tripleExponentialSmoothing(
       season[i] = gamma * (values[i] - level[i]) + (1 - gamma) * prevSeason;
     } else {
       const safePrevSeason = prevSeason || 1; // Avoid division by zero
-      const safeLevel = level[i - 1] || 1;
       level[i] = alpha * (values[i] / safePrevSeason) + (1 - alpha) * (prevLevel + prevTrend);
       trend[i] = beta * (level[i] - prevLevel) + (1 - beta) * prevTrend;
       const safeLevelCurrent = level[i] || 1;

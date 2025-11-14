@@ -1,19 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import type { Series, TimeSeriesPoint } from '../types/series';
-import type { SmoothingConfig } from '../utils/smoothing';
+import type { AggregationConfig } from '../utils/aggregation';
 import type { Shadow } from '../types/shadow';
 import type { Goal } from '../types/goal';
 import type { ForecastConfig } from '../types/forecast';
 import type { FocusPeriod } from '../types/focusPeriod';
-import { calculateRollingAverage } from '../utils/smoothing';
+import { applyAggregation } from '../utils/aggregation';
 import { generateShadowsData, calculateShadowAverage } from '../utils/shadows';
 import { generateGoalsData } from '../utils/goals';
 import { generateForecast } from '../utils/forecasting';
 
 interface TimeSeriesChartProps {
   series: Series;
-  smoothingConfig?: SmoothingConfig;
+  aggregationConfig?: AggregationConfig;
   shadows?: Shadow[];
   averageShadows?: boolean;
   goals?: Goal[];
@@ -230,7 +230,7 @@ function getAveragedShadowLabel(shadows: Shadow[]): string {
 
 export function TimeSeriesChart({
   series,
-  smoothingConfig,
+  aggregationConfig,
   shadows = [],
   averageShadows = false,
   goals = [],
@@ -251,6 +251,7 @@ export function TimeSeriesChart({
   const [editedName, setEditedName] = useState(series.metadata.name);
   const [editedDescription, setEditedDescription] = useState(series.metadata.description || '');
   const [selectedGoalIndex, setSelectedGoalIndex] = useState(0);
+  const goalsDataRef = useRef<Array<{ goal: Goal; data: Array<{ date: Date; value: number }> }>>([]);
   const [focusPeriodStats, setFocusPeriodStats] = useState<{
     mean: number;
     min: number;
@@ -333,25 +334,24 @@ export function TimeSeriesChart({
       ...dataWithValues.slice(0, 100).map(d => getDecimalPrecision(d.value))
     );
 
-    // Calculate smoothed data if enabled
-    let smoothedData: TimeSeriesPoint[] = [];
-    let smoothedDataWithValues: Array<{ date: Date; value: number }> = [];
+    // Calculate aggregated data if enabled
+    let aggregatedData: TimeSeriesPoint[] = [];
+    let aggregatedDataWithValues: Array<{ date: Date; value: number }> = [];
 
-    if (smoothingConfig?.enabled) {
-      smoothedData = calculateRollingAverage(
+    if (aggregationConfig?.enabled) {
+      aggregatedData = applyAggregation(
         series.data,
-        smoothingConfig.period,
-        smoothingConfig.unit
+        aggregationConfig
       );
-      smoothedDataWithValues = smoothedData.map(d => ({
+      aggregatedDataWithValues = aggregatedData.map(d => ({
         date: d.date,
         value: d.numerator / d.denominator
       }));
     }
 
-    // Create scales - use smoothed data for domain if available
-    const displayData = smoothingConfig?.enabled && smoothedDataWithValues.length > 0
-      ? smoothedDataWithValues
+    // Create scales - use aggregated data for domain if available
+    const displayData = aggregationConfig?.enabled && aggregatedDataWithValues.length > 0
+      ? aggregatedDataWithValues
       : dataWithValues;
 
     // Fill gaps with null values to create visual breaks in the line
@@ -361,8 +361,17 @@ export function TimeSeriesChart({
     // Generate shadow data
     const shadowsData = generateShadowsData(series.data, shadows);
 
+    // Apply aggregation to shadow data if enabled
+    const aggregatedShadowsData = aggregationConfig?.enabled
+      ? shadowsData.map(sd => ({
+          shadow: sd.shadow,
+          data: applyAggregation(sd.data, aggregationConfig),
+          color: sd.color
+        }))
+      : shadowsData;
+
     // Convert shadow data to include calculated values for comparison
-    const shadowsDataWithValues = shadowsData.map(sd => ({
+    const shadowsDataWithValues = aggregatedShadowsData.map(sd => ({
       shadow: sd.shadow,
       data: sd.data.map(d => ({
         date: d.date,
@@ -371,9 +380,9 @@ export function TimeSeriesChart({
       color: sd.color
     }));
 
-    // Calculate averaged shadow data if enabled
-    const averagedShadowData = averageShadows && shadowsData.length > 1
-      ? calculateShadowAverage(shadowsData)
+    // Calculate averaged shadow data if enabled (use aggregated data)
+    const averagedShadowData = averageShadows && aggregatedShadowsData.length > 1
+      ? calculateShadowAverage(aggregatedShadowsData)
       : [];
 
     // Generate forecast data first so we can extend goals through it
@@ -396,6 +405,9 @@ export function TimeSeriesChart({
       })),
       color: gd.color
     }));
+
+    // Store goals data in ref for event handlers
+    goalsDataRef.current = goalsDataWithValues;
 
     // Debug logging
     if (forecastConfig?.enabled) {
@@ -689,7 +701,7 @@ export function TimeSeriesChart({
     } else {
       // Draw individual shadows in reverse order (oldest first, so they appear in back)
       // This ensures older shadows are behind newer ones
-      const reversedShadows = [...shadowsData].reverse();
+      const reversedShadows = [...aggregatedShadowsData].reverse();
       reversedShadows.forEach(shadowData => {
         const shadowValues = shadowData.data
           .map(d => ({
@@ -784,8 +796,8 @@ export function TimeSeriesChart({
       }
     });
 
-    // If smoothing is enabled, draw original data as points
-    if (smoothingConfig?.enabled && smoothedDataWithValues.length > 0) {
+    // If aggregation is enabled, draw original data as points
+    if (aggregationConfig?.enabled && aggregatedDataWithValues.length > 0) {
       // Only render points within the visible date range for performance
       const visibleData = dataWithValues.filter(d => {
         const dateTime = d.date.getTime();
@@ -922,7 +934,7 @@ export function TimeSeriesChart({
       .attr('stroke-width', 2)
       .style('opacity', 0);
 
-    // Create hover circle for raw data point (when smoothing is enabled)
+    // Create hover circle for raw data point (when aggregation is enabled)
     const hoverCircleRaw = g
       .append('circle')
       .attr('class', 'hover-circle-raw')
@@ -930,6 +942,82 @@ export function TimeSeriesChart({
       .attr('fill', '#93c5fd')
       .attr('stroke', '#3b82f6')
       .attr('stroke-width', 2)
+      .style('opacity', 0);
+
+    // Create hover circle for shadow
+    const hoverCircleShadow = g
+      .append('circle')
+      .attr('class', 'hover-circle-shadow')
+      .attr('r', 4)
+      .attr('fill', '#6b7280')
+      .attr('stroke', '#374151')
+      .attr('stroke-width', 2)
+      .style('opacity', 0);
+
+    // Create hover circle for goal
+    const hoverCircleGoal = g
+      .append('circle')
+      .attr('class', 'hover-circle-goal')
+      .attr('r', 4)
+      .attr('fill', '#f97316') // Default orange-500
+      .attr('stroke', '#ea580c') // Darker orange-600
+      .attr('stroke-width', 2)
+      .style('opacity', 0);
+
+    // Create hover circle for forecast
+    const hoverCircleForecast = g
+      .append('circle')
+      .attr('class', 'hover-circle-forecast')
+      .attr('r', 4)
+      .attr('fill', '#f59e0b')
+      .attr('stroke', '#d97706')
+      .attr('stroke-width', 2)
+      .style('opacity', 0);
+
+    // Create text labels for each circle
+    const hoverTextMain = g
+      .append('text')
+      .attr('class', 'hover-text-main')
+      .attr('font-size', '10px')
+      .attr('font-weight', 'bold')
+      .attr('fill', '#2563eb')
+      .attr('text-anchor', 'start')
+      .style('opacity', 0);
+
+    const hoverTextRaw = g
+      .append('text')
+      .attr('class', 'hover-text-raw')
+      .attr('font-size', '10px')
+      .attr('font-weight', 'bold')
+      .attr('fill', '#3b82f6')
+      .attr('text-anchor', 'start')
+      .style('opacity', 0);
+
+    const hoverTextShadow = g
+      .append('text')
+      .attr('class', 'hover-text-shadow')
+      .attr('font-size', '10px')
+      .attr('font-weight', 'bold')
+      .attr('fill', '#374151')
+      .attr('text-anchor', 'start')
+      .style('opacity', 0);
+
+    const hoverTextGoal = g
+      .append('text')
+      .attr('class', 'hover-text-goal')
+      .attr('font-size', '10px')
+      .attr('font-weight', 'bold')
+      .attr('fill', '#ea580c')
+      .attr('text-anchor', 'start')
+      .style('opacity', 0);
+
+    const hoverTextForecast = g
+      .append('text')
+      .attr('class', 'hover-text-forecast')
+      .attr('font-size', '10px')
+      .attr('font-weight', 'bold')
+      .attr('fill', '#d97706')
+      .attr('text-anchor', 'start')
       .style('opacity', 0);
 
     // Create overlay for hover interactions - on top of everything
@@ -979,7 +1067,21 @@ export function TimeSeriesChart({
             .attr('cy', y)
             .style('opacity', 1);
 
+          // Show main text label
+          hoverTextMain
+            .attr('x', x + 6)
+            .attr('y', y - 6)
+            .text(formatWithPrecision(closestForecast.value, dataPrecision))
+            .style('opacity', 1);
+
           hoverCircleRaw.style('opacity', 0);
+          hoverTextRaw.style('opacity', 0);
+
+          // Show forecast circle
+          hoverCircleForecast
+            .attr('cx', x)
+            .attr('cy', y)
+            .style('opacity', 1);
 
           // Get the last actual value for comparison
           const lastActualValue = displayData[displayData.length - 1].value;
@@ -1000,6 +1102,44 @@ export function TimeSeriesChart({
           // Find goal value and label for comparison (for the forecast date)
           const goalValue = findGoalValue(closestForecast.date, goalsDataWithValues, selectedGoalIndex);
           const goalLabel = goalsDataWithValues[selectedGoalIndex]?.goal.label;
+
+          // Position shadow circle and text
+          if (shadowValue !== undefined) {
+            const shadowY = yScale(shadowValue);
+            hoverCircleShadow
+              .attr('cx', x)
+              .attr('cy', shadowY)
+              .style('opacity', 1);
+            hoverTextShadow
+              .attr('x', x + 6)
+              .attr('y', shadowY - 6)
+              .text(formatWithPrecision(shadowValue, dataPrecision))
+              .style('opacity', 1);
+          } else {
+            hoverCircleShadow.style('opacity', 0);
+            hoverTextShadow.style('opacity', 0);
+          }
+
+          // Position goal circle and text
+          if (goalValue !== undefined && goalsDataWithValues[selectedGoalIndex]) {
+            const goalColor = goalsDataWithValues[selectedGoalIndex].color;
+            const goalY = yScale(goalValue);
+            hoverCircleGoal
+              .attr('cx', x)
+              .attr('cy', goalY)
+              .attr('fill', goalColor)
+              .attr('stroke', goalColor)
+              .style('opacity', 1);
+            hoverTextGoal
+              .attr('x', x + 6)
+              .attr('y', goalY - 6)
+              .attr('fill', goalColor)
+              .text(formatWithPrecision(goalValue, dataPrecision))
+              .style('opacity', 1);
+          } else {
+            hoverCircleGoal.style('opacity', 0);
+            hoverTextGoal.style('opacity', 0);
+          }
 
           setHoverData({
             date: closestForecast.date.toLocaleDateString(),
@@ -1037,9 +1177,16 @@ export function TimeSeriesChart({
           .attr('cy', y)
           .style('opacity', 1);
 
-        // If smoothing is enabled, find and highlight the raw data point
+        // Show main text label
+        hoverTextMain
+          .attr('x', x + 6)
+          .attr('y', y - 6)
+          .text(formatWithPrecision(d.value as number, dataPrecision))
+          .style('opacity', 1);
+
+        // If aggregation is enabled, find and highlight the raw data point
         let rawValue: number | undefined;
-        if (smoothingConfig?.enabled && dataWithValues.length > 0) {
+        if (aggregationConfig?.enabled && dataWithValues.length > 0) {
           const rawPoint = dataWithValues.find(p => p.date.getTime() === d.date.getTime());
           if (rawPoint) {
             rawValue = rawPoint.value;
@@ -1048,11 +1195,18 @@ export function TimeSeriesChart({
               .attr('cx', x)
               .attr('cy', rawY)
               .style('opacity', 1);
+            hoverTextRaw
+              .attr('x', x + 6)
+              .attr('y', rawY - 6)
+              .text(formatWithPrecision(rawPoint.value, dataPrecision))
+              .style('opacity', 1);
           } else {
             hoverCircleRaw.style('opacity', 0);
+            hoverTextRaw.style('opacity', 0);
           }
         } else {
           hoverCircleRaw.style('opacity', 0);
+          hoverTextRaw.style('opacity', 0);
         }
 
         // Find shadow value and label for comparison
@@ -1072,6 +1226,48 @@ export function TimeSeriesChart({
         const goalValue = findGoalValue(d.date, goalsDataWithValues, selectedGoalIndex);
         const goalLabel = goalsDataWithValues[selectedGoalIndex]?.goal.label;
 
+        // Position shadow circle and text
+        if (shadowValue !== undefined) {
+          const shadowY = yScale(shadowValue);
+          hoverCircleShadow
+            .attr('cx', x)
+            .attr('cy', shadowY)
+            .style('opacity', 1);
+          hoverTextShadow
+            .attr('x', x + 6)
+            .attr('y', shadowY - 6)
+            .text(formatWithPrecision(shadowValue, dataPrecision))
+            .style('opacity', 1);
+        } else {
+          hoverCircleShadow.style('opacity', 0);
+          hoverTextShadow.style('opacity', 0);
+        }
+
+        // Position goal circle and text
+        if (goalValue !== undefined && goalsDataWithValues[selectedGoalIndex]) {
+          const goalColor = goalsDataWithValues[selectedGoalIndex].color;
+          const goalY = yScale(goalValue);
+          hoverCircleGoal
+            .attr('cx', x)
+            .attr('cy', goalY)
+            .attr('fill', goalColor)
+            .attr('stroke', goalColor)
+            .style('opacity', 1);
+          hoverTextGoal
+            .attr('x', x + 6)
+            .attr('y', goalY - 6)
+            .attr('fill', goalColor)
+            .text(formatWithPrecision(goalValue, dataPrecision))
+            .style('opacity', 1);
+        } else {
+          hoverCircleGoal.style('opacity', 0);
+          hoverTextGoal.style('opacity', 0);
+        }
+
+        // Hide forecast circle and text (we're on actual data)
+        hoverCircleForecast.style('opacity', 0);
+        hoverTextForecast.style('opacity', 0);
+
         setHoverData({
           date: d.date.toLocaleDateString(),
           value: d.value as number,
@@ -1084,9 +1280,17 @@ export function TimeSeriesChart({
           isForecast: false
         });
       } else {
-        // Hovering over a gap - hide circles but show date
+        // Hovering over a gap - hide circles and text but show date
         hoverCircle.style('opacity', 0);
         hoverCircleRaw.style('opacity', 0);
+        hoverCircleShadow.style('opacity', 0);
+        hoverCircleGoal.style('opacity', 0);
+        hoverCircleForecast.style('opacity', 0);
+        hoverTextMain.style('opacity', 0);
+        hoverTextRaw.style('opacity', 0);
+        hoverTextShadow.style('opacity', 0);
+        hoverTextGoal.style('opacity', 0);
+        hoverTextForecast.style('opacity', 0);
 
         // Show the date we're hovering over even if there's no data
         setHoverData({
@@ -1103,12 +1307,20 @@ export function TimeSeriesChart({
       hoverLine.style('opacity', 0);
       hoverCircle.style('opacity', 0);
       hoverCircleRaw.style('opacity', 0);
+      hoverCircleShadow.style('opacity', 0);
+      hoverCircleGoal.style('opacity', 0);
+      hoverCircleForecast.style('opacity', 0);
+      hoverTextMain.style('opacity', 0);
+      hoverTextRaw.style('opacity', 0);
+      hoverTextShadow.style('opacity', 0);
+      hoverTextGoal.style('opacity', 0);
+      hoverTextForecast.style('opacity', 0);
       // Set to most recent data point instead of null
       const mostRecent = displayData[displayData.length - 1];
       if (mostRecent) {
         // If smoothing is enabled, find the raw data point for the most recent date
         let rawValue: number | undefined;
-        if (smoothingConfig?.enabled && dataWithValues.length > 0) {
+        if (aggregationConfig?.enabled && dataWithValues.length > 0) {
           const rawPoint = dataWithValues.find(p => p.date.getTime() === mostRecent.date.getTime());
           rawValue = rawPoint?.value;
         }
@@ -1446,7 +1658,7 @@ export function TimeSeriesChart({
       }
 
       // Update points - filter to only visible data for performance
-      if (smoothingConfig?.enabled) {
+      if (aggregationConfig?.enabled) {
         const currentDomain = xScale.domain() as [Date, Date];
         const visibleData = dataWithValues.filter(d => {
           const dateTime = d.date.getTime();
@@ -1470,7 +1682,7 @@ export function TimeSeriesChart({
       }
     }
 
-  }, [series, smoothingConfig, shadows, averageShadows, goals, forecastConfig, focusPeriod, currentDomain, chartWidth, height, selectedGoalIndex]);
+  }, [series, aggregationConfig, shadows, averageShadows, goals, forecastConfig, focusPeriod, currentDomain, chartWidth, height, selectedGoalIndex]);
 
   // Update hover data when shadows or averageShadows change
   useEffect(() => {
@@ -1478,7 +1690,17 @@ export function TimeSeriesChart({
 
     // Recalculate shadow data
     const shadowsData = generateShadowsData(series.data, shadows);
-    const shadowsDataWithValues = shadowsData.map(sd => ({
+
+    // Apply aggregation to shadow data if enabled
+    const aggregatedShadowsData = aggregationConfig?.enabled
+      ? shadowsData.map(sd => ({
+          shadow: sd.shadow,
+          data: applyAggregation(sd.data, aggregationConfig),
+          color: sd.color
+        }))
+      : shadowsData;
+
+    const shadowsDataWithValues = aggregatedShadowsData.map(sd => ({
       shadow: sd.shadow,
       data: sd.data.map(d => ({
         date: d.date,
@@ -1488,8 +1710,8 @@ export function TimeSeriesChart({
     }));
 
     // Calculate averaged shadow data if enabled
-    const averagedShadowData = averageShadows && shadowsData.length > 1
-      ? calculateShadowAverage(shadowsData)
+    const averagedShadowData = averageShadows && aggregatedShadowsData.length > 1
+      ? calculateShadowAverage(aggregatedShadowsData)
       : [];
 
     // Parse the date back from the string
@@ -1514,7 +1736,7 @@ export function TimeSeriesChart({
       shadowValue,
       shadowLabel
     });
-  }, [shadows, series.data, averageShadows]);
+  }, [shadows, series.data, averageShadows, aggregationConfig]);
 
   const handleNameSave = () => {
     if (onSeriesUpdate && editedName.trim()) {
@@ -1788,8 +2010,8 @@ export function TimeSeriesChart({
                           setSelectedGoalIndex(newIndex);
                           // Force re-render of hover data with new goal
                           if (hoverData) {
-                            const goalValue = findGoalValue(new Date(hoverData.date), goalsDataWithValues, newIndex);
-                            const goalLabel = goalsDataWithValues[newIndex]?.goal.label;
+                            const goalValue = findGoalValue(new Date(hoverData.date), goalsDataRef.current, newIndex);
+                            const goalLabel = goalsDataRef.current[newIndex]?.goal.label;
                             setHoverData({
                               ...hoverData,
                               goalValue,
@@ -1811,8 +2033,8 @@ export function TimeSeriesChart({
                           setSelectedGoalIndex(newIndex);
                           // Force re-render of hover data with new goal
                           if (hoverData) {
-                            const goalValue = findGoalValue(new Date(hoverData.date), goalsDataWithValues, newIndex);
-                            const goalLabel = goalsDataWithValues[newIndex]?.goal.label;
+                            const goalValue = findGoalValue(new Date(hoverData.date), goalsDataRef.current, newIndex);
+                            const goalLabel = goalsDataRef.current[newIndex]?.goal.label;
                             setHoverData({
                               ...hoverData,
                               goalValue,

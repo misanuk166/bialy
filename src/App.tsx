@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { CSVUpload } from './components/CSVUpload';
 import { TimeSeriesChart } from './components/TimeSeriesChart';
-import { SmoothingControls } from './components/SmoothingControls';
+import { AggregateControls } from './components/AggregateControls';
 import { ShadowControls } from './components/ShadowControls';
 import { GoalControls } from './components/GoalControls';
 import { ForecastControls } from './components/ForecastControls';
 import { FocusPeriodControls } from './components/FocusPeriodControls';
 import type { Series } from './types/series';
-import type { SmoothingConfig } from './utils/smoothing';
+import type { AggregationConfig } from './utils/aggregation';
 import type { Shadow } from './types/shadow';
 import type { Goal } from './types/goal';
 import type { ForecastConfig } from './types/forecast';
@@ -15,10 +15,12 @@ import type { FocusPeriod } from './types/focusPeriod';
 
 function App() {
   const [series, setSeries] = useState<Series | null>(null);
-  const [smoothingConfig, setSmoothingConfig] = useState<SmoothingConfig>({
+  const [aggregationConfig, setAggregationConfig] = useState<AggregationConfig>({
     enabled: false,
+    mode: 'smoothing',
     period: 7,
-    unit: 'days'
+    unit: 'days',
+    groupByPeriod: 'month'
   });
   const [shadows, setShadows] = useState<Shadow[]>([]);
   const [averageShadows, setAverageShadows] = useState(false);
@@ -84,9 +86,9 @@ function App() {
           <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
               <div className="space-y-4">
-                <SmoothingControls
-                  config={smoothingConfig}
-                  onChange={setSmoothingConfig}
+                <AggregateControls
+                  config={aggregationConfig}
+                  onChange={setAggregationConfig}
                 />
                 <ShadowControls
                   shadows={shadows}
@@ -113,7 +115,7 @@ function App() {
               <div className="w-full">
                 <TimeSeriesChart
                   series={series}
-                  smoothingConfig={smoothingConfig}
+                  aggregationConfig={aggregationConfig}
                   shadows={shadows}
                   averageShadows={averageShadows}
                   goals={goalsEnabled ? goals : []}
