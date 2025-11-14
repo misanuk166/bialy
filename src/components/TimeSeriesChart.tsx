@@ -899,18 +899,6 @@ export function TimeSeriesChart({
         .attr('stroke-dasharray', '5,5')
         .attr('d', forecastLine);
 
-      // Draw forecast points (circles) for better visibility
-      chartGroup.selectAll('.forecast-point')
-        .data(forecastResult.forecast)
-        .enter()
-        .append('circle')
-        .attr('class', 'forecast-point')
-        .attr('cx', d => xScale(d.date))
-        .attr('cy', d => yScale(d.value))
-        .attr('r', 2)
-        .attr('fill', '#3b82f6')
-        .attr('opacity', 0.6);
-
       console.log('Forecast path d attribute:', forecastPath.attr('d'));
     }
 
