@@ -969,9 +969,10 @@ export function TimeSeriesChart({
       .append('circle')
       .attr('class', 'hover-circle-forecast')
       .attr('r', 4)
-      .attr('fill', '#f59e0b')
-      .attr('stroke', '#d97706')
+      .attr('fill', '#3b82f6') // Blue-500 to match forecast line
+      .attr('stroke', '#2563eb') // Blue-600
       .attr('stroke-width', 2)
+      .attr('stroke-dasharray', '2,2') // Dashed stroke to match forecast line style
       .style('opacity', 0);
 
     // Create text labels for each circle
@@ -1016,7 +1017,7 @@ export function TimeSeriesChart({
       .attr('class', 'hover-text-forecast')
       .attr('font-size', '10px')
       .attr('font-weight', 'bold')
-      .attr('fill', '#d97706')
+      .attr('fill', '#2563eb') // Blue-600 to match forecast circle
       .attr('text-anchor', 'start')
       .style('opacity', 0);
 
