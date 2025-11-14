@@ -385,8 +385,8 @@ export function TimeSeriesChart({
       ? calculateShadowAverage(aggregatedShadowsData)
       : [];
 
-    // Generate forecast data first so we can extend goals through it
-    const forecastResult = forecastConfig ? generateForecast(dataWithValues, forecastConfig) : null;
+    // Generate forecast data - use displayData which includes aggregation if enabled
+    const forecastResult = forecastConfig ? generateForecast(displayData, forecastConfig) : null;
 
     // Get forecast end date if available
     const forecastEndDate = forecastResult && forecastResult.forecast.length > 0
