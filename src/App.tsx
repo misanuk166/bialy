@@ -29,7 +29,7 @@ function App() {
   const [forecastConfig, setForecastConfig] = useState<ForecastConfig>({
     enabled: false,
     type: 'auto',
-    horizon: 30,
+    horizon: 90,
     interpolation: 'linear',
     seasonal: 'none',
     showConfidenceIntervals: true,
