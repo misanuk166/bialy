@@ -49,7 +49,9 @@ export function MetricGrid({
   onShadowsChange,
   onFocusPeriodChange
 }: MetricGridProps) {
-  const [currentHoverDate, setCurrentHoverDate] = useState<Date | null>(null);
+  const [selectionDate, setSelectionDate] = useState<Date | null>(null); // Locked selection for calculations
+  const [currentHoverDate, setCurrentHoverDate] = useState<Date | null>(null); // For chart hover only
+  const [isEditingSelection, setIsEditingSelection] = useState(false);
   const [sortColumn, setSortColumn] = useState<ColumnKey | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [xDomain, setXDomain] = useState<[Date, Date] | null>(null);
@@ -65,7 +67,7 @@ export function MetricGrid({
   const chartWidth = 400;
   const marginLeft = 40;
 
-  // Calculate initial x-domain from all metrics
+  // Calculate initial x-domain from all metrics and set initial selection
   useEffect(() => {
     if (metrics.length === 0) return;
 
@@ -79,10 +81,12 @@ export function MetricGrid({
       const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
       setXDomain([minDate, maxDate]);
 
-      // Set initial hover to most recent date
-      setCurrentHoverDate(maxDate);
+      // Set initial selection to most recent date (locked)
+      if (!selectionDate) {
+        setSelectionDate(maxDate);
+      }
     }
-  }, [metrics]);
+  }, [metrics, selectionDate]);
 
   // Close modals on click outside
   useEffect(() => {
@@ -101,13 +105,13 @@ export function MetricGrid({
     }
   }, [showAggregationModal, showShadowModal]);
 
-  // Calculate row values for all metrics
+  // Calculate row values for all metrics using locked selection date
   const metricsWithValues = useMemo(() => {
     return metrics.map(metric => ({
       metric,
       values: calculateMetricRowValues(
         metric.series,
-        currentHoverDate,
+        selectionDate,
         globalSettings.aggregation,
         globalSettings.shadows,
         globalSettings.averageShadows,
@@ -115,7 +119,7 @@ export function MetricGrid({
         globalSettings.focusPeriod
       )
     }));
-  }, [metrics, currentHoverDate, globalSettings]);
+  }, [metrics, selectionDate, globalSettings]);
 
   // Sort metrics
   const sortedMetrics = useMemo(() => {
@@ -221,7 +225,37 @@ export function MetricGrid({
           </div>
           {/* Selection Group */}
           <div className="px-2 text-sm font-bold text-gray-800 text-center border-r border-gray-300" style={{ gridColumn: 'span 6' }}>
-            Selection: {currentHoverDate ? currentHoverDate.toLocaleDateString() : '—'}
+            {isEditingSelection ? (
+              <div className="flex items-center justify-center gap-2">
+                <input
+                  type="date"
+                  value={selectionDate ? selectionDate.toISOString().split('T')[0] : ''}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setSelectionDate(new Date(e.target.value));
+                    }
+                  }}
+                  onBlur={() => setIsEditingSelection(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === 'Escape') {
+                      setIsEditingSelection(false);
+                    }
+                  }}
+                  min={dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined}
+                  max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
+                  autoFocus
+                  className="text-sm border border-blue-500 rounded px-2 py-1"
+                />
+              </div>
+            ) : (
+              <span
+                onDoubleClick={() => setIsEditingSelection(true)}
+                className="cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
+                title="Double-click to edit selection date"
+              >
+                Selection: {selectionDate ? selectionDate.toLocaleDateString() : '—'}
+              </span>
+            )}
           </div>
           {/* Focus Period Group */}
           <div className="px-2 text-sm font-bold text-gray-800 text-center flex items-center justify-center gap-2" style={{ gridColumn: 'span 6' }}>
@@ -296,6 +330,7 @@ export function MetricGrid({
             metric={metric}
             globalSettings={globalSettings}
             rowValues={values}
+            selectionDate={selectionDate || undefined}
             currentHoverDate={currentHoverDate || undefined}
             xDomain={xDomain}
             chartWidth={chartWidth}
@@ -303,6 +338,7 @@ export function MetricGrid({
             onExpand={() => onMetricExpand(metric.id)}
             onRemove={() => onMetricRemove(metric.id)}
             onHover={setCurrentHoverDate}
+            onSelectionChange={setSelectionDate}
           />
         ))}
       </div>

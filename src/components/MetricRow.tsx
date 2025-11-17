@@ -9,6 +9,7 @@ interface MetricRowProps {
   metric: MetricConfig;
   globalSettings: GlobalSettings;
   rowValues: MetricRowValues;
+  selectionDate?: Date;
   currentHoverDate?: Date;
   xDomain: [Date, Date];
   chartWidth: number;
@@ -17,12 +18,14 @@ interface MetricRowProps {
   onExpand: () => void;
   onRemove: () => void;
   onHover: (date: Date | null) => void;
+  onSelectionChange: (date: Date) => void;
 }
 
 export function MetricRow({
   metric,
   globalSettings,
   rowValues,
+  selectionDate,
   currentHoverDate,
   xDomain,
   chartWidth,
@@ -30,7 +33,8 @@ export function MetricRow({
   onMetricUpdate,
   onExpand,
   onRemove,
-  onHover
+  onHover,
+  onSelectionChange
 }: MetricRowProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(metric.series.metadata.name);
@@ -160,8 +164,10 @@ export function MetricRow({
           focusPeriod={globalSettings.focusPeriod}
           xDomain={xDomain}
           width={chartWidth}
+          selectionDate={selectionDate}
           currentHoverDate={currentHoverDate}
           onHover={onHover}
+          onClick={onSelectionChange}
         />
       </div>
 

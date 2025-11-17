@@ -15,8 +15,10 @@ interface CompactTimeSeriesChartProps {
   xDomain: [Date, Date];
   width: number;
   height?: number;
+  selectionDate?: Date;
   currentHoverDate?: Date;
   onHover?: (date: Date | null) => void;
+  onClick?: (date: Date) => void;
   onZoom?: (domain: [Date, Date]) => void;
 }
 
@@ -28,8 +30,10 @@ export function CompactTimeSeriesChart({
   xDomain,
   width,
   height = 90,
+  selectionDate,
   currentHoverDate,
   onHover,
+  onClick,
   onZoom
 }: CompactTimeSeriesChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -160,7 +164,23 @@ export function CompactTimeSeriesChart({
       .style('font-size', '9px')
       .call(yAxis);
 
-    // Hover line
+    // Selection line (solid, persistent - shows locked selection)
+    const selectionLine = g.append('line')
+      .attr('stroke', '#ef4444')
+      .attr('stroke-width', 2)
+      .attr('y1', 0)
+      .attr('y2', innerHeight)
+      .style('opacity', 0);
+
+    if (selectionDate) {
+      const x = xScale(selectionDate);
+      selectionLine
+        .attr('x1', x)
+        .attr('x2', x)
+        .style('opacity', 1);
+    }
+
+    // Hover line (dashed, temporary - shows mouse position)
     const hoverLine = g.append('line')
       .attr('stroke', '#666')
       .attr('stroke-width', 1)
@@ -168,6 +188,21 @@ export function CompactTimeSeriesChart({
       .attr('y1', 0)
       .attr('y2', innerHeight)
       .style('opacity', 0);
+
+    // Hover circle and label group
+    const hoverGroup = g.append('g').style('opacity', 0);
+    const hoverCircle = hoverGroup.append('circle')
+      .attr('r', 4)
+      .attr('fill', '#2563eb')
+      .attr('stroke', 'white')
+      .attr('stroke-width', 2);
+
+    const hoverLabel = hoverGroup.append('text')
+      .attr('dy', -10)
+      .attr('text-anchor', 'middle')
+      .style('font-size', '10px')
+      .style('font-weight', 'bold')
+      .attr('fill', '#333');
 
     // Overlay for interactions
     const overlay = g.append('rect')
@@ -182,33 +217,67 @@ export function CompactTimeSeriesChart({
       const [mouseX] = d3.pointer(event);
       const hoveredDate = xScale.invert(mouseX);
 
-      hoverLine
-        .attr('x1', mouseX)
-        .attr('x2', mouseX)
-        .style('opacity', 1);
+      // Find closest data point
+      const bisect = d3.bisector((d: any) => d.date).left;
+      const index = bisect(displayData, hoveredDate);
+      const d0 = displayData[index - 1];
+      const d1 = displayData[index];
+      const closestPoint = !d1 ? d0 : !d0 ? d1 :
+        hoveredDate.getTime() - d0.date.getTime() > d1.date.getTime() - hoveredDate.getTime() ? d1 : d0;
 
-      if (onHover) {
-        onHover(hoveredDate);
+      if (closestPoint) {
+        const x = xScale(closestPoint.date);
+        const y = yScale(closestPoint.value);
+
+        hoverLine
+          .attr('x1', x)
+          .attr('x2', x)
+          .style('opacity', 1);
+
+        hoverCircle
+          .attr('cx', x)
+          .attr('cy', y);
+
+        hoverLabel
+          .attr('x', x)
+          .attr('y', y)
+          .text(closestPoint.value.toFixed(2));
+
+        hoverGroup.style('opacity', 1);
+
+        if (onHover) {
+          onHover(closestPoint.date);
+        }
       }
     });
 
     overlay.on('mouseout', function() {
       hoverLine.style('opacity', 0);
+      hoverGroup.style('opacity', 0);
       if (onHover) {
         onHover(null);
       }
     });
 
-    // Show current hover date from parent
-    if (currentHoverDate) {
-      const x = xScale(currentHoverDate);
-      hoverLine
-        .attr('x1', x)
-        .attr('x2', x)
-        .style('opacity', 1);
-    }
+    // Handle click to update selection
+    overlay.on('click', function(event) {
+      const [mouseX] = d3.pointer(event);
+      const clickedDate = xScale.invert(mouseX);
 
-  }, [series, aggregationConfig, forecastConfig, focusPeriod, xDomain, width, height, currentHoverDate, onHover, onZoom]);
+      // Find closest data point
+      const bisect = d3.bisector((d: any) => d.date).left;
+      const index = bisect(displayData, clickedDate);
+      const d0 = displayData[index - 1];
+      const d1 = displayData[index];
+      const closestPoint = !d1 ? d0 : !d0 ? d1 :
+        clickedDate.getTime() - d0.date.getTime() > d1.date.getTime() - clickedDate.getTime() ? d1 : d0;
+
+      if (closestPoint && onClick) {
+        onClick(closestPoint.date);
+      }
+    });
+
+  }, [series, aggregationConfig, forecastConfig, focusPeriod, xDomain, width, height, selectionDate, currentHoverDate, onHover, onClick, onZoom]);
 
   return <svg ref={svgRef} className="w-full" />;
 }
