@@ -249,26 +249,8 @@ export function MetricGrid({
         <div className="grid gap-2 py-2 border-b border-gray-200" style={{
           gridTemplateColumns: '200px ' + chartWidth + 'px repeat(12, 80px)'
         }}>
-          {/* Metric Label and Buttons */}
-          <div className="px-2 border-r border-gray-300 flex flex-col gap-2">
-            <div className="text-sm font-bold text-gray-800">Metric</div>
-            <div className="flex flex-col gap-1">
-              <button
-                onClick={onAddMetric}
-                className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                title="Add Metric"
-              >
-                + Add
-              </button>
-              <button
-                onClick={onClearAllMetrics}
-                className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                title="Clear All Metrics"
-              >
-                Clear All
-              </button>
-            </div>
-          </div>
+          {/* Empty space for metric column */}
+          <div className="px-2 border-r border-gray-300"></div>
           {/* Chart Group */}
           <div className="px-2 text-sm font-bold text-gray-800 text-center border-r border-gray-300">
             Chart
@@ -329,7 +311,23 @@ export function MetricGrid({
         <div className="grid gap-2 py-2" style={{
           gridTemplateColumns: '200px ' + (chartWidth / 2) + 'px ' + (chartWidth / 2) + 'px repeat(12, 80px)'
         }}>
-          <div className="px-2 text-xs font-semibold text-gray-700 border-r border-gray-300">Metric</div>
+          {/* Metric management buttons */}
+          <div className="px-2 border-r border-gray-300 flex items-center gap-1">
+            <button
+              onClick={onAddMetric}
+              className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+              title="Add Metric"
+            >
+              + Add
+            </button>
+            <button
+              onClick={onClearAllMetrics}
+              className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+              title="Clear All Metrics"
+            >
+              Clear All
+            </button>
+          </div>
 
           {/* Aggregation with Edit button */}
           <div className="px-2 text-xs font-semibold text-gray-700 text-center flex items-center justify-center gap-1">
