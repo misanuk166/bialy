@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { MetricRow } from './MetricRow';
 import { SharedXAxis } from './SharedXAxis';
 import { FocusPeriodModal } from './FocusPeriodModal';
@@ -59,14 +59,34 @@ export function MetricGrid({
   const [showFocusPeriodModal, setShowFocusPeriodModal] = useState(false);
   const [showAggregationModal, setShowAggregationModal] = useState(false);
   const [showShadowModal, setShowShadowModal] = useState(false);
-  const focusPeriodEditButtonRef = React.useRef<HTMLButtonElement>(null);
-  const aggregationEditButtonRef = React.useRef<HTMLButtonElement>(null);
-  const shadowEditButtonRef = React.useRef<HTMLButtonElement>(null);
-  const aggregationPopupRef = React.useRef<HTMLDivElement>(null);
-  const shadowPopupRef = React.useRef<HTMLDivElement>(null);
+  const focusPeriodEditButtonRef = useRef<HTMLButtonElement>(null);
+  const aggregationEditButtonRef = useRef<HTMLButtonElement>(null);
+  const shadowEditButtonRef = useRef<HTMLButtonElement>(null);
+  const aggregationPopupRef = useRef<HTMLDivElement>(null);
+  const shadowPopupRef = useRef<HTMLDivElement>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const chartWidth = 400;
   const marginLeft = 40;
+
+  // Throttled hover handler to improve performance
+  const handleHover = useCallback((date: Date | null) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    hoverTimeoutRef.current = setTimeout(() => {
+      setCurrentHoverDate(date);
+    }, 16); // ~60fps
+  }, []);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Calculate initial x-domain from all metrics and set initial selection
   useEffect(() => {
@@ -344,7 +364,7 @@ export function MetricGrid({
             onMetricUpdate={onMetricUpdate}
             onExpand={() => onMetricExpand(metric.id)}
             onRemove={() => onMetricRemove(metric.id)}
-            onHover={setCurrentHoverDate}
+            onHover={handleHover}
             onSelectionChange={setSelectionDate}
           />
         ))}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { CompactTimeSeriesChart } from './CompactTimeSeriesChart';
 import { ColumnCell, RangeCell } from './ColumnCell';
 import { GoalControls } from './GoalControls';
@@ -21,7 +21,7 @@ interface MetricRowProps {
   onSelectionChange: (date: Date) => void;
 }
 
-export function MetricRow({
+export const MetricRow = memo(function MetricRow({
   metric,
   globalSettings,
   rowValues,
@@ -190,4 +190,4 @@ export function MetricRow({
       <ColumnCell value={rowValues.focusPeriodVsGoalPct} precision={1} colorCode showSign isEmpty={rowValues.focusPeriodVsGoalPct === undefined} />
     </div>
   );
-}
+});
