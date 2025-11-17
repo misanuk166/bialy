@@ -4,7 +4,7 @@ import type { Shadow } from '../types/shadow';
 import type { Goal } from '../types/goal';
 import type { FocusPeriod } from '../types/focusPeriod';
 import type { MetricRowValues } from '../types/appState';
-import { applyAggregation } from './aggregation';
+import { applyAggregation, normalizeSelectionDate } from './aggregation';
 import { generateShadowsData, calculateShadowAverage } from './shadows';
 import { generateGoalsData } from './goals';
 
@@ -45,8 +45,11 @@ export function calculateMetricRowValues(
     }));
   }
 
+  // Normalize selection date to match aggregation period
+  const normalizedDate = normalizeSelectionDate(currentDate, aggregationConfig);
+
   // Find current point
-  const dateTime = currentDate.getTime();
+  const dateTime = normalizedDate.getTime();
   const currentPoint = displayData.find(p => {
     const diff = Math.abs(p.date.getTime() - dateTime);
     return diff < 24 * 60 * 60 * 1000; // 1 day tolerance

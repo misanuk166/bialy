@@ -4,7 +4,7 @@ import type { Series } from '../types/series';
 import type { AggregationConfig } from '../utils/aggregation';
 import type { ForecastConfig } from '../types/forecast';
 import type { FocusPeriod } from '../types/focusPeriod';
-import { applyAggregation } from '../utils/aggregation';
+import { applyAggregation, normalizeSelectionDate } from '../utils/aggregation';
 import { generateForecast } from '../utils/forecasting';
 
 interface CompactTimeSeriesChartProps {
@@ -173,7 +173,9 @@ export function CompactTimeSeriesChart({
       .style('opacity', 0);
 
     if (selectionDate) {
-      const x = xScale(selectionDate);
+      // Normalize selection date to match aggregation period
+      const normalizedSelectionDate = normalizeSelectionDate(selectionDate, aggregationConfig);
+      const x = xScale(normalizedSelectionDate);
       selectionLine
         .attr('x1', x)
         .attr('x2', x)

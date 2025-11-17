@@ -152,3 +152,29 @@ export function getAggregationLabel(config: AggregationConfig): string {
     return `Grouped by ${config.groupByPeriod}`;
   }
 }
+
+/**
+ * Normalize a selection date to match the aggregation period
+ * For Group By mode, returns the start of the period that contains the date
+ * For Smoothing mode, returns the original date
+ */
+export function normalizeSelectionDate(
+  date: Date,
+  config: AggregationConfig | undefined
+): Date {
+  if (!config?.enabled || config.mode === 'smoothing') {
+    return date;
+  }
+
+  // For Group By, normalize to period start
+  switch (config.groupByPeriod) {
+    case 'week':
+      return startOfWeek(date, { weekStartsOn: 0 }); // Sunday
+    case 'month':
+      return startOfMonth(date);
+    case 'quarter':
+      return startOfQuarter(date);
+    case 'year':
+      return startOfYear(date);
+  }
+}
