@@ -192,14 +192,18 @@ export function CompactTimeSeriesChart({
     // Hover circle and label group
     const hoverGroup = g.append('g').style('opacity', 0);
     const hoverCircle = hoverGroup.append('circle')
-      .attr('r', 4)
+      .attr('r', 5)
       .attr('fill', '#2563eb')
       .attr('stroke', 'white')
       .attr('stroke-width', 2);
 
+    const hoverTextBg = hoverGroup.append('rect')
+      .attr('fill', 'white')
+      .attr('stroke', '#ccc')
+      .attr('rx', 2);
+
     const hoverLabel = hoverGroup.append('text')
-      .attr('dy', -10)
-      .attr('text-anchor', 'middle')
+      .attr('text-anchor', 'start')
       .style('font-size', '10px')
       .style('font-weight', 'bold')
       .attr('fill', '#333');
@@ -238,10 +242,20 @@ export function CompactTimeSeriesChart({
           .attr('cx', x)
           .attr('cy', y);
 
+        // Position text to upper-right of circle
+        const labelText = closestPoint.value.toFixed(2);
+        const textWidth = labelText.length * 6 + 4; // Approximate width
+
+        hoverTextBg
+          .attr('x', x + 5)
+          .attr('y', y - 16)
+          .attr('width', textWidth)
+          .attr('height', 12);
+
         hoverLabel
-          .attr('x', x)
-          .attr('y', y)
-          .text(closestPoint.value.toFixed(2));
+          .attr('x', x + 6)
+          .attr('y', y - 6)
+          .text(labelText);
 
         hoverGroup.style('opacity', 1);
 
@@ -299,10 +313,20 @@ export function CompactTimeSeriesChart({
           .attr('cx', x)
           .attr('cy', y);
 
+        // Position text to upper-right of circle
+        const labelText = closestPoint.value.toFixed(2);
+        const textWidth = labelText.length * 6 + 4; // Approximate width
+
+        hoverTextBg
+          .attr('x', x + 5)
+          .attr('y', y - 16)
+          .attr('width', textWidth)
+          .attr('height', 12);
+
         hoverLabel
-          .attr('x', x)
-          .attr('y', y)
-          .text(closestPoint.value.toFixed(2));
+          .attr('x', x + 6)
+          .attr('y', y - 6)
+          .text(labelText);
 
         hoverGroup.style('opacity', 1);
       }
