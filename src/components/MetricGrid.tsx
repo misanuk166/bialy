@@ -13,19 +13,19 @@ interface MetricGridProps {
   onMetricExpand: (metricId: string) => void;
 }
 
-const COLUMN_DEFINITIONS = [
+const getColumnDefinitions = (shadowLabel?: string, goalLabel?: string) => [
   { key: 'selectionValue' as ColumnKey, label: 'Selection', sortable: true },
   { key: 'selectionPoint' as ColumnKey, label: 'Point', sortable: true },
-  { key: 'selectionVsShadowAbs' as ColumnKey, label: 'vs Shadow', sortable: true },
-  { key: 'selectionVsShadowPct' as ColumnKey, label: 'vs Shadow %', sortable: true },
-  { key: 'selectionVsGoalAbs' as ColumnKey, label: 'vs Goal', sortable: true },
-  { key: 'selectionVsGoalPct' as ColumnKey, label: 'vs Goal %', sortable: true },
+  { key: 'selectionVsShadowAbs' as ColumnKey, label: shadowLabel ? `vs ${shadowLabel}` : 'vs Shadow', sortable: true },
+  { key: 'selectionVsShadowPct' as ColumnKey, label: shadowLabel ? `vs ${shadowLabel} %` : 'vs Shadow %', sortable: true },
+  { key: 'selectionVsGoalAbs' as ColumnKey, label: goalLabel ? `vs ${goalLabel}` : 'vs Goal', sortable: true },
+  { key: 'selectionVsGoalPct' as ColumnKey, label: goalLabel ? `vs ${goalLabel} %` : 'vs Goal %', sortable: true },
   { key: 'focusMean' as ColumnKey, label: 'Focus Mean', sortable: true },
   { key: 'focusRange' as ColumnKey, label: 'Focus Range', sortable: false },
-  { key: 'focusVsShadowAbs' as ColumnKey, label: 'vs Shadow', sortable: true },
-  { key: 'focusVsShadowPct' as ColumnKey, label: 'vs Shadow %', sortable: true },
-  { key: 'focusVsGoalAbs' as ColumnKey, label: 'vs Goal', sortable: true },
-  { key: 'focusVsGoalPct' as ColumnKey, label: 'vs Goal %', sortable: true },
+  { key: 'focusVsShadowAbs' as ColumnKey, label: shadowLabel ? `vs ${shadowLabel}` : 'vs Shadow', sortable: true },
+  { key: 'focusVsShadowPct' as ColumnKey, label: shadowLabel ? `vs ${shadowLabel} %` : 'vs Shadow %', sortable: true },
+  { key: 'focusVsGoalAbs' as ColumnKey, label: goalLabel ? `vs ${goalLabel}` : 'vs Goal', sortable: true },
+  { key: 'focusVsGoalPct' as ColumnKey, label: goalLabel ? `vs ${goalLabel} %` : 'vs Goal %', sortable: true },
 ];
 
 export function MetricGrid({
@@ -162,6 +162,11 @@ export function MetricGrid({
 
   if (!xDomain) return <div>Loading...</div>;
 
+  // Get shadow and goal labels from first metric for column headers
+  const shadowLabel = sortedMetrics.length > 0 ? sortedMetrics[0].values.shadowLabel : undefined;
+  const goalLabel = sortedMetrics.length > 0 ? sortedMetrics[0].values.goalLabel : undefined;
+  const columnDefinitions = getColumnDefinitions(shadowLabel, goalLabel);
+
   return (
     <div className="w-full overflow-x-auto">
       {/* Column Headers */}
@@ -171,7 +176,7 @@ export function MetricGrid({
         }}>
           <div className="px-2 text-xs font-semibold text-gray-700">Metric</div>
           <div className="px-2 text-xs font-semibold text-gray-700">Chart</div>
-          {COLUMN_DEFINITIONS.map(col => (
+          {columnDefinitions.map(col => (
             <div
               key={col.key}
               className={`px-2 text-xs font-semibold text-gray-700 text-center ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''}`}
