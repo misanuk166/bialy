@@ -329,10 +329,10 @@ export function TimeSeriesChart({
       value: d.numerator / d.denominator
     }));
 
-    // Calculate the maximum precision from the raw data
-    const dataPrecision = Math.max(
+    // Calculate the maximum precision from the raw data (capped at 2 decimal places)
+    const dataPrecision = Math.min(2, Math.max(
       ...dataWithValues.slice(0, 100).map(d => getDecimalPrecision(d.value))
-    );
+    ));
 
     // Generate forecast data FIRST from raw data
     const rawForecastResult = forecastConfig ? generateForecast(dataWithValues, forecastConfig) : null;
