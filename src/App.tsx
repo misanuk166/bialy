@@ -77,15 +77,15 @@ function App() {
   };
 
   const handleAggregationChange = (config: AggregationConfig) => {
-    setGlobalSettings({ ...globalSettings, aggregation: config });
+    setGlobalSettings(prev => ({ ...prev, aggregation: config }));
   };
 
   const handleShadowsChange = (shadows: Shadow[], averageShadows: boolean) => {
-    setGlobalSettings({ ...globalSettings, shadows, averageShadows });
+    setGlobalSettings(prev => ({ ...prev, shadows, averageShadows }));
   };
 
   const handleFocusPeriodChange = (focusPeriod: FocusPeriod) => {
-    setGlobalSettings({ ...globalSettings, focusPeriod });
+    setGlobalSettings(prev => ({ ...prev, focusPeriod }));
   };
 
   // Get data extent for focus period controls
