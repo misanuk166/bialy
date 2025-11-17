@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { CSVUpload } from './components/CSVUpload';
-import { GlobalControlPanel } from './components/GlobalControlPanel';
 import { MetricGrid } from './components/MetricGrid';
 import { SingleMetricView } from './components/SingleMetricView';
 import { loadSyntheticMetrics } from './utils/generateSyntheticData';
@@ -138,15 +137,6 @@ function App() {
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Global Controls */}
-                <GlobalControlPanel
-                  settings={globalSettings}
-                  dataExtent={dataExtent}
-                  onAggregationChange={handleAggregationChange}
-                  onShadowsChange={handleShadowsChange}
-                  onFocusPeriodChange={handleFocusPeriodChange}
-                />
-
                 {/* Metric Grid */}
                 <MetricGrid
                   metrics={metrics}
@@ -156,6 +146,8 @@ function App() {
                   onMetricUpdate={handleMetricUpdate}
                   onMetricRemove={handleMetricRemove}
                   onMetricExpand={handleMetricExpand}
+                  onAggregationChange={handleAggregationChange}
+                  onShadowsChange={handleShadowsChange}
                   onFocusPeriodChange={handleFocusPeriodChange}
                 />
 

@@ -55,7 +55,7 @@ export function MetricRow({
 
   return (
     <div className="grid gap-2 py-2 border-b border-gray-200 hover:bg-gray-50" style={{
-      gridTemplateColumns: '200px ' + chartWidth + 'px repeat(12, 80px)'
+      gridTemplateColumns: '200px ' + (chartWidth / 2) + 'px ' + (chartWidth / 2) + 'px repeat(12, 80px)'
     }}>
       {/* Name & Description */}
       <div className="px-2 border-r border-gray-300">
@@ -151,8 +151,8 @@ export function MetricRow({
         )}
       </div>
 
-      {/* Compact Chart */}
-      <div className="border-r border-gray-300">
+      {/* Compact Chart - spans both Aggregation and Shadow columns */}
+      <div className="border-r border-gray-300" style={{ gridColumn: 'span 2' }}>
         <CompactTimeSeriesChart
           series={metric.series}
           aggregationConfig={globalSettings.aggregation}

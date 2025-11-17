@@ -2,8 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { MetricRow } from './MetricRow';
 import { SharedXAxis } from './SharedXAxis';
 import { FocusPeriodModal } from './FocusPeriodModal';
+import { AggregateControls } from './AggregateControls';
+import { ShadowControls } from './ShadowControls';
 import type { MetricConfig, GlobalSettings, ColumnKey } from '../types/appState';
 import type { FocusPeriod } from '../types/focusPeriod';
+import type { AggregationConfig } from '../utils/aggregation';
+import type { Shadow } from '../types/shadow';
 import { calculateMetricRowValues } from '../utils/metricCalculations';
 
 interface MetricGridProps {
@@ -14,6 +18,8 @@ interface MetricGridProps {
   onMetricUpdate: (metric: MetricConfig) => void;
   onMetricRemove: (metricId: string) => void;
   onMetricExpand: (metricId: string) => void;
+  onAggregationChange: (config: AggregationConfig) => void;
+  onShadowsChange: (shadows: Shadow[], averageShadows: boolean) => void;
   onFocusPeriodChange: (focusPeriod: FocusPeriod) => void;
 }
 
@@ -39,6 +45,8 @@ export function MetricGrid({
   onMetricUpdate,
   onMetricRemove,
   onMetricExpand,
+  onAggregationChange,
+  onShadowsChange,
   onFocusPeriodChange
 }: MetricGridProps) {
   const [currentHoverDate, setCurrentHoverDate] = useState<Date | null>(null);
@@ -46,7 +54,13 @@ export function MetricGrid({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [xDomain, setXDomain] = useState<[Date, Date] | null>(null);
   const [showFocusPeriodModal, setShowFocusPeriodModal] = useState(false);
-  const editButtonRef = React.useRef<HTMLButtonElement>(null);
+  const [showAggregationModal, setShowAggregationModal] = useState(false);
+  const [showShadowModal, setShowShadowModal] = useState(false);
+  const focusPeriodEditButtonRef = React.useRef<HTMLButtonElement>(null);
+  const aggregationEditButtonRef = React.useRef<HTMLButtonElement>(null);
+  const shadowEditButtonRef = React.useRef<HTMLButtonElement>(null);
+  const aggregationPopupRef = React.useRef<HTMLDivElement>(null);
+  const shadowPopupRef = React.useRef<HTMLDivElement>(null);
 
   const chartWidth = 400;
   const marginLeft = 40;
@@ -69,6 +83,23 @@ export function MetricGrid({
       setCurrentHoverDate(maxDate);
     }
   }, [metrics]);
+
+  // Close modals on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (aggregationPopupRef.current && !aggregationPopupRef.current.contains(event.target as Node)) {
+        setShowAggregationModal(false);
+      }
+      if (shadowPopupRef.current && !shadowPopupRef.current.contains(event.target as Node)) {
+        setShowShadowModal(false);
+      }
+    };
+
+    if (showAggregationModal || showShadowModal) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showAggregationModal, showShadowModal]);
 
   // Calculate row values for all metrics
   const metricsWithValues = useMemo(() => {
@@ -184,7 +215,10 @@ export function MetricGrid({
           gridTemplateColumns: '200px ' + chartWidth + 'px repeat(12, 80px)'
         }}>
           <div className="px-2 border-r border-gray-300"></div>
-          <div className="px-2 border-r border-gray-300"></div>
+          {/* Chart Group */}
+          <div className="px-2 text-sm font-bold text-gray-800 text-center border-r border-gray-300">
+            Chart
+          </div>
           {/* Selection Group */}
           <div className="px-2 text-sm font-bold text-gray-800 text-center border-r border-gray-300" style={{ gridColumn: 'span 6' }}>
             Selection: {currentHoverDate ? currentHoverDate.toLocaleDateString() : '—'}
@@ -197,7 +231,7 @@ export function MetricGrid({
                 : 'Focus Period'}
             </span>
             <button
-              ref={editButtonRef}
+              ref={focusPeriodEditButtonRef}
               onClick={() => setShowFocusPeriodModal(true)}
               className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
               title="Edit focus period"
@@ -209,10 +243,36 @@ export function MetricGrid({
 
         {/* Column Headers Row */}
         <div className="grid gap-2 py-2" style={{
-          gridTemplateColumns: '200px ' + chartWidth + 'px repeat(12, 80px)'
+          gridTemplateColumns: '200px ' + (chartWidth / 2) + 'px ' + (chartWidth / 2) + 'px repeat(12, 80px)'
         }}>
           <div className="px-2 text-xs font-semibold text-gray-700 border-r border-gray-300">Metric</div>
-          <div className="px-2 text-xs font-semibold text-gray-700 border-r border-gray-300">Chart</div>
+
+          {/* Aggregation with Edit button */}
+          <div className="px-2 text-xs font-semibold text-gray-700 text-center flex items-center justify-center gap-1">
+            <span>Aggregation</span>
+            <button
+              ref={aggregationEditButtonRef}
+              onClick={() => setShowAggregationModal(true)}
+              className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
+              title="Edit aggregation"
+            >
+              Edit
+            </button>
+          </div>
+
+          {/* Shadow with Edit button */}
+          <div className="px-2 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 flex items-center justify-center gap-1">
+            <span>Shadow</span>
+            <button
+              ref={shadowEditButtonRef}
+              onClick={() => setShowShadowModal(true)}
+              className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
+              title="Edit shadow"
+            >
+              Edit
+            </button>
+          </div>
+
           {columnDefinitions.map((col, index) => (
             <div
               key={col.key}
@@ -261,8 +321,58 @@ export function MetricGrid({
           dataExtent={dataExtent}
           onSave={onFocusPeriodChange}
           onClose={() => setShowFocusPeriodModal(false)}
-          anchorElement={editButtonRef.current || undefined}
+          anchorElement={focusPeriodEditButtonRef.current || undefined}
         />
+      )}
+
+      {/* Aggregation Popup */}
+      {showAggregationModal && (
+        <div
+          ref={aggregationPopupRef}
+          className="absolute bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
+          style={{
+            top: aggregationEditButtonRef.current ? aggregationEditButtonRef.current.offsetTop + aggregationEditButtonRef.current.offsetHeight + 5 : '50%',
+            left: aggregationEditButtonRef.current ? aggregationEditButtonRef.current.offsetLeft : '50%',
+            width: '280px'
+          }}
+        >
+          <AggregateControls
+            config={globalSettings.aggregation || { enabled: false, mode: 'smoothing', period: 7, unit: 'days', groupByPeriod: 'month' }}
+            onChange={onAggregationChange}
+          />
+          <button
+            onClick={() => setShowAggregationModal(false)}
+            className="mt-3 w-full text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+          >
+            Close
+          </button>
+        </div>
+      )}
+
+      {/* Shadow Popup */}
+      {showShadowModal && (
+        <div
+          ref={shadowPopupRef}
+          className="absolute bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
+          style={{
+            top: shadowEditButtonRef.current ? shadowEditButtonRef.current.offsetTop + shadowEditButtonRef.current.offsetHeight + 5 : '50%',
+            left: shadowEditButtonRef.current ? shadowEditButtonRef.current.offsetLeft : '50%',
+            width: '320px'
+          }}
+        >
+          <ShadowControls
+            shadows={globalSettings.shadows || []}
+            averageTogether={globalSettings.averageShadows || false}
+            onChange={(shadows) => onShadowsChange(shadows, globalSettings.averageShadows || false)}
+            onAverageTogetherChange={(enabled) => onShadowsChange(globalSettings.shadows || [], enabled)}
+          />
+          <button
+            onClick={() => setShowShadowModal(false)}
+            className="mt-3 w-full text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+          >
+            Close
+          </button>
+        </div>
       )}
     </div>
   );
