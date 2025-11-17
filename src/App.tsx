@@ -27,6 +27,7 @@ function App() {
   });
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [expandedMetricId, setExpandedMetricId] = useState<string | null>(null);
+  const [showAddMetricModal, setShowAddMetricModal] = useState(false);
 
   const handleSeriesLoaded = (series: Series) => {
     setMetrics(prevMetrics => {
@@ -87,6 +88,16 @@ function App() {
     setGlobalSettings(prev => ({ ...prev, focusPeriod }));
   };
 
+  const handleAddMetric = () => {
+    setShowAddMetricModal(true);
+  };
+
+  const handleClearAllMetrics = () => {
+    if (confirm('Are you sure you want to clear all metrics?')) {
+      setMetrics([]);
+    }
+  };
+
   // Get data extent for focus period controls
   const dataExtent = metrics.length > 0 ? (() => {
     const allDates: Date[] = [];
@@ -136,7 +147,7 @@ function App() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-6">
+              <>
                 {/* Metric Grid */}
                 <MetricGrid
                   metrics={metrics}
@@ -149,21 +160,43 @@ function App() {
                   onAggregationChange={handleAggregationChange}
                   onShadowsChange={handleShadowsChange}
                   onFocusPeriodChange={handleFocusPeriodChange}
+                  onAddMetric={handleAddMetric}
+                  onClearAllMetrics={handleClearAllMetrics}
                 />
 
-                {/* Add Metric Button */}
-                <div className="flex justify-center gap-4">
-                  <CSVUpload onSeriesLoaded={handleSeriesLoaded} />
-                  {metrics.length > 0 && (
-                    <button
-                      onClick={() => setMetrics([])}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                    >
-                      Clear All Metrics
-                    </button>
-                  )}
-                </div>
-              </div>
+                {/* Add Metric Modal */}
+                {showAddMetricModal && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
+                      <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold">Add Metric</h2>
+                        <button
+                          onClick={() => setShowAddMetricModal(false)}
+                          className="text-gray-500 hover:text-gray-700"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <CSVUpload onSeriesLoaded={(series) => {
+                        handleSeriesLoaded(series);
+                        setShowAddMetricModal(false);
+                      }} />
+                      <div className="mt-4 text-center">
+                        <p className="text-gray-600 mb-2">or</p>
+                        <button
+                          onClick={() => {
+                            loadSyntheticMetrics(handleSeriesLoaded);
+                            setShowAddMetricModal(false);
+                          }}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          Add Synthetic Metric
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
