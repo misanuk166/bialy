@@ -988,7 +988,15 @@ export function TimeSeriesChart({
       .attr('stroke-dasharray', '2,2') // Dashed stroke to match forecast line style
       .style('opacity', 0);
 
-    // Create text labels for each circle
+    // Create background rectangles and text labels for each circle
+    const hoverTextBgMain = g
+      .append('rect')
+      .attr('class', 'hover-text-bg-main')
+      .attr('fill', 'white')
+      .attr('fill-opacity', 0.85)
+      .attr('rx', 2)
+      .style('opacity', 0);
+
     const hoverTextMain = g
       .append('text')
       .attr('class', 'hover-text-main')
@@ -996,6 +1004,14 @@ export function TimeSeriesChart({
       .attr('font-weight', 'bold')
       .attr('fill', '#2563eb')
       .attr('text-anchor', 'start')
+      .style('opacity', 0);
+
+    const hoverTextBgRaw = g
+      .append('rect')
+      .attr('class', 'hover-text-bg-raw')
+      .attr('fill', 'white')
+      .attr('fill-opacity', 0.85)
+      .attr('rx', 2)
       .style('opacity', 0);
 
     const hoverTextRaw = g
@@ -1007,6 +1023,14 @@ export function TimeSeriesChart({
       .attr('text-anchor', 'start')
       .style('opacity', 0);
 
+    const hoverTextBgShadow = g
+      .append('rect')
+      .attr('class', 'hover-text-bg-shadow')
+      .attr('fill', 'white')
+      .attr('fill-opacity', 0.85)
+      .attr('rx', 2)
+      .style('opacity', 0);
+
     const hoverTextShadow = g
       .append('text')
       .attr('class', 'hover-text-shadow')
@@ -1016,6 +1040,14 @@ export function TimeSeriesChart({
       .attr('text-anchor', 'start')
       .style('opacity', 0);
 
+    const hoverTextBgGoal = g
+      .append('rect')
+      .attr('class', 'hover-text-bg-goal')
+      .attr('fill', 'white')
+      .attr('fill-opacity', 0.85)
+      .attr('rx', 2)
+      .style('opacity', 0);
+
     const hoverTextGoal = g
       .append('text')
       .attr('class', 'hover-text-goal')
@@ -1023,6 +1055,14 @@ export function TimeSeriesChart({
       .attr('font-weight', 'bold')
       .attr('fill', '#ea580c')
       .attr('text-anchor', 'start')
+      .style('opacity', 0);
+
+    const hoverTextBgForecast = g
+      .append('rect')
+      .attr('class', 'hover-text-bg-forecast')
+      .attr('fill', 'white')
+      .attr('fill-opacity', 0.85)
+      .attr('rx', 2)
       .style('opacity', 0);
 
     const hoverTextForecast = g
@@ -1081,15 +1121,24 @@ export function TimeSeriesChart({
             .attr('cy', y)
             .style('opacity', 1);
 
-          // Show main text label
+          // Show main text label with background
+          const mainText = formatWithPrecision(closestForecast.value, dataPrecision);
+          const mainTextWidth = mainText.length * 6 + 4; // Approximate width
+          hoverTextBgMain
+            .attr('x', x + 5)
+            .attr('y', y - 16)
+            .attr('width', mainTextWidth)
+            .attr('height', 12)
+            .style('opacity', 1);
           hoverTextMain
             .attr('x', x + 6)
             .attr('y', y - 6)
-            .text(formatWithPrecision(closestForecast.value, dataPrecision))
+            .text(mainText)
             .style('opacity', 1);
 
           hoverCircleRaw.style('opacity', 0);
           hoverTextRaw.style('opacity', 0);
+          hoverTextBgRaw.style('opacity', 0);
 
           // Show forecast circle
           hoverCircleForecast
@@ -1117,42 +1166,60 @@ export function TimeSeriesChart({
           const goalValue = findGoalValue(closestForecast.date, goalsDataWithValues, selectedGoalIndex);
           const goalLabel = goalsDataWithValues[selectedGoalIndex]?.goal.label;
 
-          // Position shadow circle and text
+          // Position shadow circle and text with background
           if (shadowValue !== undefined) {
             const shadowY = yScale(shadowValue);
+            const shadowText = formatWithPrecision(shadowValue, dataPrecision);
+            const shadowTextWidth = shadowText.length * 6 + 4;
             hoverCircleShadow
               .attr('cx', x)
               .attr('cy', shadowY)
               .style('opacity', 1);
+            hoverTextBgShadow
+              .attr('x', x + 5)
+              .attr('y', shadowY - 16)
+              .attr('width', shadowTextWidth)
+              .attr('height', 12)
+              .style('opacity', 1);
             hoverTextShadow
               .attr('x', x + 6)
               .attr('y', shadowY - 6)
-              .text(formatWithPrecision(shadowValue, dataPrecision))
+              .text(shadowText)
               .style('opacity', 1);
           } else {
             hoverCircleShadow.style('opacity', 0);
             hoverTextShadow.style('opacity', 0);
+            hoverTextBgShadow.style('opacity', 0);
           }
 
-          // Position goal circle and text
+          // Position goal circle and text with background
           if (goalValue !== undefined && goalsDataWithValues[selectedGoalIndex]) {
             const goalColor = goalsDataWithValues[selectedGoalIndex].color;
             const goalY = yScale(goalValue);
+            const goalText = formatWithPrecision(goalValue, dataPrecision);
+            const goalTextWidth = goalText.length * 6 + 4;
             hoverCircleGoal
               .attr('cx', x)
               .attr('cy', goalY)
               .attr('fill', goalColor)
               .attr('stroke', goalColor)
               .style('opacity', 1);
+            hoverTextBgGoal
+              .attr('x', x + 5)
+              .attr('y', goalY - 16)
+              .attr('width', goalTextWidth)
+              .attr('height', 12)
+              .style('opacity', 1);
             hoverTextGoal
               .attr('x', x + 6)
               .attr('y', goalY - 6)
               .attr('fill', goalColor)
-              .text(formatWithPrecision(goalValue, dataPrecision))
+              .text(goalText)
               .style('opacity', 1);
           } else {
             hoverCircleGoal.style('opacity', 0);
             hoverTextGoal.style('opacity', 0);
+            hoverTextBgGoal.style('opacity', 0);
           }
 
           setHoverData({
@@ -1191,11 +1258,19 @@ export function TimeSeriesChart({
           .attr('cy', y)
           .style('opacity', 1);
 
-        // Show main text label
+        // Show main text label with background
+        const mainText = formatWithPrecision(d.value as number, dataPrecision);
+        const mainTextWidth = mainText.length * 6 + 4;
+        hoverTextBgMain
+          .attr('x', x + 5)
+          .attr('y', y - 16)
+          .attr('width', mainTextWidth)
+          .attr('height', 12)
+          .style('opacity', 1);
         hoverTextMain
           .attr('x', x + 6)
           .attr('y', y - 6)
-          .text(formatWithPrecision(d.value as number, dataPrecision))
+          .text(mainText)
           .style('opacity', 1);
 
         // If aggregation is enabled, find and highlight the raw data point
@@ -1205,22 +1280,32 @@ export function TimeSeriesChart({
           if (rawPoint) {
             rawValue = rawPoint.value;
             const rawY = yScale(rawPoint.value);
+            const rawText = formatWithPrecision(rawPoint.value, dataPrecision);
+            const rawTextWidth = rawText.length * 6 + 4;
             hoverCircleRaw
               .attr('cx', x)
               .attr('cy', rawY)
               .style('opacity', 1);
+            hoverTextBgRaw
+              .attr('x', x + 5)
+              .attr('y', rawY - 16)
+              .attr('width', rawTextWidth)
+              .attr('height', 12)
+              .style('opacity', 1);
             hoverTextRaw
               .attr('x', x + 6)
               .attr('y', rawY - 6)
-              .text(formatWithPrecision(rawPoint.value, dataPrecision))
+              .text(rawText)
               .style('opacity', 1);
           } else {
             hoverCircleRaw.style('opacity', 0);
             hoverTextRaw.style('opacity', 0);
+            hoverTextBgRaw.style('opacity', 0);
           }
         } else {
           hoverCircleRaw.style('opacity', 0);
           hoverTextRaw.style('opacity', 0);
+          hoverTextBgRaw.style('opacity', 0);
         }
 
         // Find shadow value and label for comparison
@@ -1240,47 +1325,66 @@ export function TimeSeriesChart({
         const goalValue = findGoalValue(d.date, goalsDataWithValues, selectedGoalIndex);
         const goalLabel = goalsDataWithValues[selectedGoalIndex]?.goal.label;
 
-        // Position shadow circle and text
+        // Position shadow circle and text with background
         if (shadowValue !== undefined) {
           const shadowY = yScale(shadowValue);
+          const shadowText = formatWithPrecision(shadowValue, dataPrecision);
+          const shadowTextWidth = shadowText.length * 6 + 4;
           hoverCircleShadow
             .attr('cx', x)
             .attr('cy', shadowY)
             .style('opacity', 1);
+          hoverTextBgShadow
+            .attr('x', x + 5)
+            .attr('y', shadowY - 16)
+            .attr('width', shadowTextWidth)
+            .attr('height', 12)
+            .style('opacity', 1);
           hoverTextShadow
             .attr('x', x + 6)
             .attr('y', shadowY - 6)
-            .text(formatWithPrecision(shadowValue, dataPrecision))
+            .text(shadowText)
             .style('opacity', 1);
         } else {
           hoverCircleShadow.style('opacity', 0);
           hoverTextShadow.style('opacity', 0);
+          hoverTextBgShadow.style('opacity', 0);
         }
 
-        // Position goal circle and text
+        // Position goal circle and text with background
         if (goalValue !== undefined && goalsDataWithValues[selectedGoalIndex]) {
           const goalColor = goalsDataWithValues[selectedGoalIndex].color;
           const goalY = yScale(goalValue);
+          const goalText = formatWithPrecision(goalValue, dataPrecision);
+          const goalTextWidth = goalText.length * 6 + 4;
           hoverCircleGoal
             .attr('cx', x)
             .attr('cy', goalY)
             .attr('fill', goalColor)
             .attr('stroke', goalColor)
             .style('opacity', 1);
+          hoverTextBgGoal
+            .attr('x', x + 5)
+            .attr('y', goalY - 16)
+            .attr('width', goalTextWidth)
+            .attr('height', 12)
+            .style('opacity', 1);
           hoverTextGoal
             .attr('x', x + 6)
             .attr('y', goalY - 6)
             .attr('fill', goalColor)
-            .text(formatWithPrecision(goalValue, dataPrecision))
+            .text(goalText)
             .style('opacity', 1);
         } else {
           hoverCircleGoal.style('opacity', 0);
           hoverTextGoal.style('opacity', 0);
+          hoverTextBgGoal.style('opacity', 0);
         }
 
-        // Hide forecast circle and text (we're on actual data)
+        // Hide forecast circle, text, and background (we're on actual data)
         hoverCircleForecast.style('opacity', 0);
         hoverTextForecast.style('opacity', 0);
+        hoverTextBgForecast.style('opacity', 0);
 
         setHoverData({
           date: d.date.toLocaleDateString(),
@@ -1294,7 +1398,7 @@ export function TimeSeriesChart({
           isForecast: false
         });
       } else {
-        // Hovering over a gap - hide circles and text but show date
+        // Hovering over a gap - hide circles, text, and backgrounds but show date
         hoverCircle.style('opacity', 0);
         hoverCircleRaw.style('opacity', 0);
         hoverCircleShadow.style('opacity', 0);
@@ -1305,6 +1409,11 @@ export function TimeSeriesChart({
         hoverTextShadow.style('opacity', 0);
         hoverTextGoal.style('opacity', 0);
         hoverTextForecast.style('opacity', 0);
+        hoverTextBgMain.style('opacity', 0);
+        hoverTextBgRaw.style('opacity', 0);
+        hoverTextBgShadow.style('opacity', 0);
+        hoverTextBgGoal.style('opacity', 0);
+        hoverTextBgForecast.style('opacity', 0);
 
         // Show the date we're hovering over even if there's no data
         setHoverData({
@@ -1329,6 +1438,11 @@ export function TimeSeriesChart({
       hoverTextShadow.style('opacity', 0);
       hoverTextGoal.style('opacity', 0);
       hoverTextForecast.style('opacity', 0);
+      hoverTextBgMain.style('opacity', 0);
+      hoverTextBgRaw.style('opacity', 0);
+      hoverTextBgShadow.style('opacity', 0);
+      hoverTextBgGoal.style('opacity', 0);
+      hoverTextBgForecast.style('opacity', 0);
       // Set to most recent data point instead of null
       const mostRecent = displayData[displayData.length - 1];
       if (mostRecent) {
