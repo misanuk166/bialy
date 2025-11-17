@@ -21,7 +21,17 @@ export function ShadowControls({
   const [unit, setUnit] = React.useState<ShadowPeriodUnit>('year');
   const [count, setCount] = React.useState(1);
 
-  // Initialize from existing shadows
+  const generateShadows = (p: number, u: ShadowPeriodUnit, c: number) => {
+    const newShadows: Shadow[] = [];
+    for (let i = 1; i <= c; i++) {
+      const totalPeriods = p * i;
+      const label = `${totalPeriods} ${u}${totalPeriods > 1 ? 's' : ''} ago`;
+      newShadows.push(createShadow(totalPeriods, u, label));
+    }
+    onChange(newShadows);
+  };
+
+  // Initialize from existing shadows or generate initial shadows
   React.useEffect(() => {
     if (shadows.length > 0) {
       setCount(shadows.length);
@@ -31,6 +41,9 @@ export function ShadowControls({
         setPeriod(firstShadow.periods);
         setUnit(firstShadow.unit);
       }
+    } else {
+      // No shadows exist, generate initial shadow with default values
+      generateShadows(period, unit, count);
     }
   }, []); // Only run once on mount
 
@@ -50,16 +63,6 @@ export function ShadowControls({
     const newCount = Math.max(1, Math.min(maxShadows, parseInt(e.target.value) || 1));
     setCount(newCount);
     generateShadows(period, unit, newCount);
-  };
-
-  const generateShadows = (p: number, u: ShadowPeriodUnit, c: number) => {
-    const newShadows: Shadow[] = [];
-    for (let i = 1; i <= c; i++) {
-      const totalPeriods = p * i;
-      const label = `${totalPeriods} ${u}${totalPeriods > 1 ? 's' : ''} ago`;
-      newShadows.push(createShadow(totalPeriods, u, label));
-    }
-    onChange(newShadows);
   };
 
   const handleDisable = () => {
