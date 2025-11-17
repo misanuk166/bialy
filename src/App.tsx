@@ -3,6 +3,7 @@ import { CSVUpload } from './components/CSVUpload';
 import { GlobalControlPanel } from './components/GlobalControlPanel';
 import { MetricGrid } from './components/MetricGrid';
 import { SingleMetricView } from './components/SingleMetricView';
+import { FocusPeriodModal } from './components/FocusPeriodModal';
 import { loadSyntheticMetrics } from './utils/generateSyntheticData';
 import type { Series } from './types/series';
 import type { MetricConfig, GlobalSettings, ViewMode } from './types/appState';
@@ -28,6 +29,7 @@ function App() {
   });
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [expandedMetricId, setExpandedMetricId] = useState<string | null>(null);
+  const [showFocusPeriodModal, setShowFocusPeriodModal] = useState(false);
 
   const handleSeriesLoaded = (series: Series) => {
     setMetrics(prevMetrics => {
@@ -155,7 +157,18 @@ function App() {
                   onMetricUpdate={handleMetricUpdate}
                   onMetricRemove={handleMetricRemove}
                   onMetricExpand={handleMetricExpand}
+                  onEditFocusPeriod={() => setShowFocusPeriodModal(true)}
                 />
+
+                {/* Focus Period Modal */}
+                {showFocusPeriodModal && (
+                  <FocusPeriodModal
+                    focusPeriod={globalSettings.focusPeriod || { enabled: false }}
+                    dataExtent={dataExtent}
+                    onSave={handleFocusPeriodChange}
+                    onClose={() => setShowFocusPeriodModal(false)}
+                  />
+                )}
 
                 {/* Add Metric Button */}
                 <div className="flex justify-center gap-4">

@@ -11,6 +11,7 @@ interface MetricGridProps {
   onMetricUpdate: (metric: MetricConfig) => void;
   onMetricRemove: (metricId: string) => void;
   onMetricExpand: (metricId: string) => void;
+  onEditFocusPeriod?: () => void;
 }
 
 const getColumnDefinitions = (shadowLabel?: string, goalLabel?: string) => [
@@ -33,7 +34,8 @@ export function MetricGrid({
   globalSettings,
   onMetricUpdate,
   onMetricRemove,
-  onMetricExpand
+  onMetricExpand,
+  onEditFocusPeriod
 }: MetricGridProps) {
   const [currentHoverDate, setCurrentHoverDate] = useState<Date | null>(null);
   const [sortColumn, setSortColumn] = useState<ColumnKey | null>(null);
@@ -171,6 +173,36 @@ export function MetricGrid({
     <div className="w-full overflow-x-auto">
       {/* Column Headers */}
       <div className="sticky top-0 bg-white border-b-2 border-gray-300 z-10">
+        {/* Group Headers Row */}
+        <div className="grid gap-2 py-2 border-b border-gray-200" style={{
+          gridTemplateColumns: '200px ' + chartWidth + 'px repeat(12, 80px)'
+        }}>
+          <div className="px-2"></div>
+          <div className="px-2"></div>
+          {/* Selection Group */}
+          <div className="px-2 text-sm font-bold text-gray-800 text-center" style={{ gridColumn: 'span 6' }}>
+            Selection: {currentHoverDate ? currentHoverDate.toLocaleDateString() : '—'}
+          </div>
+          {/* Focus Period Group */}
+          <div className="px-2 text-sm font-bold text-gray-800 text-center flex items-center justify-center gap-2" style={{ gridColumn: 'span 6' }}>
+            <span>
+              {globalSettings.focusPeriod?.enabled && globalSettings.focusPeriod.label
+                ? globalSettings.focusPeriod.label
+                : 'Focus Period'}
+            </span>
+            {onEditFocusPeriod && (
+              <button
+                onClick={onEditFocusPeriod}
+                className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
+                title="Edit focus period"
+              >
+                Edit
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Column Headers Row */}
         <div className="grid gap-2 py-2" style={{
           gridTemplateColumns: '200px ' + chartWidth + 'px repeat(12, 80px)'
         }}>
@@ -216,13 +248,6 @@ export function MetricGrid({
           <SharedXAxis xDomain={xDomain} width={chartWidth} marginLeft={marginLeft} />
         </div>
       </div>
-
-      {/* Current Hover Date Display */}
-      {currentHoverDate && (
-        <div className="text-center text-sm text-gray-600 mt-2">
-          {currentHoverDate.toLocaleDateString()}
-        </div>
-      )}
     </div>
   );
 }
