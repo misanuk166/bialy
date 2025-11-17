@@ -166,8 +166,8 @@ export function CompactTimeSeriesChart({
 
     // Selection line (solid, persistent - shows locked selection)
     const selectionLine = g.append('line')
-      .attr('stroke', '#ef4444')
-      .attr('stroke-width', 2)
+      .attr('stroke', '#000000')
+      .attr('stroke-width', 1)
       .attr('y1', 0)
       .attr('y2', innerHeight)
       .style('opacity', 0);
@@ -276,6 +276,40 @@ export function CompactTimeSeriesChart({
         onClick(closestPoint.date);
       }
     });
+
+    // Show hover indicators from parent (synchronized across all charts)
+    if (currentHoverDate) {
+      const bisect = d3.bisector((d: any) => d.date).left;
+      const index = bisect(displayData, currentHoverDate);
+      const d0 = displayData[index - 1];
+      const d1 = displayData[index];
+      const closestPoint = !d1 ? d0 : !d0 ? d1 :
+        currentHoverDate.getTime() - d0.date.getTime() > d1.date.getTime() - currentHoverDate.getTime() ? d1 : d0;
+
+      if (closestPoint) {
+        const x = xScale(closestPoint.date);
+        const y = yScale(closestPoint.value);
+
+        hoverLine
+          .attr('x1', x)
+          .attr('x2', x)
+          .style('opacity', 1);
+
+        hoverCircle
+          .attr('cx', x)
+          .attr('cy', y);
+
+        hoverLabel
+          .attr('x', x)
+          .attr('y', y)
+          .text(closestPoint.value.toFixed(2));
+
+        hoverGroup.style('opacity', 1);
+      }
+    } else {
+      hoverLine.style('opacity', 0);
+      hoverGroup.style('opacity', 0);
+    }
 
   }, [series, aggregationConfig, forecastConfig, focusPeriod, xDomain, width, height, selectionDate, currentHoverDate, onHover, onClick, onZoom]);
 
