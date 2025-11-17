@@ -369,11 +369,11 @@ export function MetricGrid({
           style={{
             top: aggregationEditButtonRef.current ? aggregationEditButtonRef.current.offsetTop + aggregationEditButtonRef.current.offsetHeight + 5 : '50%',
             left: aggregationEditButtonRef.current ? aggregationEditButtonRef.current.offsetLeft : '50%',
-            width: '280px'
+            width: '300px'
           }}
         >
           <AggregateControls
-            config={globalSettings.aggregation || { enabled: false, mode: 'smoothing', period: 7, unit: 'days', groupByPeriod: 'month' }}
+            config={globalSettings.aggregation || { enabled: true, mode: 'smoothing', period: 7, unit: 'days', groupByPeriod: 'month' }}
             onChange={onAggregationChange}
           />
           <button
