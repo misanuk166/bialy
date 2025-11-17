@@ -15,6 +15,18 @@
 - ✅ Research time series forecasting options
 - ✅ Implement time series forecasting (Auto & Manual modes)
 
+## Multi-Metric
+- Add metric grouping and ordering
+- Add Group Goal Setting
+- Add Group Forecasting
+- Improve dynamic labeling system
+- Add scaling to conditional color formatting
+- Add Annotations
+- Add Comments
+- Add Metric metadata section
+- Enable multiple Shadows
+- Enable multiple Focus Periods
+
 ## Next Priority
 - 🎯 **Breakout - by Dimension** (section 2.4)
   - Small multiples view: explode a series into multiple charts by dimension values
