@@ -58,7 +58,7 @@ export function MetricRow({
       gridTemplateColumns: '200px ' + chartWidth + 'px repeat(12, 80px)'
     }}>
       {/* Name & Description */}
-      <div className="px-2">
+      <div className="px-2 border-r border-gray-300">
         {isEditingName ? (
           <input
             type="text"
@@ -152,7 +152,7 @@ export function MetricRow({
       </div>
 
       {/* Compact Chart */}
-      <div>
+      <div className="border-r border-gray-300">
         <CompactTimeSeriesChart
           series={metric.series}
           aggregationConfig={globalSettings.aggregation}
@@ -171,7 +171,7 @@ export function MetricRow({
       <ColumnCell value={rowValues.selectionVsShadowAbs} precision={precision} colorCode showSign isEmpty={rowValues.selectionVsShadowAbs === undefined} />
       <ColumnCell value={rowValues.selectionVsShadowPct} precision={1} colorCode showSign isEmpty={rowValues.selectionVsShadowPct === undefined} />
       <ColumnCell value={rowValues.selectionVsGoalAbs} precision={precision} colorCode showSign isEmpty={rowValues.selectionVsGoalAbs === undefined} />
-      <ColumnCell value={rowValues.selectionVsGoalPct} precision={1} colorCode showSign isEmpty={rowValues.selectionVsGoalPct === undefined} />
+      <ColumnCell value={rowValues.selectionVsGoalPct} precision={1} colorCode showSign isEmpty={rowValues.selectionVsGoalPct === undefined} className="border-r border-gray-300" />
 
       {/* Focus Period Columns */}
       <ColumnCell value={rowValues.focusPeriodMean} precision={precision} isEmpty={rowValues.focusPeriodMean === undefined} />

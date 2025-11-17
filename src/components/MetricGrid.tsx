@@ -183,10 +183,10 @@ export function MetricGrid({
         <div className="grid gap-2 py-2 border-b border-gray-200" style={{
           gridTemplateColumns: '200px ' + chartWidth + 'px repeat(12, 80px)'
         }}>
-          <div className="px-2"></div>
-          <div className="px-2"></div>
+          <div className="px-2 border-r border-gray-300"></div>
+          <div className="px-2 border-r border-gray-300"></div>
           {/* Selection Group */}
-          <div className="px-2 text-sm font-bold text-gray-800 text-center" style={{ gridColumn: 'span 6' }}>
+          <div className="px-2 text-sm font-bold text-gray-800 text-center border-r border-gray-300" style={{ gridColumn: 'span 6' }}>
             Selection: {currentHoverDate ? currentHoverDate.toLocaleDateString() : '—'}
           </div>
           {/* Focus Period Group */}
@@ -211,12 +211,12 @@ export function MetricGrid({
         <div className="grid gap-2 py-2" style={{
           gridTemplateColumns: '200px ' + chartWidth + 'px repeat(12, 80px)'
         }}>
-          <div className="px-2 text-xs font-semibold text-gray-700">Metric</div>
-          <div className="px-2 text-xs font-semibold text-gray-700">Chart</div>
-          {columnDefinitions.map(col => (
+          <div className="px-2 text-xs font-semibold text-gray-700 border-r border-gray-300">Metric</div>
+          <div className="px-2 text-xs font-semibold text-gray-700 border-r border-gray-300">Chart</div>
+          {columnDefinitions.map((col, index) => (
             <div
               key={col.key}
-              className={`px-2 text-xs font-semibold text-gray-700 text-center ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''}`}
+              className={`px-2 text-xs font-semibold text-gray-700 text-center ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''} ${index === 5 ? 'border-r border-gray-300' : ''}`}
               onClick={() => col.sortable && handleColumnHeaderClick(col.key)}
             >
               {col.label}

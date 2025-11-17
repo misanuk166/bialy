@@ -4,12 +4,13 @@ interface ColumnCellProps {
   colorCode?: boolean;
   showSign?: boolean;
   isEmpty?: boolean;
+  className?: string;
 }
 
-export function ColumnCell({ value, precision = 2, colorCode = false, showSign = false, isEmpty = false }: ColumnCellProps) {
+export function ColumnCell({ value, precision = 2, colorCode = false, showSign = false, isEmpty = false, className = '' }: ColumnCellProps) {
   if (isEmpty || value === undefined || value === null) {
     return (
-      <div className="text-center text-gray-400 text-sm px-2 py-1">
+      <div className={`text-center text-gray-400 text-sm px-2 py-1 ${className}`}>
         —
       </div>
     );
@@ -18,7 +19,7 @@ export function ColumnCell({ value, precision = 2, colorCode = false, showSign =
   const numValue = typeof value === 'number' ? value : parseFloat(value);
   if (isNaN(numValue)) {
     return (
-      <div className="text-center text-gray-400 text-sm px-2 py-1">
+      <div className={`text-center text-gray-400 text-sm px-2 py-1 ${className}`}>
         —
       </div>
     );
@@ -36,7 +37,7 @@ export function ColumnCell({ value, precision = 2, colorCode = false, showSign =
     });
 
   return (
-    <div className={`text-right text-sm font-medium px-2 py-1 ${textColor}`}>
+    <div className={`text-right text-sm font-medium px-2 py-1 ${textColor} ${className}`}>
       {displayValue}
     </div>
   );
