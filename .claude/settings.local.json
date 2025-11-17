@@ -31,7 +31,8 @@
       "Bash(mv:*)",
       "Bash(rmdir:*)",
       "Bash(git fetch:*)",
-      "Read(///**)"
+      "Read(///**)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

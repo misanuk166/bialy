@@ -3,6 +3,7 @@ import { CSVUpload } from './components/CSVUpload';
 import { GlobalControlPanel } from './components/GlobalControlPanel';
 import { MetricGrid } from './components/MetricGrid';
 import { SingleMetricView } from './components/SingleMetricView';
+import { loadSyntheticMetrics } from './utils/generateSyntheticData';
 import type { Series } from './types/series';
 import type { MetricConfig, GlobalSettings, ViewMode } from './types/appState';
 import type { AggregationConfig } from './utils/aggregation';
@@ -118,7 +119,18 @@ function App() {
         {viewMode === 'grid' && (
           <>
             {metrics.length === 0 ? (
-              <CSVUpload onSeriesLoaded={handleSeriesLoaded} />
+              <div className="space-y-4">
+                <CSVUpload onSeriesLoaded={handleSeriesLoaded} />
+                <div className="text-center">
+                  <p className="text-gray-600 mb-2">or</p>
+                  <button
+                    onClick={() => loadSyntheticMetrics(handleSeriesLoaded)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Load 10 Synthetic Metrics (2.5 years of data)
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="space-y-6">
                 {/* Global Controls */}
