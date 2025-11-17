@@ -9,6 +9,7 @@ import type { FocusPeriod } from '../types/focusPeriod';
 import type { AggregationConfig } from '../utils/aggregation';
 import type { Shadow } from '../types/shadow';
 import { calculateMetricRowValues } from '../utils/metricCalculations';
+import { normalizeSelectionDate } from '../utils/aggregation';
 
 interface MetricGridProps {
   metrics: MetricConfig[];
@@ -188,6 +189,12 @@ export function MetricGrid({
     return sorted;
   }, [metricsWithValues, sortColumn, sortDirection]);
 
+  // Calculate display date (normalized for Group By)
+  const displaySelectionDate = useMemo(() => {
+    if (!selectionDate) return null;
+    return normalizeSelectionDate(selectionDate, globalSettings.aggregation);
+  }, [selectionDate, globalSettings.aggregation]);
+
   const handleColumnHeaderClick = (columnKey: ColumnKey) => {
     if (sortColumn === columnKey) {
       // Toggle direction or clear
@@ -253,7 +260,7 @@ export function MetricGrid({
                 className="cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
                 title="Double-click to edit selection date"
               >
-                Selection: {selectionDate ? selectionDate.toLocaleDateString() : '—'}
+                Selection: {displaySelectionDate ? displaySelectionDate.toLocaleDateString() : '—'}
               </span>
             )}
           </div>
