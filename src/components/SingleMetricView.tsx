@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { TimeSeriesChart } from './TimeSeriesChart';
 import { GoalControls } from './GoalControls';
 import { ForecastControls } from './ForecastControls';
@@ -16,6 +17,16 @@ export function SingleMetricView({
   onClose,
   onMetricUpdate
 }: SingleMetricViewProps) {
+  // Handle ESC key to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
   return (
     <div className="fixed inset-0 bg-white z-50 overflow-y-auto">
       <div className="mx-auto px-6 py-6" style={{ maxWidth: '1800px' }}>
