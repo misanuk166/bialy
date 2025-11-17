@@ -160,6 +160,8 @@ export function MetricRow({
         <CompactTimeSeriesChart
           series={metric.series}
           aggregationConfig={globalSettings.aggregation}
+          shadows={globalSettings.shadows}
+          averageShadows={globalSettings.averageShadows}
           forecastConfig={metric.forecast}
           focusPeriod={globalSettings.focusPeriod}
           xDomain={xDomain}

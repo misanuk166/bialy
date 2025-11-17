@@ -4,12 +4,16 @@ import type { Series } from '../types/series';
 import type { AggregationConfig } from '../utils/aggregation';
 import type { ForecastConfig } from '../types/forecast';
 import type { FocusPeriod } from '../types/focusPeriod';
+import type { Shadow } from '../types/shadow';
 import { applyAggregation, normalizeSelectionDate } from '../utils/aggregation';
 import { generateForecast } from '../utils/forecasting';
+import { generateShadowsData, calculateShadowAverage } from '../utils/shadows';
 
 interface CompactTimeSeriesChartProps {
   series: Series;
   aggregationConfig?: AggregationConfig;
+  shadows?: Shadow[];
+  averageShadows?: boolean;
   forecastConfig?: ForecastConfig;
   focusPeriod?: FocusPeriod;
   xDomain: [Date, Date];
@@ -25,6 +29,8 @@ interface CompactTimeSeriesChartProps {
 export function CompactTimeSeriesChart({
   series,
   aggregationConfig,
+  shadows,
+  averageShadows,
   forecastConfig,
   focusPeriod,
   xDomain,
@@ -70,6 +76,32 @@ export function CompactTimeSeriesChart({
       }));
     }
 
+    // Generate shadow data
+    const shadowsData = shadows && shadows.length > 0 ? generateShadowsData(series.data, shadows) : [];
+
+    // Apply aggregation to shadow data if enabled
+    const aggregatedShadowsData = aggregationConfig?.enabled
+      ? shadowsData.map(sd => ({
+          shadow: sd.shadow,
+          data: applyAggregation(sd.data, aggregationConfig),
+          color: sd.color
+        }))
+      : shadowsData;
+
+    const shadowsDataWithValues = aggregatedShadowsData.map(sd => ({
+      shadow: sd.shadow,
+      data: sd.data.map(d => ({
+        date: d.date,
+        value: d.numerator / d.denominator
+      })),
+      color: sd.color
+    }));
+
+    // Calculate averaged shadow data if enabled
+    const averagedShadowData = averageShadows && aggregatedShadowsData.length > 1
+      ? calculateShadowAverage(aggregatedShadowsData)
+      : [];
+
     // Generate forecast
     let forecastData: Array<{ date: Date; value: number }> = [];
     let confidenceIntervals: { upper: number[]; lower: number[] } | undefined;
@@ -88,6 +120,17 @@ export function CompactTimeSeriesChart({
       .range([0, innerWidth]);
 
     const allValues = [...displayData.map(d => d.value)];
+
+    // Include shadow values in y-scale
+    if (averagedShadowData.length > 0) {
+      allValues.push(...averagedShadowData.map(d => d.mean));
+      allValues.push(...averagedShadowData.map(d => d.mean + d.stdDev));
+    } else {
+      shadowsDataWithValues.forEach(sd => {
+        allValues.push(...sd.data.map(d => d.value));
+      });
+    }
+
     if (forecastData.length > 0) {
       allValues.push(...forecastData.map(d => d.value));
       if (confidenceIntervals) {
@@ -133,11 +176,59 @@ export function CompactTimeSeriesChart({
         .attr('d', areaGenerator);
     }
 
-    // Draw primary series line
+    // Create line generator
     const line = d3.line<{ date: Date; value: number }>()
       .x(d => xScale(d.date))
       .y(d => yScale(d.value))
       .curve(d3.curveLinear);
+
+    // Draw shadows or averaged shadow (drawn first so they appear behind main line)
+    if (averageShadows && averagedShadowData.length > 0) {
+      // Draw shaded area for standard deviation
+      const area = d3.area<typeof averagedShadowData[0]>()
+        .x(d => xScale(d.date))
+        .y0(d => yScale(Math.max(0, d.mean - d.stdDev)))
+        .y1(d => yScale(d.mean + d.stdDev))
+        .defined(d => d.mean != null && d.stdDev != null && !isNaN(d.mean) && isFinite(d.mean) && !isNaN(d.stdDev) && isFinite(d.stdDev))
+        .curve(d3.curveLinear);
+
+      g.append('path')
+        .datum(averagedShadowData)
+        .attr('fill', '#9ca3af')
+        .attr('opacity', 0.3)
+        .attr('d', area);
+
+      // Draw mean line
+      const meanLine = d3.line<typeof averagedShadowData[0]>()
+        .x(d => xScale(d.date))
+        .y(d => yScale(d.mean))
+        .defined(d => d.mean != null && !isNaN(d.mean) && isFinite(d.mean))
+        .curve(d3.curveLinear);
+
+      g.append('path')
+        .datum(averagedShadowData)
+        .attr('fill', 'none')
+        .attr('stroke', '#6b7280')
+        .attr('stroke-width', 1)
+        .attr('opacity', 0.8)
+        .attr('d', meanLine);
+    } else {
+      // Draw individual shadows in reverse order (oldest first)
+      const reversedShadows = [...shadowsDataWithValues].reverse();
+      reversedShadows.forEach(shadowData => {
+        if (shadowData.data.length > 0) {
+          g.append('path')
+            .datum(shadowData.data)
+            .attr('fill', 'none')
+            .attr('stroke', shadowData.color)
+            .attr('stroke-width', 1)
+            .attr('opacity', 0.7)
+            .attr('d', line);
+        }
+      });
+    }
+
+    // Draw primary series line
 
     g.append('path')
       .datum(displayData)
@@ -337,7 +428,7 @@ export function CompactTimeSeriesChart({
       hoverGroup.style('opacity', 0);
     }
 
-  }, [series, aggregationConfig, forecastConfig, focusPeriod, xDomain, width, height, selectionDate, currentHoverDate, onHover, onClick, onZoom]);
+  }, [series, aggregationConfig, shadows, averageShadows, forecastConfig, focusPeriod, xDomain, width, height, selectionDate, currentHoverDate, onHover, onClick, onZoom]);
 
   return <svg ref={svgRef} className="w-full" />;
 }
