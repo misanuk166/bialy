@@ -149,26 +149,28 @@ function App() {
                   onFocusPeriodChange={handleFocusPeriodChange}
                 />
 
-                {/* Metric Grid */}
-                <MetricGrid
-                  metrics={metrics}
-                  globalSettings={globalSettings}
-                  onMetricsReorder={setMetrics}
-                  onMetricUpdate={handleMetricUpdate}
-                  onMetricRemove={handleMetricRemove}
-                  onMetricExpand={handleMetricExpand}
-                  onEditFocusPeriod={() => setShowFocusPeriodModal(true)}
-                />
-
-                {/* Focus Period Modal */}
-                {showFocusPeriodModal && (
-                  <FocusPeriodModal
-                    focusPeriod={globalSettings.focusPeriod || { enabled: false }}
-                    dataExtent={dataExtent}
-                    onSave={handleFocusPeriodChange}
-                    onClose={() => setShowFocusPeriodModal(false)}
+                {/* Metric Grid - needs relative positioning for popup */}
+                <div className="relative">
+                  <MetricGrid
+                    metrics={metrics}
+                    globalSettings={globalSettings}
+                    onMetricsReorder={setMetrics}
+                    onMetricUpdate={handleMetricUpdate}
+                    onMetricRemove={handleMetricRemove}
+                    onMetricExpand={handleMetricExpand}
+                    onEditFocusPeriod={() => setShowFocusPeriodModal(true)}
                   />
-                )}
+
+                  {/* Focus Period Popup */}
+                  {showFocusPeriodModal && (
+                    <FocusPeriodModal
+                      focusPeriod={globalSettings.focusPeriod || { enabled: false }}
+                      dataExtent={dataExtent}
+                      onSave={handleFocusPeriodChange}
+                      onClose={() => setShowFocusPeriodModal(false)}
+                    />
+                  )}
+                </div>
 
                 {/* Add Metric Button */}
                 <div className="flex justify-center gap-4">

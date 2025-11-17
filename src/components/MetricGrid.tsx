@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MetricRow } from './MetricRow';
 import { SharedXAxis } from './SharedXAxis';
 import type { MetricConfig, GlobalSettings, ColumnKey } from '../types/appState';
@@ -41,6 +41,7 @@ export function MetricGrid({
   const [sortColumn, setSortColumn] = useState<ColumnKey | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [xDomain, setXDomain] = useState<[Date, Date] | null>(null);
+  const editButtonRef = React.useRef<HTMLButtonElement>(null);
 
   const chartWidth = 400;
   const marginLeft = 40;
@@ -192,6 +193,7 @@ export function MetricGrid({
             </span>
             {onEditFocusPeriod && (
               <button
+                ref={editButtonRef}
                 onClick={onEditFocusPeriod}
                 className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
                 title="Edit focus period"
