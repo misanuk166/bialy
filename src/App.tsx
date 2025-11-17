@@ -1,139 +1,160 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { CSVUpload } from './components/CSVUpload';
-import { TimeSeriesChart } from './components/TimeSeriesChart';
-import { AggregateControls } from './components/AggregateControls';
-import { ShadowControls } from './components/ShadowControls';
-import { GoalControls } from './components/GoalControls';
-import { ForecastControls } from './components/ForecastControls';
-import { FocusPeriodControls } from './components/FocusPeriodControls';
+import { GlobalControlPanel } from './components/GlobalControlPanel';
+import { MetricGrid } from './components/MetricGrid';
+import { SingleMetricView } from './components/SingleMetricView';
 import type { Series } from './types/series';
+import type { MetricConfig, GlobalSettings, ViewMode } from './types/appState';
 import type { AggregationConfig } from './utils/aggregation';
 import type { Shadow } from './types/shadow';
-import type { Goal } from './types/goal';
-import type { ForecastConfig } from './types/forecast';
 import type { FocusPeriod } from './types/focusPeriod';
 
 function App() {
-  const [series, setSeries] = useState<Series | null>(null);
-  const [aggregationConfig, setAggregationConfig] = useState<AggregationConfig>({
-    enabled: false,
-    mode: 'smoothing',
-    period: 7,
-    unit: 'days',
-    groupByPeriod: 'month'
+  const [metrics, setMetrics] = useState<MetricConfig[]>([]);
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({
+    aggregation: {
+      enabled: false,
+      mode: 'smoothing',
+      period: 7,
+      unit: 'days',
+      groupByPeriod: 'month'
+    },
+    shadows: [],
+    averageShadows: false,
+    focusPeriod: {
+      enabled: false
+    }
   });
-  const [shadows, setShadows] = useState<Shadow[]>([]);
-  const [averageShadows, setAverageShadows] = useState(false);
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [goalsEnabled, setGoalsEnabled] = useState(false);
-  const [forecastConfig, setForecastConfig] = useState<ForecastConfig>({
-    enabled: false,
-    type: 'auto',
-    horizon: 90,
-    interpolation: 'linear',
-    seasonal: 'none',
-    showConfidenceIntervals: true,
-    confidenceLevel: 95
-  });
-  const [focusPeriod, setFocusPeriod] = useState<FocusPeriod>({
-    enabled: false
-  });
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [expandedMetricId, setExpandedMetricId] = useState<string | null>(null);
 
-  // Load goals from localStorage when series is loaded
-  useEffect(() => {
-    if (series) {
-      const storedGoals = localStorage.getItem(`bialy-goals-${series.id}`);
-      if (storedGoals) {
-        try {
-          const parsed = JSON.parse(storedGoals);
-          // Convert date strings back to Date objects
-          const goalsWithDates = parsed.map((goal: Goal) => ({
-            ...goal,
-            startDate: goal.startDate ? new Date(goal.startDate) : undefined,
-            endDate: goal.endDate ? new Date(goal.endDate) : undefined
-          }));
-          setGoals(goalsWithDates);
-        } catch (error) {
-          console.error('Failed to parse stored goals:', error);
-        }
-      } else {
-        // Reset goals when new series is loaded
-        setGoals([]);
+  const handleSeriesLoaded = (series: Series) => {
+    const newMetric: MetricConfig = {
+      id: series.id,
+      series,
+      order: metrics.length,
+      goals: [],
+      goalsEnabled: false,
+      forecast: {
+        enabled: false,
+        horizon: 90,
+        seasonal: 'none',
+        showConfidenceIntervals: true,
+        confidenceLevel: 95
       }
-    }
-  }, [series?.id]);
+    };
+    setMetrics([...metrics, newMetric]);
+  };
 
-  // Save goals to localStorage whenever they change
-  useEffect(() => {
-    if (series && goals.length >= 0) {
-      localStorage.setItem(`bialy-goals-${series.id}`, JSON.stringify(goals));
+  const handleMetricUpdate = (updatedMetric: MetricConfig) => {
+    setMetrics(metrics.map(m => m.id === updatedMetric.id ? updatedMetric : m));
+  };
+
+  const handleMetricRemove = (metricId: string) => {
+    if (metrics.length <= 1) {
+      alert('Cannot remove the last metric');
+      return;
     }
-  }, [goals, series?.id]);
+    if (confirm('Are you sure you want to remove this metric?')) {
+      setMetrics(metrics.filter(m => m.id !== metricId));
+    }
+  };
+
+  const handleMetricExpand = (metricId: string) => {
+    setExpandedMetricId(metricId);
+    setViewMode('single-metric');
+  };
+
+  const handleCloseExpandedView = () => {
+    setExpandedMetricId(null);
+    setViewMode('grid');
+  };
+
+  const handleAggregationChange = (config: AggregationConfig) => {
+    setGlobalSettings({ ...globalSettings, aggregation: config });
+  };
+
+  const handleShadowsChange = (shadows: Shadow[], averageShadows: boolean) => {
+    setGlobalSettings({ ...globalSettings, shadows, averageShadows });
+  };
+
+  const handleFocusPeriodChange = (focusPeriod: FocusPeriod) => {
+    setGlobalSettings({ ...globalSettings, focusPeriod });
+  };
+
+  // Get data extent for focus period controls
+  const dataExtent = metrics.length > 0 ? (() => {
+    const allDates: Date[] = [];
+    metrics.forEach(m => m.series.data.forEach(d => allDates.push(d.date)));
+    return allDates.length > 0 ? [
+      new Date(Math.min(...allDates.map(d => d.getTime()))),
+      new Date(Math.max(...allDates.map(d => d.getTime())))
+    ] as [Date, Date] : undefined;
+  })() : undefined;
+
+  const expandedMetric = expandedMetricId ? metrics.find(m => m.id === expandedMetricId) : null;
 
   return (
     <div className="min-h-screen bg-gray-50 py-6">
-      <div className="mx-auto px-6" style={{ maxWidth: '1800px' }}>
+      <div className="mx-auto px-6" style={{ maxWidth: '2000px' }}>
         <header className="mb-6">
           <h1 className="text-4xl font-bold text-gray-900">Bialy</h1>
           <p className="text-gray-600 mt-2">
-            Time series data visualization and analysis
+            Multi-metric time series data visualization and analysis
           </p>
         </header>
 
-        {!series ? (
-          <CSVUpload onSeriesLoaded={setSeries} />
-        ) : (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
-              <div className="space-y-4">
-                <AggregateControls
-                  config={aggregationConfig}
-                  onChange={setAggregationConfig}
+        {/* Single Metric Expanded View */}
+        {viewMode === 'single-metric' && expandedMetric && (
+          <SingleMetricView
+            metric={expandedMetric}
+            globalSettings={globalSettings}
+            onClose={handleCloseExpandedView}
+            onMetricUpdate={handleMetricUpdate}
+          />
+        )}
+
+        {/* Grid View */}
+        {viewMode === 'grid' && (
+          <>
+            {metrics.length === 0 ? (
+              <CSVUpload onSeriesLoaded={handleSeriesLoaded} />
+            ) : (
+              <div className="space-y-6">
+                {/* Global Controls */}
+                <GlobalControlPanel
+                  settings={globalSettings}
+                  dataExtent={dataExtent}
+                  onAggregationChange={handleAggregationChange}
+                  onShadowsChange={handleShadowsChange}
+                  onFocusPeriodChange={handleFocusPeriodChange}
                 />
-                <ShadowControls
-                  shadows={shadows}
-                  onChange={setShadows}
-                  averageTogether={averageShadows}
-                  onAverageTogetherChange={setAverageShadows}
+
+                {/* Metric Grid */}
+                <MetricGrid
+                  metrics={metrics}
+                  globalSettings={globalSettings}
+                  onMetricsReorder={setMetrics}
+                  onMetricUpdate={handleMetricUpdate}
+                  onMetricRemove={handleMetricRemove}
+                  onMetricExpand={handleMetricExpand}
                 />
-                <GoalControls
-                  goals={goals}
-                  onChange={setGoals}
-                  enabled={goalsEnabled}
-                  onEnabledChange={setGoalsEnabled}
-                />
-                <ForecastControls
-                  config={forecastConfig}
-                  onChange={setForecastConfig}
-                />
-                <FocusPeriodControls
-                  focusPeriod={focusPeriod}
-                  onChange={setFocusPeriod}
-                  dataExtent={series.data.length > 0 ? [series.data[0].date, series.data[series.data.length - 1].date] : undefined}
-                />
+
+                {/* Add Metric Button */}
+                <div className="flex justify-center gap-4">
+                  <CSVUpload onSeriesLoaded={handleSeriesLoaded} />
+                  {metrics.length > 0 && (
+                    <button
+                      onClick={() => setMetrics([])}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      Clear All Metrics
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="w-full">
-                <TimeSeriesChart
-                  series={series}
-                  aggregationConfig={aggregationConfig}
-                  shadows={shadows}
-                  averageShadows={averageShadows}
-                  goals={goalsEnabled ? goals : []}
-                  forecastConfig={forecastConfig}
-                  focusPeriod={focusPeriod}
-                  onSeriesUpdate={setSeries}
-                />
-              </div>
-            </div>
-            <div className="flex justify-center">
-              <button
-                onClick={() => setSeries(null)}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                Load Different Data
-              </button>
-            </div>
-          </div>
+            )}
+          </>
         )}
       </div>
     </div>
