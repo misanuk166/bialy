@@ -1,17 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MetricRow } from './MetricRow';
 import { SharedXAxis } from './SharedXAxis';
+import { FocusPeriodModal } from './FocusPeriodModal';
 import type { MetricConfig, GlobalSettings, ColumnKey } from '../types/appState';
+import type { FocusPeriod } from '../types/focusPeriod';
 import { calculateMetricRowValues } from '../utils/metricCalculations';
 
 interface MetricGridProps {
   metrics: MetricConfig[];
   globalSettings: GlobalSettings;
+  dataExtent?: [Date, Date];
   onMetricsReorder?: (metrics: MetricConfig[]) => void;
   onMetricUpdate: (metric: MetricConfig) => void;
   onMetricRemove: (metricId: string) => void;
   onMetricExpand: (metricId: string) => void;
-  onEditFocusPeriod?: () => void;
+  onFocusPeriodChange: (focusPeriod: FocusPeriod) => void;
 }
 
 const getColumnDefinitions = (shadowLabel?: string, goalLabel?: string) => [
@@ -32,15 +35,17 @@ const getColumnDefinitions = (shadowLabel?: string, goalLabel?: string) => [
 export function MetricGrid({
   metrics,
   globalSettings,
+  dataExtent,
   onMetricUpdate,
   onMetricRemove,
   onMetricExpand,
-  onEditFocusPeriod
+  onFocusPeriodChange
 }: MetricGridProps) {
   const [currentHoverDate, setCurrentHoverDate] = useState<Date | null>(null);
   const [sortColumn, setSortColumn] = useState<ColumnKey | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [xDomain, setXDomain] = useState<[Date, Date] | null>(null);
+  const [showFocusPeriodModal, setShowFocusPeriodModal] = useState(false);
   const editButtonRef = React.useRef<HTMLButtonElement>(null);
 
   const chartWidth = 400;
@@ -191,16 +196,14 @@ export function MetricGrid({
                 ? globalSettings.focusPeriod.label
                 : 'Focus Period'}
             </span>
-            {onEditFocusPeriod && (
-              <button
-                ref={editButtonRef}
-                onClick={onEditFocusPeriod}
-                className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-                title="Edit focus period"
-              >
-                Edit
-              </button>
-            )}
+            <button
+              ref={editButtonRef}
+              onClick={() => setShowFocusPeriodModal(true)}
+              className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
+              title="Edit focus period"
+            >
+              Edit
+            </button>
           </div>
         </div>
 
@@ -250,6 +253,17 @@ export function MetricGrid({
           <SharedXAxis xDomain={xDomain} width={chartWidth} marginLeft={marginLeft} />
         </div>
       </div>
+
+      {/* Focus Period Popup */}
+      {showFocusPeriodModal && (
+        <FocusPeriodModal
+          focusPeriod={globalSettings.focusPeriod || { enabled: false }}
+          dataExtent={dataExtent}
+          onSave={onFocusPeriodChange}
+          onClose={() => setShowFocusPeriodModal(false)}
+          anchorElement={editButtonRef.current || undefined}
+        />
+      )}
     </div>
   );
 }
