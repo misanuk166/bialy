@@ -7,67 +7,30 @@ interface AggregateControlsProps {
 }
 
 export function AggregateControls({ config, onChange }: AggregateControlsProps) {
-  const [isExpanded, setIsExpanded] = React.useState(true);
-
-  const handleToggle = () => {
-    const newEnabled = !config.enabled;
-    // Auto-expand when toggling on
-    if (newEnabled) {
-      setIsExpanded(true);
-    }
-    onChange({ ...config, enabled: newEnabled });
-  };
-
   const handleModeChange = (mode: AggregationMode) => {
-    onChange({ ...config, mode });
+    onChange({ ...config, mode, enabled: true });
   };
 
   const handlePeriodChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const period = Math.max(1, Math.min(99, parseInt(e.target.value) || 1));
-    onChange({ ...config, period });
+    onChange({ ...config, period, enabled: true });
   };
 
   const handleUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onChange({ ...config, unit: e.target.value as TimeUnit });
+    onChange({ ...config, unit: e.target.value as TimeUnit, enabled: true });
   };
 
   const handleGroupByChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onChange({ ...config, groupByPeriod: e.target.value as GroupByPeriod });
+    onChange({ ...config, groupByPeriod: e.target.value as GroupByPeriod, enabled: true });
+  };
+
+  const handleDisable = () => {
+    onChange({ ...config, enabled: false });
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-gray-500 hover:text-gray-700 transition-colors"
-            aria-label={isExpanded ? "Collapse" : "Expand"}
-          >
-            <svg
-              className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-          <h3 className="text-lg font-semibold text-gray-900">Aggregate</h3>
-        </div>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            checked={config.enabled}
-            onChange={handleToggle}
-            className="sr-only peer"
-          />
-          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-        </label>
-      </div>
-
-      {config.enabled && isExpanded && (
-        <div className="space-y-4">
+    <div className="space-y-3">
+      <div className="space-y-4">
           {/* Mode Selection */}
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
@@ -166,7 +129,16 @@ export function AggregateControls({ config, onChange }: AggregateControlsProps) 
             </div>
           )}
         </div>
-      )}
+
+        {/* Disable Button */}
+        {config.enabled && (
+          <button
+            onClick={handleDisable}
+            className="w-full text-sm px-3 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+          >
+            Disable Aggregation
+          </button>
+        )}
     </div>
   );
 }
