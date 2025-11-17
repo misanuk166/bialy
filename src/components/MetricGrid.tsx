@@ -249,8 +249,8 @@ export function MetricGrid({
         <div className="grid gap-2 py-2 border-b border-gray-200" style={{
           gridTemplateColumns: '200px ' + chartWidth + 'px repeat(12, 80px)'
         }}>
-          {/* Empty space for metric column */}
-          <div className="px-2 border-r border-gray-300"></div>
+          {/* Metrics label */}
+          <div className="px-2 text-sm font-bold text-gray-800 border-r border-gray-300">Metrics</div>
           {/* Chart Group */}
           <div className="px-2 text-sm font-bold text-gray-800 text-center border-r border-gray-300">
             Chart
