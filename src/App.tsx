@@ -30,35 +30,40 @@ function App() {
   const [expandedMetricId, setExpandedMetricId] = useState<string | null>(null);
 
   const handleSeriesLoaded = (series: Series) => {
-    const newMetric: MetricConfig = {
-      id: series.id,
-      series,
-      order: metrics.length,
-      goals: [],
-      goalsEnabled: false,
-      forecast: {
-        enabled: false,
-        horizon: 90,
-        seasonal: 'none',
-        showConfidenceIntervals: true,
-        confidenceLevel: 95
-      }
-    };
-    setMetrics([...metrics, newMetric]);
+    setMetrics(prevMetrics => {
+      const newMetric: MetricConfig = {
+        id: series.id,
+        series,
+        order: prevMetrics.length,
+        goals: [],
+        goalsEnabled: false,
+        forecast: {
+          enabled: false,
+          horizon: 90,
+          seasonal: 'none',
+          showConfidenceIntervals: true,
+          confidenceLevel: 95
+        }
+      };
+      return [...prevMetrics, newMetric];
+    });
   };
 
   const handleMetricUpdate = (updatedMetric: MetricConfig) => {
-    setMetrics(metrics.map(m => m.id === updatedMetric.id ? updatedMetric : m));
+    setMetrics(prevMetrics => prevMetrics.map(m => m.id === updatedMetric.id ? updatedMetric : m));
   };
 
   const handleMetricRemove = (metricId: string) => {
-    if (metrics.length <= 1) {
-      alert('Cannot remove the last metric');
-      return;
-    }
-    if (confirm('Are you sure you want to remove this metric?')) {
-      setMetrics(metrics.filter(m => m.id !== metricId));
-    }
+    setMetrics(prevMetrics => {
+      if (prevMetrics.length <= 1) {
+        alert('Cannot remove the last metric');
+        return prevMetrics;
+      }
+      if (confirm('Are you sure you want to remove this metric?')) {
+        return prevMetrics.filter(m => m.id !== metricId);
+      }
+      return prevMetrics;
+    });
   };
 
   const handleMetricExpand = (metricId: string) => {
