@@ -25,6 +25,9 @@ export interface MetricConfig {
   goals?: Goal[];
   goalsEnabled?: boolean;
   forecast?: ForecastConfig;
+  group?: string;
+  groupIndex?: number;
+  metricIndex?: number;
 }
 
 /**
@@ -87,7 +90,11 @@ export interface MetricRowValues {
  * Column definitions for grid
  */
 export type ColumnKey =
+  | 'select'
   | 'name'
+  | 'group'
+  | 'groupIndex'
+  | 'metricIndex'
   | 'selectionValue'
   | 'selectionPoint'
   | 'selectionVsShadowAbs'

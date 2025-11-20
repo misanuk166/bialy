@@ -14,9 +14,10 @@
 - ✅ Focus Period for analyzing specific date ranges
 - ✅ Research time series forecasting options
 - ✅ Implement time series forecasting (Auto & Manual modes)
+- ✅ Add metric grouping and ordering
+- ✅ Series Meta-board viewer
 
 ## Multi-Metric
-- Add metric grouping and ordering
 - Add Group Goal Setting
 - Add Group Forecasting
 - Improve dynamic labeling system
@@ -36,4 +37,3 @@
 
 ## Future Features
 - Annotation (section 2.5)
-- Series Meta-board viewer (section 3)

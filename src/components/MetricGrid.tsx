@@ -1,6 +1,21 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { MetricRow } from './MetricRow';
 import { SharedXAxis } from './SharedXAxis';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 import { FocusPeriodModal } from './FocusPeriodModal';
 import { AggregateControls } from './AggregateControls';
 import { ShadowControls } from './ShadowControls';
@@ -27,6 +42,10 @@ interface MetricGridProps {
 }
 
 const getColumnDefinitions = (shadowLabel?: string, goalLabel?: string) => [
+  { key: 'groupIndex' as ColumnKey, label: '', sortable: true },
+  { key: 'group' as ColumnKey, label: 'Group', sortable: true },
+  { key: 'metricIndex' as ColumnKey, label: '', sortable: true },
+  { key: 'name' as ColumnKey, label: 'Metric', sortable: true },
   { key: 'selectionValue' as ColumnKey, label: 'Selection', sortable: true },
   { key: 'selectionPoint' as ColumnKey, label: 'Point', sortable: true },
   { key: 'selectionVsShadowAbs' as ColumnKey, label: shadowLabel ? `vs ${shadowLabel}` : 'vs Shadow', sortable: true },
@@ -45,6 +64,7 @@ export function MetricGrid({
   metrics,
   globalSettings,
   dataExtent,
+  onMetricsReorder,
   onMetricUpdate,
   onMetricRemove,
   onMetricExpand,
@@ -63,9 +83,15 @@ export function MetricGrid({
   const [showFocusPeriodModal, setShowFocusPeriodModal] = useState(false);
   const [showAggregationModal, setShowAggregationModal] = useState(false);
   const [showShadowModal, setShowShadowModal] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedMetricIds, setSelectedMetricIds] = useState<Set<string>>(new Set());
+  const [isEditingGroupSet, setIsEditingGroupSet] = useState(false);
+  const [groupSetInputValue, setGroupSetInputValue] = useState('');
+
   const focusPeriodEditButtonRef = useRef<HTMLButtonElement>(null);
   const aggregationEditButtonRef = useRef<HTMLButtonElement>(null);
   const shadowEditButtonRef = useRef<HTMLButtonElement>(null);
+  const groupSetInputRef = useRef<HTMLInputElement>(null);
   const aggregationPopupRef = useRef<HTMLDivElement>(null);
   const shadowPopupRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -151,10 +177,22 @@ export function MetricGrid({
     if (!sortColumn) return metricsWithValues;
 
     const sorted = [...metricsWithValues].sort((a, b) => {
-      let aVal: number | undefined;
-      let bVal: number | undefined;
+      let aVal: number | string | undefined;
+      let bVal: number | string | undefined;
 
       switch (sortColumn) {
+        case 'group':
+          aVal = a.metric.group || '';
+          bVal = b.metric.group || '';
+          break;
+        case 'groupIndex':
+          aVal = a.metric.groupIndex ?? Number.MAX_SAFE_INTEGER;
+          bVal = b.metric.groupIndex ?? Number.MAX_SAFE_INTEGER;
+          break;
+        case 'metricIndex':
+          aVal = a.metric.metricIndex ?? Number.MAX_SAFE_INTEGER;
+          bVal = b.metric.metricIndex ?? Number.MAX_SAFE_INTEGER;
+          break;
         case 'selectionValue':
           aVal = a.values.selectionValue;
           bVal = b.values.selectionValue;
@@ -206,7 +244,7 @@ export function MetricGrid({
       if (aVal === undefined) return 1;
       if (bVal === undefined) return -1;
 
-      const comparison = aVal - bVal;
+      const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
       return sortDirection === 'desc' ? -comparison : comparison;
     });
 
@@ -234,6 +272,187 @@ export function MetricGrid({
     }
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = metrics.findIndex((m) => m.id === active.id);
+      const newIndex = metrics.findIndex((m) => m.id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newMetrics = arrayMove(metrics, oldIndex, newIndex);
+
+        // Auto-update groupIndex and metricIndex based on new order
+        // Group metrics by their group name
+        const groupMap = new Map<string | undefined, MetricConfig[]>();
+
+        newMetrics.forEach(metric => {
+          const groupKey = metric.group || undefined;
+          if (!groupMap.has(groupKey)) {
+            groupMap.set(groupKey, []);
+          }
+          groupMap.get(groupKey)!.push(metric);
+        });
+
+        // Assign groupIndex and metricIndex
+        const groupNames = Array.from(groupMap.keys());
+        const updatedMetrics = newMetrics.map(metric => {
+          const groupKey = metric.group || undefined;
+          const groupIndex = groupNames.indexOf(groupKey);
+          const metricsInGroup = groupMap.get(groupKey)!;
+          const metricIndex = metricsInGroup.indexOf(metric);
+
+          return {
+            ...metric,
+            order: newMetrics.indexOf(metric),
+            groupIndex: groupKey !== undefined ? groupIndex : undefined,
+            metricIndex: metricIndex
+          };
+        });
+
+        if (onMetricsReorder) {
+          onMetricsReorder(updatedMetrics);
+        }
+      }
+    }
+  };
+
+  const handleSelectMetric = (metricId: string, selected: boolean) => {
+    const newSelected = new Set(selectedMetricIds);
+    if (selected) {
+      newSelected.add(metricId);
+    } else {
+      newSelected.delete(metricId);
+    }
+    setSelectedMetricIds(newSelected);
+  };
+
+  const handleSetGroup = () => {
+    if (selectedMetricIds.size === 0) return;
+
+    const groupName = groupSetInputValue.trim() || undefined;
+
+    // Determine groupIndex
+    let targetGroupIndex: number | undefined;
+    let nextMetricIndex = 0;
+
+    if (groupName) {
+      // Check if group exists
+      const existingGroupMetric = metrics.find(m => m.group === groupName && !selectedMetricIds.has(m.id));
+      if (existingGroupMetric && existingGroupMetric.groupIndex !== undefined) {
+        targetGroupIndex = existingGroupMetric.groupIndex;
+        // Find max metricIndex in this group
+        const groupMetrics = metrics.filter(m => m.group === groupName && !selectedMetricIds.has(m.id));
+        const maxMetricIndex = Math.max(...groupMetrics.map(m => m.metricIndex || 0), -1);
+        nextMetricIndex = maxMetricIndex + 1;
+      } else {
+        // New group
+        const allGroupIndices = metrics
+          .map(m => m.groupIndex)
+          .filter((i): i is number => i !== undefined);
+        targetGroupIndex = allGroupIndices.length > 0 ? Math.max(...allGroupIndices) + 1 : 0;
+        nextMetricIndex = 0;
+      }
+    } else {
+      // Ungrouping - maybe set groupIndex to undefined? 
+      // Or keep them at the bottom?
+      // For now, let's set groupIndex to undefined if ungrouping.
+      targetGroupIndex = undefined;
+    }
+
+    const updatedMetrics = metrics.map(m => {
+      if (selectedMetricIds.has(m.id)) {
+        const update = {
+          ...m,
+          group: groupName,
+          groupIndex: targetGroupIndex,
+          metricIndex: targetGroupIndex !== undefined ? nextMetricIndex++ : m.metricIndex // Keep original metric index if ungrouped? Or reset?
+        };
+        return update;
+      }
+      return m;
+    });
+
+    if (onMetricsReorder) {
+      onMetricsReorder(updatedMetrics);
+    } else {
+      updatedMetrics.forEach(m => {
+        if (selectedMetricIds.has(m.id)) {
+          onMetricUpdate(m);
+        }
+      });
+    }
+
+    setIsEditingGroupSet(false);
+    setGroupSetInputValue('');
+    setSelectedMetricIds(new Set());
+  };
+
+  const handleMoveGroup = (groupIndex: number | undefined, direction: 'up' | 'down') => {
+    if (groupIndex === undefined) return;
+
+    // Get all unique group indices sorted
+    const uniqueIndices = Array.from(new Set(metrics.map(m => m.groupIndex).filter((i): i is number => i !== undefined))).sort((a, b) => a - b);
+    const currentIndexPos = uniqueIndices.indexOf(groupIndex);
+
+    if (currentIndexPos === -1) return;
+
+    const targetIndexPos = direction === 'up' ? currentIndexPos - 1 : currentIndexPos + 1;
+    if (targetIndexPos < 0 || targetIndexPos >= uniqueIndices.length) return;
+
+    const targetGroupIndex = uniqueIndices[targetIndexPos];
+
+    // Swap indices
+    const updatedMetrics = metrics.map(m => {
+      if (m.groupIndex === groupIndex) {
+        return { ...m, groupIndex: targetGroupIndex };
+      }
+      if (m.groupIndex === targetGroupIndex) {
+        return { ...m, groupIndex: groupIndex };
+      }
+      return m;
+    });
+
+    if (onMetricsReorder) onMetricsReorder(updatedMetrics);
+  };
+
+  const handleMoveMetric = (metricId: string, direction: 'up' | 'down') => {
+    const metric = metrics.find(m => m.id === metricId);
+    if (!metric || metric.metricIndex === undefined) return;
+
+    // Find metrics in same group (or no group)
+    const sameGroupMetrics = metrics.filter(m => m.groupIndex === metric.groupIndex);
+    const sortedGroupMetrics = sameGroupMetrics.sort((a, b) => (a.metricIndex || 0) - (b.metricIndex || 0));
+
+    const currentIndexPos = sortedGroupMetrics.findIndex(m => m.id === metricId);
+    if (currentIndexPos === -1) return;
+
+    const targetIndexPos = direction === 'up' ? currentIndexPos - 1 : currentIndexPos + 1;
+    if (targetIndexPos < 0 || targetIndexPos >= sortedGroupMetrics.length) return;
+
+    const targetMetric = sortedGroupMetrics[targetIndexPos];
+
+    // Swap metric indices
+    const updatedMetrics = metrics.map(m => {
+      if (m.id === metricId) {
+        return { ...m, metricIndex: targetMetric.metricIndex };
+      }
+      if (m.id === targetMetric.id) {
+        return { ...m, metricIndex: metric.metricIndex };
+      }
+      return m;
+    });
+
+    if (onMetricsReorder) onMetricsReorder(updatedMetrics);
+  };
+
   if (!xDomain) return <div>Loading...</div>;
 
   // Get shadow and goal labels from first metric for column headers
@@ -247,10 +466,64 @@ export function MetricGrid({
       <div className="sticky top-0 bg-white border-b-2 border-gray-300 z-10">
         {/* Group Headers Row */}
         <div className="grid gap-2 py-2 border-b border-gray-200" style={{
-          gridTemplateColumns: '200px ' + chartWidth + 'px repeat(12, 80px)'
+          gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 98px 20px 200px ' + chartWidth + 'px repeat(12, 80px)',
+          gap: '2px'
         }}>
-          {/* Metrics label */}
-          <div className="px-2 text-sm font-bold text-gray-800 border-r border-gray-300">Metrics</div>
+          {/* Metrics label - Spans Drag Handle (if visible), Grp Idx, Group, Mtr Idx, and Name columns */}
+          <div className="px-2 text-sm font-bold text-gray-800 border-r border-gray-300 flex items-center justify-between" style={{ gridColumn: isEditMode ? 'span 5' : 'span 4' }}>
+            <div className="flex items-center gap-2">
+              <span>Metrics</span>
+              <button
+                onClick={() => {
+                  setIsEditMode(!isEditMode);
+                  if (isEditMode) {
+                    setSelectedMetricIds(new Set()); // Clear selection on exit
+                  }
+                }}
+                className={`px-2 py-0.5 text-xs font-medium rounded border transition-colors ${isEditMode
+                  ? 'text-white bg-blue-600 border-blue-600 hover:bg-blue-700'
+                  : 'text-gray-600 bg-gray-100 border-gray-300 hover:bg-gray-200'
+                  }`}
+              >
+                {isEditMode ? 'Done' : 'Edit'}
+              </button>
+            </div>
+            {selectedMetricIds.size > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-normal text-gray-600">
+                  {selectedMetricIds.size} selected
+                </span>
+                {isEditingGroupSet ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      ref={groupSetInputRef}
+                      type="text"
+                      value={groupSetInputValue}
+                      onChange={(e) => setGroupSetInputValue(e.target.value)}
+                      className="text-xs border border-blue-500 rounded px-1 w-24"
+                      placeholder="Group Name"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSetGroup();
+                        if (e.key === 'Escape') setIsEditingGroupSet(false);
+                      }}
+                    />
+                    <button onClick={handleSetGroup} className="text-xs px-1 bg-green-500 text-white rounded">✓</button>
+                    <button onClick={() => setIsEditingGroupSet(false)} className="text-xs px-1 bg-gray-400 text-white rounded">×</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setIsEditingGroupSet(true);
+                      setTimeout(() => groupSetInputRef.current?.focus(), 0);
+                    }}
+                    className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 border border-blue-300"
+                  >
+                    Set Group ({selectedMetricIds.size})
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           {/* Chart Group */}
           <div className="px-2 text-sm font-bold text-gray-800 text-center border-r border-gray-300">
             Chart
@@ -309,8 +582,42 @@ export function MetricGrid({
 
         {/* Column Headers Row */}
         <div className="grid gap-2 py-2" style={{
-          gridTemplateColumns: '200px ' + (chartWidth / 2) + 'px ' + (chartWidth / 2) + 'px repeat(12, 80px)'
+          gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 98px 20px 200px ' + (chartWidth / 2) + 'px ' + (chartWidth / 2) + 'px repeat(12, 80px)',
+          gap: '2px'
         }}>
+          {/* Drag Handle Header Placeholder */}
+          {isEditMode && <div className="border-r border-gray-300"></div>}
+
+          {/* Group Columns */}
+          {columnDefinitions.slice(0, 3).map((col) => (
+            <div
+              key={col.key}
+              className={`px-2 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''} flex items-center justify-center gap-2`}
+              onClick={() => col.sortable && handleColumnHeaderClick(col.key)}
+            >
+              {col.key === 'group' && isEditMode && (
+                <input
+                  type="checkbox"
+                  checked={selectedMetricIds.size > 0 && selectedMetricIds.size === metrics.length}
+                  ref={el => {
+                    if (el) el.indeterminate = selectedMetricIds.size > 0 && selectedMetricIds.size < metrics.length;
+                  }}
+                  onChange={(e) => {
+                    e.stopPropagation(); // Prevent sorting when clicking checkbox
+                    if (e.target.checked) {
+                      setSelectedMetricIds(new Set(metrics.map(m => m.id)));
+                    } else {
+                      setSelectedMetricIds(new Set());
+                    }
+                  }}
+                />
+              )}
+              {col.label}
+              {sortColumn === col.key && (
+                <span className="ml-1">{sortDirection === 'desc' ? '↓' : '↑'}</span>
+              )}
+            </div>
+          ))}
           {/* Metric management buttons */}
           <div className="px-2 border-r border-gray-300 flex items-center gap-1">
             <button
@@ -355,10 +662,21 @@ export function MetricGrid({
             </button>
           </div>
 
-          {columnDefinitions.map((col, index) => (
+          {/* Selection column header */}
+          <div
+            className="px-2 text-xs font-semibold text-gray-700 text-center cursor-pointer hover:bg-gray-100"
+            onClick={() => handleColumnHeaderClick('selectionValue')}
+          >
+            Selection
+            {sortColumn === 'selectionValue' && (
+              <span className="ml-1">{sortDirection === 'desc' ? '↓' : '↑'}</span>
+            )}
+          </div>
+
+          {columnDefinitions.slice(5).map((col, index) => (
             <div
               key={col.key}
-              className={`px-2 text-xs font-semibold text-gray-700 text-center ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''} ${index === 5 ? 'border-r border-gray-300' : ''}`}
+              className={`px-2 text-xs font-semibold text-gray-700 text-center ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''} ${index === 4 ? 'border-r border-gray-300' : ''}`}
               onClick={() => col.sortable && handleColumnHeaderClick(col.key)}
             >
               {col.label}
@@ -371,29 +689,45 @@ export function MetricGrid({
       </div>
 
       {/* Metric Rows */}
-      <div>
-        {sortedMetrics.map(({ metric, values }) => (
-          <MetricRow
-            key={metric.id}
-            metric={metric}
-            globalSettings={globalSettings}
-            rowValues={values}
-            selectionDate={selectionDate || undefined}
-            currentHoverDate={currentHoverDate || undefined}
-            xDomain={xDomain}
-            chartWidth={chartWidth}
-            onMetricUpdate={onMetricUpdate}
-            onExpand={() => onMetricExpand(metric.id)}
-            onRemove={() => onMetricRemove(metric.id)}
-            onHover={handleHover}
-            onSelectionChange={setSelectionDate}
-          />
-        ))}
-      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={sortedMetrics.map(m => m.metric.id)} // Assuming sortedMetrics is an array of { metric, values }
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="divide-y divide-gray-200 border-b border-gray-200">
+            {sortedMetrics.map(({ metric, values }) => ( // Changed back to destructuring to match original data structure
+              <MetricRow
+                key={metric.id}
+                metric={metric}
+                globalSettings={globalSettings}
+                rowValues={values} // Changed back to 'values' as per original structure
+                selectionDate={selectionDate || undefined}
+                currentHoverDate={currentHoverDate || undefined}
+                xDomain={xDomain}
+                chartWidth={chartWidth}
+                onMetricUpdate={onMetricUpdate}
+                onExpand={() => onMetricExpand(metric.id)}
+                onRemove={() => onMetricRemove(metric.id)}
+                onHover={handleHover}
+                onSelectionChange={setSelectionDate}
+                isSelected={selectedMetricIds.has(metric.id)}
+                onSelect={(selected) => handleSelectMetric(metric.id, selected)}
+                onMoveGroup={(direction) => handleMoveGroup(metric.groupIndex, direction)}
+                onMoveMetric={(direction) => handleMoveMetric(metric.id, direction)}
+                isEditMode={isEditMode}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {/* Shared X-Axis */}
       <div className="border-t-2 border-gray-300 mt-2">
-        <div style={{ marginLeft: '200px' }}>
+        <div style={{ marginLeft: '450px' }}>
           <SharedXAxis xDomain={xDomain} width={chartWidth} marginLeft={marginLeft} />
         </div>
       </div>

@@ -52,7 +52,38 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
     onChange({ ...config, interpolation });
   };
 
-  const horizonOptions = [7, 30, 90, 365];
+  // Calculate days to end of quarter, end of year, and 1 year from today
+  const calculateHorizonDays = (type: 'EOQ' | 'EOY' | '1-year'): number => {
+    const today = new Date();
+
+    if (type === '1-year') {
+      return 365;
+    }
+
+    if (type === 'EOY') {
+      const endOfYear = new Date(today.getFullYear(), 11, 31); // Dec 31
+      const diffTime = endOfYear.getTime() - today.getTime();
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+
+    if (type === 'EOQ') {
+      const currentMonth = today.getMonth();
+      const currentQuarter = Math.floor(currentMonth / 3);
+      const endOfQuarterMonth = (currentQuarter + 1) * 3 - 1; // Last month of quarter (2, 5, 8, 11)
+      const endOfQuarter = new Date(today.getFullYear(), endOfQuarterMonth + 1, 0); // Last day of that month
+      const diffTime = endOfQuarter.getTime() - today.getTime();
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+
+    return 90; // fallback
+  };
+
+  const horizonOptions: Array<{ label: string; type: 'EOQ' | 'EOY' | '1-year'; days: number }> = [
+    { label: 'EOQ', type: 'EOQ', days: calculateHorizonDays('EOQ') },
+    { label: 'EOY', type: 'EOY', days: calculateHorizonDays('EOY') },
+    { label: '1-year', type: '1-year', days: calculateHorizonDays('1-year') }
+  ];
+
   const confidenceLevels = [90, 95, 99];
 
   return (
@@ -96,21 +127,19 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => handleTypeChange('auto')}
-                className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
-                  config.type === 'auto'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
-                }`}
+                className={`px-3 py-2 text-sm rounded-lg border transition-colors ${config.type === 'auto'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                  }`}
               >
                 Auto
               </button>
               <button
                 onClick={() => handleTypeChange('manual')}
-                className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
-                  config.type === 'manual'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
-                }`}
+                className={`px-3 py-2 text-sm rounded-lg border transition-colors ${config.type === 'manual'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                  }`}
               >
                 Manual
               </button>
@@ -122,20 +151,26 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Forecast Horizon
             </label>
-            <div className="grid grid-cols-4 gap-2">
-              {horizonOptions.map(days => (
-                <button
-                  key={days}
-                  onClick={() => handleHorizonChange(days)}
-                  className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
-                    config.horizon === days
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
-                  }`}
-                >
-                  {days}d
-                </button>
-              ))}
+            <div className="grid grid-cols-3 gap-2">
+              {horizonOptions.map(option => {
+                // Find if this option is selected by checking if horizon is close to this option's days
+                // Allow 5 day tolerance for EOQ/EOY since they change daily
+                const isSelected = Math.abs(config.horizon - option.days) <= 5;
+
+                return (
+                  <button
+                    key={option.type}
+                    onClick={() => handleHorizonChange(option.days)}
+                    className={`px-3 py-2 text-sm rounded-lg border transition-colors ${isSelected
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                      }`}
+                    title={`${option.days} days`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -166,21 +201,19 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => handleInterpolationChange('linear')}
-                    className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
-                      config.interpolation === 'linear'
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
-                    }`}
+                    className={`px-3 py-2 text-sm rounded-lg border transition-colors ${config.interpolation === 'linear'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                      }`}
                   >
                     Linear
                   </button>
                   <button
                     onClick={() => handleInterpolationChange('exponential')}
-                    className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
-                      config.interpolation === 'exponential'
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
-                    }`}
+                    className={`px-3 py-2 text-sm rounded-lg border transition-colors ${config.interpolation === 'exponential'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                      }`}
                   >
                     Exponential
                   </button>
@@ -254,11 +287,10 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
                   <button
                     key={level}
                     onClick={() => handleConfidenceLevelChange(level)}
-                    className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
-                      config.confidenceLevel === level
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
-                    }`}
+                    className={`px-3 py-2 text-sm rounded-lg border transition-colors ${config.confidenceLevel === level
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                      }`}
                   >
                     {level}%
                   </button>

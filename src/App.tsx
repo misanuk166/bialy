@@ -35,6 +35,7 @@ function App() {
         id: series.id,
         series,
         order: prevMetrics.length,
+        metricIndex: prevMetrics.length,
         goals: [],
         goalsEnabled: false,
         forecast: {

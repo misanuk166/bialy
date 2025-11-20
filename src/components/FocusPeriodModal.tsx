@@ -16,13 +16,54 @@ export function FocusPeriodModal({
   onClose,
   anchorElement
 }: FocusPeriodModalProps) {
-  const [label, setLabel] = useState(focusPeriod.label || '');
-  const [startDate, setStartDate] = useState(
-    focusPeriod.startDate ? focusPeriod.startDate.toISOString().split('T')[0] : ''
-  );
-  const [endDate, setEndDate] = useState(
-    focusPeriod.endDate ? focusPeriod.endDate.toISOString().split('T')[0] : ''
-  );
+  // Calculate current quarter based on last date in series
+  const calculateCurrentQuarter = (date: Date): { label: string; startDate: Date; endDate: Date } => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const quarter = Math.floor(month / 3) + 1;
+
+    // Calculate quarter start and end dates
+    const quarterStartMonth = (quarter - 1) * 3;
+    const quarterEndMonth = quarterStartMonth + 2;
+
+    const startDate = new Date(year, quarterStartMonth, 1);
+    const endDate = new Date(year, quarterEndMonth + 1, 0); // Last day of the quarter's last month
+
+    return {
+      label: `${year} Q${quarter}`,
+      startDate,
+      endDate
+    };
+  };
+
+  // Initialize with current quarter if no focus period is set
+  const [label, setLabel] = useState(() => {
+    if (focusPeriod.label) return focusPeriod.label;
+    if (dataExtent && dataExtent[1]) {
+      const quarter = calculateCurrentQuarter(dataExtent[1]);
+      return quarter.label;
+    }
+    return '';
+  });
+
+  const [startDate, setStartDate] = useState(() => {
+    if (focusPeriod.startDate) return focusPeriod.startDate.toISOString().split('T')[0];
+    if (dataExtent && dataExtent[1]) {
+      const quarter = calculateCurrentQuarter(dataExtent[1]);
+      return quarter.startDate.toISOString().split('T')[0];
+    }
+    return '';
+  });
+
+  const [endDate, setEndDate] = useState(() => {
+    if (focusPeriod.endDate) return focusPeriod.endDate.toISOString().split('T')[0];
+    if (dataExtent && dataExtent[1]) {
+      const quarter = calculateCurrentQuarter(dataExtent[1]);
+      return quarter.endDate.toISOString().split('T')[0];
+    }
+    return '';
+  });
+
   const popupRef = useRef<HTMLDivElement>(null);
 
   // Close on click outside
