@@ -96,7 +96,7 @@ export function MetricGrid({
   const shadowPopupRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const chartWidth = 400;
+  const chartWidth = 390;
   const marginLeft = 40;
 
   // Throttled hover handler to improve performance
@@ -465,12 +465,12 @@ export function MetricGrid({
       {/* Column Headers */}
       <div className="sticky top-0 bg-white border-b-2 border-gray-300 z-10">
         {/* Group Headers Row */}
-        <div className="grid gap-2 py-2 border-b border-gray-200" style={{
-          gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 98px 20px 200px ' + chartWidth + 'px repeat(12, 80px)',
-          gap: '2px'
+        <div className="grid py-1 border-b border-gray-200" style={{
+          gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 74px 20px 210px ' + chartWidth + 'px repeat(12, 80px)',
+          minWidth: 'fit-content'
         }}>
           {/* Metrics label - Spans Drag Handle (if visible), Grp Idx, Group, Mtr Idx, and Name columns */}
-          <div className="px-2 text-sm font-bold text-gray-800 border-r border-gray-300 flex items-center justify-between" style={{ gridColumn: isEditMode ? 'span 5' : 'span 4' }}>
+          <div className="px-1.5 text-sm font-bold text-gray-800 border-r border-gray-300 flex items-center justify-between" style={{ gridColumn: isEditMode ? 'span 5' : 'span 4' }}>
             <div className="flex items-center gap-2">
               <span>Metrics</span>
               <button
@@ -525,11 +525,11 @@ export function MetricGrid({
             )}
           </div>
           {/* Chart Group */}
-          <div className="px-2 text-sm font-bold text-gray-800 text-center border-r border-gray-300">
+          <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300">
             Chart
           </div>
           {/* Selection Group */}
-          <div className="px-2 text-sm font-bold text-gray-800 text-center border-r border-gray-300" style={{ gridColumn: 'span 6' }}>
+          <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300" style={{ gridColumn: 'span 6' }}>
             {isEditingSelection ? (
               <div className="flex items-center justify-center gap-2">
                 <input
@@ -563,7 +563,7 @@ export function MetricGrid({
             )}
           </div>
           {/* Focus Period Group */}
-          <div className="px-2 text-sm font-bold text-gray-800 text-center flex items-center justify-center gap-2" style={{ gridColumn: 'span 6' }}>
+          <div className="px-1.5 text-sm font-bold text-gray-800 text-center flex items-center justify-center gap-2" style={{ gridColumn: 'span 6' }}>
             <span>
               {globalSettings.focusPeriod?.enabled && globalSettings.focusPeriod.label
                 ? globalSettings.focusPeriod.label
@@ -581,9 +581,9 @@ export function MetricGrid({
         </div>
 
         {/* Column Headers Row */}
-        <div className="grid gap-2 py-2" style={{
-          gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 98px 20px 200px ' + (chartWidth / 2) + 'px ' + (chartWidth / 2) + 'px repeat(12, 80px)',
-          gap: '2px'
+        <div className="grid py-1" style={{
+          gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 74px 20px 210px ' + (chartWidth / 2) + 'px ' + (chartWidth / 2) + 'px repeat(12, 80px)',
+          minWidth: 'fit-content'
         }}>
           {/* Drag Handle Header Placeholder */}
           {isEditMode && <div className="border-r border-gray-300"></div>}
@@ -592,7 +592,7 @@ export function MetricGrid({
           {columnDefinitions.slice(0, 3).map((col) => (
             <div
               key={col.key}
-              className={`px-2 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''} flex items-center justify-center gap-2`}
+              className={`px-1.5 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''} flex items-center justify-center gap-2`}
               onClick={() => col.sortable && handleColumnHeaderClick(col.key)}
             >
               {col.key === 'group' && isEditMode && (
@@ -637,7 +637,7 @@ export function MetricGrid({
           </div>
 
           {/* Aggregation with Edit button */}
-          <div className="px-2 text-xs font-semibold text-gray-700 text-center flex items-center justify-center gap-1">
+          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center flex items-center justify-center gap-1">
             <span>Aggregation</span>
             <button
               ref={aggregationEditButtonRef}
@@ -650,7 +650,7 @@ export function MetricGrid({
           </div>
 
           {/* Shadow with Edit button */}
-          <div className="px-2 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 flex items-center justify-center gap-1">
+          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 flex items-center justify-center gap-1">
             <span>Shadow</span>
             <button
               ref={shadowEditButtonRef}
@@ -664,7 +664,7 @@ export function MetricGrid({
 
           {/* Selection column header */}
           <div
-            className="px-2 text-xs font-semibold text-gray-700 text-center cursor-pointer hover:bg-gray-100"
+            className="px-1.5 text-xs font-semibold text-gray-700 text-center cursor-pointer hover:bg-gray-100"
             onClick={() => handleColumnHeaderClick('selectionValue')}
           >
             Selection
@@ -676,7 +676,7 @@ export function MetricGrid({
           {columnDefinitions.slice(5).map((col, index) => (
             <div
               key={col.key}
-              className={`px-2 text-xs font-semibold text-gray-700 text-center ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''} ${index === 4 ? 'border-r border-gray-300' : ''}`}
+              className={`px-1.5 text-xs font-semibold text-gray-700 text-center ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''} ${index === 4 ? 'border-r border-gray-300' : ''}`}
               onClick={() => col.sortable && handleColumnHeaderClick(col.key)}
             >
               {col.label}
@@ -724,13 +724,6 @@ export function MetricGrid({
           </div>
         </SortableContext>
       </DndContext>
-
-      {/* Shared X-Axis */}
-      <div className="border-t-2 border-gray-300 mt-2">
-        <div style={{ marginLeft: '450px' }}>
-          <SharedXAxis xDomain={xDomain} width={chartWidth} marginLeft={marginLeft} />
-        </div>
-      </div>
 
       {/* Focus Period Popup */}
       {showFocusPeriodModal && (

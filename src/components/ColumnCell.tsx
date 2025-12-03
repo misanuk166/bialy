@@ -5,12 +5,13 @@ interface ColumnCellProps {
   showSign?: boolean;
   isEmpty?: boolean;
   className?: string;
+  bgClassName?: string;
 }
 
 export function ColumnCell({ value, precision = 2, colorCode = false, showSign = false, isEmpty = false, className = '' }: ColumnCellProps) {
   if (isEmpty || value === undefined || value === null) {
     return (
-      <div className={`text-center text-gray-400 text-sm px-2 py-1 ${className}`}>
+      <div className={`text-center text-gray-400 text-sm px-1.5 py-0.5 leading-tight ${className}`}>
         —
       </div>
     );
@@ -19,7 +20,7 @@ export function ColumnCell({ value, precision = 2, colorCode = false, showSign =
   const numValue = typeof value === 'number' ? value : parseFloat(value);
   if (isNaN(numValue)) {
     return (
-      <div className={`text-center text-gray-400 text-sm px-2 py-1 ${className}`}>
+      <div className={`text-center text-gray-400 text-sm px-1.5 py-0.5 leading-tight ${className}`}>
         —
       </div>
     );
@@ -37,7 +38,7 @@ export function ColumnCell({ value, precision = 2, colorCode = false, showSign =
     });
 
   return (
-    <div className={`text-right text-sm font-medium px-2 py-1 ${textColor} ${className}`}>
+    <div className={`text-right text-sm font-medium px-1.5 py-0.5 leading-tight ${textColor} ${className}`}>
       {displayValue}
     </div>
   );
@@ -46,7 +47,7 @@ export function ColumnCell({ value, precision = 2, colorCode = false, showSign =
 export function RangeCell({ min, max, precision = 2 }: { min?: number; max?: number; precision?: number }) {
   if (min === undefined || max === undefined) {
     return (
-      <div className="text-center text-gray-400 text-sm px-2 py-1">
+      <div className="text-center text-gray-400 text-sm px-1.5 py-0.5 leading-tight">
         —
       </div>
     );
@@ -55,7 +56,7 @@ export function RangeCell({ min, max, precision = 2 }: { min?: number; max?: num
   const displayValue = `${min.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })} - ${max.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}`;
 
   return (
-    <div className="text-right text-xs text-gray-700 px-2 py-1">
+    <div className="text-right text-xs text-gray-700 px-1.5 py-0.5 leading-tight">
       {displayValue}
     </div>
   );

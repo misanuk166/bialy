@@ -99,14 +99,14 @@ export const MetricRow = memo(function MetricRow({
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className={`grid gap-2 py-2 border-b border-gray-200 hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}
-    >
-      <div style={{
+      style={{
+        ...style,
         display: 'grid',
-        gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 98px 20px 200px ' + (chartWidth / 2) + 'px ' + (chartWidth / 2) + 'px repeat(12, 80px)',
-        gap: '2px'
-      }}>
+        gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 74px 20px 210px ' + (chartWidth / 2) + 'px ' + (chartWidth / 2) + 'px repeat(12, 80px)',
+        minWidth: 'fit-content'
+      }}
+      className={`py-1 border-b border-gray-200 hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}
+    >
         {/* Drag Handle */}
         {isEditMode && (
           <div
@@ -126,7 +126,7 @@ export const MetricRow = memo(function MetricRow({
         </div>
 
         {/* Group with Selection */}
-        <div className="px-2 border-r border-gray-300 flex items-center gap-2">
+        <div className="px-1.5 border-r border-gray-300 flex items-center gap-2">
           {isEditMode && (
             <input
               type="checkbox"
@@ -171,7 +171,7 @@ export const MetricRow = memo(function MetricRow({
           </div>
         </div>
         {/* Name & Description */}
-        <div className="px-2 border-r border-gray-300">
+        <div className="px-1.5 border-r border-gray-300">
           <div className="flex items-center justify-between gap-2">
             {isEditingName ? (
               <input
@@ -191,7 +191,7 @@ export const MetricRow = memo(function MetricRow({
               />
             ) : (
               <div
-                className="flex-1 text-sm font-medium text-gray-900 cursor-pointer hover:bg-gray-100 rounded px-1"
+                className="flex-1 text-sm font-medium text-gray-900 cursor-pointer hover:bg-gray-100 rounded px-1 leading-tight"
                 onDoubleClick={() => setIsEditingName(true)}
                 title="Double-click to edit"
               >
@@ -236,7 +236,7 @@ export const MetricRow = memo(function MetricRow({
               )}
             </div>
           </div>
-          <div className="text-xs text-gray-500 mt-1">{metric.series.metadata.description}</div>
+          <div className="text-xs text-gray-500 mt-1 leading-tight">{metric.series.metadata.description}</div>
 
           {/* Goal Controls Modal */}
           {showGoalControls && (
@@ -306,7 +306,6 @@ export const MetricRow = memo(function MetricRow({
         <ColumnCell value={rowValues.focusPeriodVsShadowPct} precision={1} colorCode showSign isEmpty={rowValues.focusPeriodVsShadowPct === undefined} />
         <ColumnCell value={rowValues.focusPeriodVsGoalAbs} precision={precision} colorCode showSign isEmpty={rowValues.focusPeriodVsGoalAbs === undefined} />
         <ColumnCell value={rowValues.focusPeriodVsGoalPct} precision={1} colorCode showSign isEmpty={rowValues.focusPeriodVsGoalPct === undefined} />
-      </div>
     </div>
   );
 });

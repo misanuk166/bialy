@@ -35,7 +35,7 @@ export function CompactTimeSeriesChart({
   focusPeriod,
   xDomain,
   width,
-  height = 90,
+  height = 72,
   selectionDate,
   currentHoverDate,
   onHover,
