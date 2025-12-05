@@ -7,6 +7,13 @@ import type { MetricConfig, GlobalSettings, MetricRowValues } from '../types/app
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+interface ColorScaling {
+  selectionVsShadow: { max: number; min: number };
+  selectionVsGoal: { max: number; min: number };
+  focusVsShadow: { max: number; min: number };
+  focusVsGoal: { max: number; min: number };
+}
+
 interface MetricRowProps {
   metric: MetricConfig;
   globalSettings: GlobalSettings;
@@ -26,6 +33,7 @@ interface MetricRowProps {
   onMoveGroup?: (direction: 'up' | 'down') => void;
   onMoveMetric?: (direction: 'up' | 'down') => void;
   isEditMode?: boolean;
+  colorScaling?: ColorScaling;
 }
 
 export const MetricRow = memo(function MetricRow({
@@ -44,7 +52,8 @@ export const MetricRow = memo(function MetricRow({
   onSelectionChange,
   isSelected,
   onSelect,
-  isEditMode = false
+  isEditMode = false,
+  colorScaling
 }: MetricRowProps) {
   const {
     attributes,
@@ -121,7 +130,7 @@ export const MetricRow = memo(function MetricRow({
         {/* Group Index (Compact) */}
         <div className="px-1 border-r border-gray-300 flex items-center justify-center bg-gray-50">
           <div className="text-xs text-gray-500 font-mono w-full text-center">
-            {metric.groupIndex ?? ''}
+            {metric.groupIndex !== undefined ? metric.groupIndex + 1 : ''}
           </div>
         </div>
 
@@ -167,7 +176,7 @@ export const MetricRow = memo(function MetricRow({
         {/* Metric Index (Compact) */}
         <div className="px-1 border-r border-gray-300 flex items-center justify-center bg-gray-50">
           <div className="text-xs text-gray-500 font-mono w-full text-center">
-            {metric.metricIndex ?? ''}
+            {metric.metricIndex !== undefined ? metric.metricIndex + 1 : ''}
           </div>
         </div>
         {/* Name & Description */}
@@ -294,18 +303,143 @@ export const MetricRow = memo(function MetricRow({
         {/* Selection Columns */}
         <ColumnCell value={rowValues.selectionValue} precision={precision} />
         <ColumnCell value={rowValues.selectionPointValue} precision={precision} isEmpty={!globalSettings.aggregation?.enabled} />
-        <ColumnCell value={rowValues.selectionVsShadowAbs} precision={precision} colorCode showSign isEmpty={rowValues.selectionVsShadowAbs === undefined} />
-        <ColumnCell value={rowValues.selectionVsShadowPct} precision={1} colorCode showSign isEmpty={rowValues.selectionVsShadowPct === undefined} />
-        <ColumnCell value={rowValues.selectionVsGoalAbs} precision={precision} colorCode showSign isEmpty={rowValues.selectionVsGoalAbs === undefined} />
-        <ColumnCell value={rowValues.selectionVsGoalPct} precision={1} colorCode showSign isEmpty={rowValues.selectionVsGoalPct === undefined} className="border-r border-gray-300" />
+        <ColumnCell
+          value={rowValues.selectionVsShadowAbs}
+          precision={precision}
+          colorCode
+          showSign
+          isEmpty={rowValues.selectionVsShadowAbs === undefined}
+          scaledColorPct={rowValues.selectionVsShadowPct}
+          maxPositivePct={colorScaling?.selectionVsShadow.max}
+          maxNegativePct={colorScaling?.selectionVsShadow.min}
+          isExtreme={
+            rowValues.selectionVsShadowPct !== undefined && colorScaling && (
+              rowValues.selectionVsShadowPct === colorScaling.selectionVsShadow.max ||
+              rowValues.selectionVsShadowPct === colorScaling.selectionVsShadow.min
+            )
+          }
+        />
+        <ColumnCell
+          value={rowValues.selectionVsShadowPct}
+          precision={0}
+          colorCode
+          showSign
+          isEmpty={rowValues.selectionVsShadowPct === undefined}
+          scaledColorPct={rowValues.selectionVsShadowPct}
+          maxPositivePct={colorScaling?.selectionVsShadow.max}
+          maxNegativePct={colorScaling?.selectionVsShadow.min}
+          isPercentage={true}
+          isExtreme={
+            rowValues.selectionVsShadowPct !== undefined && colorScaling && (
+              rowValues.selectionVsShadowPct === colorScaling.selectionVsShadow.max ||
+              rowValues.selectionVsShadowPct === colorScaling.selectionVsShadow.min
+            )
+          }
+        />
+        <ColumnCell
+          value={rowValues.selectionVsGoalAbs}
+          precision={precision}
+          colorCode
+          showSign
+          isEmpty={rowValues.selectionVsGoalAbs === undefined}
+          scaledColorPct={rowValues.selectionVsGoalPct}
+          maxPositivePct={colorScaling?.selectionVsGoal.max}
+          maxNegativePct={colorScaling?.selectionVsGoal.min}
+          isExtreme={
+            rowValues.selectionVsGoalPct !== undefined && colorScaling && (
+              rowValues.selectionVsGoalPct === colorScaling.selectionVsGoal.max ||
+              rowValues.selectionVsGoalPct === colorScaling.selectionVsGoal.min
+            )
+          }
+        />
+        <ColumnCell
+          value={rowValues.selectionVsGoalPct}
+          precision={0}
+          colorCode
+          showSign
+          isEmpty={rowValues.selectionVsGoalPct === undefined}
+          className="border-r border-gray-300"
+          scaledColorPct={rowValues.selectionVsGoalPct}
+          maxPositivePct={colorScaling?.selectionVsGoal.max}
+          maxNegativePct={colorScaling?.selectionVsGoal.min}
+          isPercentage={true}
+          isExtreme={
+            rowValues.selectionVsGoalPct !== undefined && colorScaling && (
+              rowValues.selectionVsGoalPct === colorScaling.selectionVsGoal.max ||
+              rowValues.selectionVsGoalPct === colorScaling.selectionVsGoal.min
+            )
+          }
+        />
 
         {/* Focus Period Columns */}
         <ColumnCell value={rowValues.focusPeriodMean} precision={precision} isEmpty={rowValues.focusPeriodMean === undefined} />
         <RangeCell min={rowValues.focusPeriodRange?.min} max={rowValues.focusPeriodRange?.max} precision={precision} />
-        <ColumnCell value={rowValues.focusPeriodVsShadowAbs} precision={precision} colorCode showSign isEmpty={rowValues.focusPeriodVsShadowAbs === undefined} />
-        <ColumnCell value={rowValues.focusPeriodVsShadowPct} precision={1} colorCode showSign isEmpty={rowValues.focusPeriodVsShadowPct === undefined} />
-        <ColumnCell value={rowValues.focusPeriodVsGoalAbs} precision={precision} colorCode showSign isEmpty={rowValues.focusPeriodVsGoalAbs === undefined} />
-        <ColumnCell value={rowValues.focusPeriodVsGoalPct} precision={1} colorCode showSign isEmpty={rowValues.focusPeriodVsGoalPct === undefined} />
+        <ColumnCell
+          value={rowValues.focusPeriodVsShadowAbs}
+          precision={precision}
+          colorCode
+          showSign
+          isEmpty={rowValues.focusPeriodVsShadowAbs === undefined}
+          scaledColorPct={rowValues.focusPeriodVsShadowPct}
+          maxPositivePct={colorScaling?.focusVsShadow.max}
+          maxNegativePct={colorScaling?.focusVsShadow.min}
+          isExtreme={
+            rowValues.focusPeriodVsShadowPct !== undefined && colorScaling && (
+              rowValues.focusPeriodVsShadowPct === colorScaling.focusVsShadow.max ||
+              rowValues.focusPeriodVsShadowPct === colorScaling.focusVsShadow.min
+            )
+          }
+        />
+        <ColumnCell
+          value={rowValues.focusPeriodVsShadowPct}
+          precision={0}
+          colorCode
+          showSign
+          isEmpty={rowValues.focusPeriodVsShadowPct === undefined}
+          scaledColorPct={rowValues.focusPeriodVsShadowPct}
+          maxPositivePct={colorScaling?.focusVsShadow.max}
+          maxNegativePct={colorScaling?.focusVsShadow.min}
+          isPercentage={true}
+          isExtreme={
+            rowValues.focusPeriodVsShadowPct !== undefined && colorScaling && (
+              rowValues.focusPeriodVsShadowPct === colorScaling.focusVsShadow.max ||
+              rowValues.focusPeriodVsShadowPct === colorScaling.focusVsShadow.min
+            )
+          }
+        />
+        <ColumnCell
+          value={rowValues.focusPeriodVsGoalAbs}
+          precision={precision}
+          colorCode
+          showSign
+          isEmpty={rowValues.focusPeriodVsGoalAbs === undefined}
+          scaledColorPct={rowValues.focusPeriodVsGoalPct}
+          maxPositivePct={colorScaling?.focusVsGoal.max}
+          maxNegativePct={colorScaling?.focusVsGoal.min}
+          isExtreme={
+            rowValues.focusPeriodVsGoalPct !== undefined && colorScaling && (
+              rowValues.focusPeriodVsGoalPct === colorScaling.focusVsGoal.max ||
+              rowValues.focusPeriodVsGoalPct === colorScaling.focusVsGoal.min
+            )
+          }
+        />
+        <ColumnCell
+          value={rowValues.focusPeriodVsGoalPct}
+          precision={0}
+          colorCode
+          showSign
+          isEmpty={rowValues.focusPeriodVsGoalPct === undefined}
+          scaledColorPct={rowValues.focusPeriodVsGoalPct}
+          maxPositivePct={colorScaling?.focusVsGoal.max}
+          maxNegativePct={colorScaling?.focusVsGoal.min}
+          isPercentage={true}
+          isExtreme={
+            rowValues.focusPeriodVsGoalPct !== undefined && colorScaling && (
+              rowValues.focusPeriodVsGoalPct === colorScaling.focusVsGoal.max ||
+              rowValues.focusPeriodVsGoalPct === colorScaling.focusVsGoal.min
+            )
+          }
+        />
     </div>
   );
 });

@@ -1,3 +1,6 @@
+import { scaleLinear } from 'd3-scale';
+import { interpolateRgb } from 'd3-interpolate';
+
 interface ColumnCellProps {
   value?: number | string;
   precision?: number;
@@ -6,9 +9,47 @@ interface ColumnCellProps {
   isEmpty?: boolean;
   className?: string;
   bgClassName?: string;
+  scaledColorPct?: number; // The percentage value used for gradient scaling
+  maxPositivePct?: number; // Max positive percentage in the dataset
+  maxNegativePct?: number; // Max negative percentage (most negative)
+  isExtreme?: boolean; // True if this is the highest or lowest value
+  isPercentage?: boolean; // True if this value should be displayed with a % symbol
 }
 
-export function ColumnCell({ value, precision = 2, colorCode = false, showSign = false, isEmpty = false, className = '' }: ColumnCellProps) {
+// Calculate gradient color based on percentage value using D3 linear scale
+function getGradientColor(pct: number, maxPos: number, maxNeg: number): string {
+  // Define color endpoints
+  const redColor = '#dc2626'; // red-600
+  const grayColor = '#4b5563'; // gray-600
+  const greenColor = '#16a34a'; // green-600
+
+  // Create a linear color scale
+  // Domain: [maxNeg (most negative), 0, maxPos (most positive)]
+  // Range: [red, gray, green]
+  const colorScale = scaleLinear<string>()
+    .domain([maxNeg, 0, maxPos])
+    .range([redColor, grayColor, greenColor])
+    .interpolate(interpolateRgb);
+
+  const color = colorScale(pct);
+
+  // Return as inline style since we're using dynamic colors
+  return color;
+}
+
+export function ColumnCell({
+  value,
+  precision = 2,
+  colorCode = false,
+  showSign = false,
+  isEmpty = false,
+  className = '',
+  scaledColorPct,
+  maxPositivePct,
+  maxNegativePct,
+  isExtreme = false,
+  isPercentage = false
+}: ColumnCellProps) {
   if (isEmpty || value === undefined || value === null) {
     return (
       <div className={`text-center text-gray-400 text-sm px-1.5 py-0.5 leading-tight ${className}`}>
@@ -26,19 +67,31 @@ export function ColumnCell({ value, precision = 2, colorCode = false, showSign =
     );
   }
 
-  let textColor = 'text-gray-900';
+  let textColorClass = 'text-gray-600';
+  let textColorStyle: string | undefined = undefined;
+
   if (colorCode) {
-    textColor = numValue >= 0 ? 'text-green-600' : 'text-red-600';
+    // Use gradient scaling if parameters are provided
+    if (scaledColorPct !== undefined && maxPositivePct !== undefined && maxNegativePct !== undefined) {
+      textColorStyle = getGradientColor(scaledColorPct, maxPositivePct, maxNegativePct);
+      textColorClass = ''; // Clear the class since we're using inline style
+    } else {
+      // Fallback to simple binary coloring
+      textColorClass = numValue >= 0 ? 'text-green-600' : 'text-red-600';
+    }
   }
 
   const displayValue = typeof value === 'string' ? value :
     (showSign && numValue >= 0 ? '+' : '') + numValue.toLocaleString(undefined, {
       minimumFractionDigits: precision,
       maximumFractionDigits: precision
-    });
+    }) + (isPercentage ? '%' : '');
 
   return (
-    <div className={`text-right text-sm font-medium px-1.5 py-0.5 leading-tight ${textColor} ${className}`}>
+    <div
+      className={`text-right text-sm px-1.5 py-0.5 leading-tight ${isExtreme ? 'font-bold' : 'font-medium'} ${textColorClass} ${className}`}
+      style={textColorStyle ? { color: textColorStyle } : undefined}
+    >
       {displayValue}
     </div>
   );

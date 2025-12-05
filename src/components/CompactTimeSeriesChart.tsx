@@ -138,8 +138,15 @@ export function CompactTimeSeriesChart({
       }
     }
 
+    // Calculate min/max with 20% padding
+    const minValue = d3.min(allValues) as number;
+    const maxValue = d3.max(allValues) as number;
+    const range = maxValue - minValue;
+    const yMin = minValue - (range * 0.2);
+    const yMax = maxValue + (range * 0.2);
+
     const yScale = d3.scaleLinear()
-      .domain([0, d3.max(allValues) as number * 1.1])
+      .domain([yMin, yMax])
       .range([innerHeight, 0]);
 
     // Draw focus period highlight

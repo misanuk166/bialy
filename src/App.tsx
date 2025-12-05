@@ -28,6 +28,10 @@ function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [expandedMetricId, setExpandedMetricId] = useState<string | null>(null);
   const [showAddMetricModal, setShowAddMetricModal] = useState(false);
+  const [title, setTitle] = useState('Bialy');
+  const [description, setDescription] = useState('Multi-metric time series data visualization and analysis');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
 
   const handleSeriesLoaded = (series: Series) => {
     setMetrics(prevMetrics => {
@@ -112,13 +116,55 @@ function App() {
   const expandedMetric = expandedMetricId ? metrics.find(m => m.id === expandedMetricId) : null;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6">
-      <div className="mx-auto px-6" style={{ maxWidth: '2000px' }}>
-        <header className="mb-6">
-          <h1 className="text-4xl font-bold text-gray-900">Bialy</h1>
-          <p className="text-gray-600 mt-2">
-            Multi-metric time series data visualization and analysis
-          </p>
+    <div className="min-h-screen bg-white py-1">
+      <div className="mx-auto px-1" style={{ maxWidth: '2000px' }}>
+        <header className="mb-1">
+          {isEditingTitle ? (
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={() => setIsEditingTitle(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === 'Escape') {
+                  setIsEditingTitle(false);
+                }
+              }}
+              autoFocus
+              className="text-4xl font-bold text-gray-900 border-b-2 border-blue-500 bg-transparent outline-none"
+            />
+          ) : (
+            <h1
+              className="text-4xl font-bold text-gray-900 cursor-pointer hover:bg-gray-100 inline-block px-2 rounded"
+              onClick={() => setIsEditingTitle(true)}
+              title="Click to edit title"
+            >
+              {title}
+            </h1>
+          )}
+          {isEditingDescription ? (
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              onBlur={() => setIsEditingDescription(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === 'Escape') {
+                  setIsEditingDescription(false);
+                }
+              }}
+              autoFocus
+              className="text-gray-600 mt-2 border-b-2 border-blue-500 bg-transparent outline-none w-full"
+            />
+          ) : (
+            <p
+              className="text-gray-600 mt-2 cursor-pointer hover:bg-gray-100 inline-block px-2 rounded"
+              onClick={() => setIsEditingDescription(true)}
+              title="Click to edit description"
+            >
+              {description}
+            </p>
+          )}
         </header>
 
         {/* Single Metric Expanded View */}

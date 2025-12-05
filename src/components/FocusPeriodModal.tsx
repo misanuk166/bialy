@@ -100,7 +100,7 @@ export function FocusPeriodModal({
       className="absolute bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
       style={{
         top: anchorElement ? anchorElement.offsetTop + anchorElement.offsetHeight + 5 : '50%',
-        left: anchorElement ? anchorElement.offsetLeft : '50%',
+        right: anchorElement ? `calc(100% - ${anchorElement.offsetLeft + anchorElement.offsetWidth}px)` : 'auto',
         width: '280px'
       }}
     >

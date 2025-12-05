@@ -603,32 +603,48 @@ export function TimeSeriesChart({
     if (currentYDomain) {
       yDomain = currentYDomain;
     } else {
-      // Get max from data
-      const dataMax = d3.max(dataWithValues, d => d.value) as number;
+      // Collect all values to find true min and max
+      const allValues: number[] = [];
 
-      // Get max from goals
-      let goalMax = 0;
-      goalsDataWithValues.forEach(gd => {
-        const gdMax = d3.max(gd.data, d => d.value) as number;
-        if (gdMax > goalMax) goalMax = gdMax;
+      // Add data values
+      dataWithValues.forEach(d => {
+        if (d.value != null && !isNaN(d.value) && isFinite(d.value)) {
+          allValues.push(d.value);
+        }
       });
 
-      // Get max from forecast (including confidence intervals)
-      let forecastMax = 0;
-      if (forecastResult) {
-        const fMax = d3.max(forecastResult.forecast, d => d.value) as number;
-        if (fMax > forecastMax) forecastMax = fMax;
+      // Add goal values
+      goalsDataWithValues.forEach(gd => {
+        gd.data.forEach(d => {
+          if (d.value != null && !isNaN(d.value) && isFinite(d.value)) {
+            allValues.push(d.value);
+          }
+        });
+      });
 
-        // Include confidence interval upper bound
+      // Add forecast values (including confidence intervals)
+      if (forecastResult) {
+        forecastResult.forecast.forEach(d => {
+          if (d.value != null && !isNaN(d.value) && isFinite(d.value)) {
+            allValues.push(d.value);
+          }
+        });
+
+        // Include confidence intervals
         if (forecastResult.confidenceIntervals) {
-          const ciMax = d3.max(forecastResult.confidenceIntervals.upper) as number;
-          if (ciMax > forecastMax) forecastMax = ciMax;
+          allValues.push(...forecastResult.confidenceIntervals.upper.filter(v => !isNaN(v) && isFinite(v)));
+          allValues.push(...forecastResult.confidenceIntervals.lower.filter(v => !isNaN(v) && isFinite(v)));
         }
       }
 
-      // Use the higher of data max, goal max, or forecast max, with 10% padding
-      const overallMax = Math.max(dataMax, goalMax, forecastMax) * 1.1;
-      yDomain = [0, overallMax];
+      // Calculate min/max with 20% padding
+      const minValue = d3.min(allValues) as number;
+      const maxValue = d3.max(allValues) as number;
+      const range = maxValue - minValue;
+      const yMin = minValue - (range * 0.2);
+      const yMax = maxValue + (range * 0.2);
+
+      yDomain = [yMin, yMax];
     }
 
     const yScale = d3
@@ -1632,7 +1648,18 @@ export function TimeSeriesChart({
       setCurrentDomain(null);
       setCurrentYDomain(null);
       xScale.domain(fullExtent);
-      yScale.domain([0, d3.max(dataWithValues, d => d.value) as number * 1.1]);
+
+      // Recalculate y domain with 20% padding
+      const allValues: number[] = dataWithValues
+        .filter(d => d.value != null && !isNaN(d.value) && isFinite(d.value))
+        .map(d => d.value);
+      const minValue = d3.min(allValues) as number;
+      const maxValue = d3.max(allValues) as number;
+      const range = maxValue - minValue;
+      const yMin = minValue - (range * 0.2);
+      const yMax = maxValue + (range * 0.2);
+
+      yScale.domain([yMin, yMax]);
       updateChart();
     });
 

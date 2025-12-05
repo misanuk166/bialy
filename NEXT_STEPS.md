@@ -20,13 +20,11 @@
 ## Multi-Metric
 - Add Group Goal Setting
 - Add Group Forecasting
-- Improve dynamic labeling system
-- Add scaling to conditional color formatting
+- ✅ Improve dynamic labeling system
+- ✅ Add scaling to conditional color formatting
 - Add Annotations
 - Add Comments
 - Add Metric metadata section
-- Enable multiple Shadows
-- Enable multiple Focus Periods
 
 ## Next Priority
 - 🎯 **Breakout - by Dimension** (section 2.4)

@@ -50,14 +50,14 @@ const getColumnDefinitions = (shadowLabel?: string, goalLabel?: string) => [
   { key: 'selectionPoint' as ColumnKey, label: 'Point', sortable: true },
   { key: 'selectionVsShadowAbs' as ColumnKey, label: shadowLabel ? `vs ${shadowLabel}` : 'vs Shadow', sortable: true },
   { key: 'selectionVsShadowPct' as ColumnKey, label: shadowLabel ? `vs ${shadowLabel} %` : 'vs Shadow %', sortable: true },
-  { key: 'selectionVsGoalAbs' as ColumnKey, label: goalLabel ? `vs ${goalLabel}` : 'vs Goal', sortable: true },
-  { key: 'selectionVsGoalPct' as ColumnKey, label: goalLabel ? `vs ${goalLabel} %` : 'vs Goal %', sortable: true },
+  { key: 'selectionVsGoalAbs' as ColumnKey, label: 'vs Goal', sortable: true },
+  { key: 'selectionVsGoalPct' as ColumnKey, label: 'vs Goal %', sortable: true },
   { key: 'focusMean' as ColumnKey, label: 'Focus Mean', sortable: true },
   { key: 'focusRange' as ColumnKey, label: 'Focus Range', sortable: false },
   { key: 'focusVsShadowAbs' as ColumnKey, label: shadowLabel ? `vs ${shadowLabel}` : 'vs Shadow', sortable: true },
   { key: 'focusVsShadowPct' as ColumnKey, label: shadowLabel ? `vs ${shadowLabel} %` : 'vs Shadow %', sortable: true },
-  { key: 'focusVsGoalAbs' as ColumnKey, label: goalLabel ? `vs ${goalLabel}` : 'vs Goal', sortable: true },
-  { key: 'focusVsGoalPct' as ColumnKey, label: goalLabel ? `vs ${goalLabel} %` : 'vs Goal %', sortable: true },
+  { key: 'focusVsGoalAbs' as ColumnKey, label: 'vs Goal', sortable: true },
+  { key: 'focusVsGoalPct' as ColumnKey, label: 'vs Goal %', sortable: true },
 ];
 
 export function MetricGrid({
@@ -171,6 +171,59 @@ export function MetricGrid({
       )
     }));
   }, [metrics, selectionDate, globalSettings]);
+
+  // Calculate min/max percentage values for gradient scaling
+  const colorScaling = useMemo(() => {
+    const pctValues = {
+      selectionVsShadow: [] as number[],
+      selectionVsGoal: [] as number[],
+      focusVsShadow: [] as number[],
+      focusVsGoal: [] as number[]
+    };
+
+    metricsWithValues.forEach(({ values }) => {
+      if (values.selectionVsShadowPct !== undefined) {
+        pctValues.selectionVsShadow.push(values.selectionVsShadowPct);
+      }
+      if (values.selectionVsGoalPct !== undefined) {
+        pctValues.selectionVsGoal.push(values.selectionVsGoalPct);
+      }
+      if (values.focusPeriodVsShadowPct !== undefined) {
+        pctValues.focusVsShadow.push(values.focusPeriodVsShadowPct);
+      }
+      if (values.focusPeriodVsGoalPct !== undefined) {
+        pctValues.focusVsGoal.push(values.focusPeriodVsGoalPct);
+      }
+    });
+
+    const getMinMax = (values: number[]) => {
+      if (values.length === 0) return { max: 0, min: 0 };
+      const positives = values.filter(v => v > 0);
+      const negatives = values.filter(v => v < 0);
+      return {
+        max: positives.length > 0 ? Math.max(...positives) : 0,
+        min: negatives.length > 0 ? Math.min(...negatives) : 0
+      };
+    };
+
+    const scales = {
+      selectionVsShadow: getMinMax(pctValues.selectionVsShadow),
+      selectionVsGoal: getMinMax(pctValues.selectionVsGoal),
+      focusVsShadow: getMinMax(pctValues.focusVsShadow),
+      focusVsGoal: getMinMax(pctValues.focusVsGoal)
+    };
+
+    return {
+      ...scales,
+      // Include the actual extreme values for bold detection
+      extremes: {
+        selectionVsShadow: scales.selectionVsShadow,
+        selectionVsGoal: scales.selectionVsGoal,
+        focusVsShadow: scales.focusVsShadow,
+        focusVsGoal: scales.focusVsGoal
+      }
+    };
+  }, [metricsWithValues]);
 
   // Sort metrics
   const sortedMetrics = useMemo(() => {
@@ -664,7 +717,7 @@ export function MetricGrid({
 
           {/* Selection column header */}
           <div
-            className="px-1.5 text-xs font-semibold text-gray-700 text-center cursor-pointer hover:bg-gray-100"
+            className="px-1.5 text-xs font-semibold text-gray-700 text-right cursor-pointer hover:bg-gray-100"
             onClick={() => handleColumnHeaderClick('selectionValue')}
           >
             Selection
@@ -676,7 +729,7 @@ export function MetricGrid({
           {columnDefinitions.slice(5).map((col, index) => (
             <div
               key={col.key}
-              className={`px-1.5 text-xs font-semibold text-gray-700 text-center ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''} ${index === 4 ? 'border-r border-gray-300' : ''}`}
+              className={`px-1.5 text-xs font-semibold text-gray-700 text-right ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''} ${index === 4 ? 'border-r border-gray-300' : ''}`}
               onClick={() => col.sortable && handleColumnHeaderClick(col.key)}
             >
               {col.label}
@@ -719,6 +772,7 @@ export function MetricGrid({
                 onMoveGroup={(direction) => handleMoveGroup(metric.groupIndex, direction)}
                 onMoveMetric={(direction) => handleMoveMetric(metric.id, direction)}
                 isEditMode={isEditMode}
+                colorScaling={colorScaling}
               />
             ))}
           </div>
