@@ -8,6 +8,7 @@ import type { MetricConfig, GlobalSettings, ViewMode } from './types/appState';
 import type { AggregationConfig } from './utils/aggregation';
 import type { Shadow } from './types/shadow';
 import type { FocusPeriod } from './types/focusPeriod';
+import type { DateRange } from './components/RangeControls';
 
 function App() {
   const [metrics, setMetrics] = useState<MetricConfig[]>([]);
@@ -91,6 +92,10 @@ function App() {
 
   const handleFocusPeriodChange = (focusPeriod: FocusPeriod) => {
     setGlobalSettings(prev => ({ ...prev, focusPeriod }));
+  };
+
+  const handleDateRangeChange = (dateRange: DateRange) => {
+    setGlobalSettings(prev => ({ ...prev, dateRange }));
   };
 
   const handleAddMetric = () => {
@@ -207,6 +212,7 @@ function App() {
                   onAggregationChange={handleAggregationChange}
                   onShadowsChange={handleShadowsChange}
                   onFocusPeriodChange={handleFocusPeriodChange}
+                  onDateRangeChange={handleDateRangeChange}
                   onAddMetric={handleAddMetric}
                   onClearAllMetrics={handleClearAllMetrics}
                 />

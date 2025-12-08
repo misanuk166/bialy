@@ -4,6 +4,7 @@ import type { Shadow } from './shadow';
 import type { Goal } from './goal';
 import type { ForecastConfig } from './forecast';
 import type { FocusPeriod } from './focusPeriod';
+import type { DateRange } from '../components/RangeControls';
 
 /**
  * Global settings applied to all metrics
@@ -13,6 +14,7 @@ export interface GlobalSettings {
   shadows?: Shadow[];
   averageShadows?: boolean;
   focusPeriod?: FocusPeriod;
+  dateRange?: DateRange;
 }
 
 /**

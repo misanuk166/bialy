@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { MetricRow } from './MetricRow';
-import { SharedXAxis } from './SharedXAxis';
 import {
   DndContext,
   closestCenter,
@@ -19,12 +18,14 @@ import {
 import { FocusPeriodModal } from './FocusPeriodModal';
 import { AggregateControls } from './AggregateControls';
 import { ShadowControls } from './ShadowControls';
+import { RangeControls, type DateRange } from './RangeControls';
 import type { MetricConfig, GlobalSettings, ColumnKey } from '../types/appState';
 import type { FocusPeriod } from '../types/focusPeriod';
 import type { AggregationConfig } from '../utils/aggregation';
 import type { Shadow } from '../types/shadow';
 import { calculateMetricRowValues } from '../utils/metricCalculations';
 import { normalizeSelectionDate } from '../utils/aggregation';
+import { calculateDateRange } from '../utils/dateRange';
 
 interface MetricGridProps {
   metrics: MetricConfig[];
@@ -37,11 +38,12 @@ interface MetricGridProps {
   onAggregationChange: (config: AggregationConfig) => void;
   onShadowsChange: (shadows: Shadow[], averageShadows: boolean) => void;
   onFocusPeriodChange: (focusPeriod: FocusPeriod) => void;
+  onDateRangeChange: (range: DateRange) => void;
   onAddMetric: () => void;
   onClearAllMetrics: () => void;
 }
 
-const getColumnDefinitions = (shadowLabel?: string, goalLabel?: string) => [
+const getColumnDefinitions = (shadowLabel?: string) => [
   { key: 'groupIndex' as ColumnKey, label: '', sortable: true },
   { key: 'group' as ColumnKey, label: 'Group', sortable: true },
   { key: 'metricIndex' as ColumnKey, label: '', sortable: true },
@@ -71,6 +73,7 @@ export function MetricGrid({
   onAggregationChange,
   onShadowsChange,
   onFocusPeriodChange,
+  onDateRangeChange,
   onAddMetric,
   onClearAllMetrics
 }: MetricGridProps) {
@@ -83,6 +86,7 @@ export function MetricGrid({
   const [showFocusPeriodModal, setShowFocusPeriodModal] = useState(false);
   const [showAggregationModal, setShowAggregationModal] = useState(false);
   const [showShadowModal, setShowShadowModal] = useState(false);
+  const [showRangeModal, setShowRangeModal] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedMetricIds, setSelectedMetricIds] = useState<Set<string>>(new Set());
   const [isEditingGroupSet, setIsEditingGroupSet] = useState(false);
@@ -91,13 +95,14 @@ export function MetricGrid({
   const focusPeriodEditButtonRef = useRef<HTMLButtonElement>(null);
   const aggregationEditButtonRef = useRef<HTMLButtonElement>(null);
   const shadowEditButtonRef = useRef<HTMLButtonElement>(null);
+  const rangeEditButtonRef = useRef<HTMLButtonElement>(null);
   const groupSetInputRef = useRef<HTMLInputElement>(null);
   const aggregationPopupRef = useRef<HTMLDivElement>(null);
   const shadowPopupRef = useRef<HTMLDivElement>(null);
+  const rangePopupRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const chartWidth = 390;
-  const marginLeft = 40;
 
   // Throttled hover handler to improve performance
   const handleHover = useCallback((date: Date | null) => {
@@ -130,14 +135,23 @@ export function MetricGrid({
     if (allDates.length > 0) {
       const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
       const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
-      setXDomain([minDate, maxDate]);
+      const dataExtent: [Date, Date] = [minDate, maxDate];
 
-      // Set initial selection to most recent date (locked)
+      // Apply date range filter if set
+      const filteredRange = calculateDateRange(globalSettings.dateRange, dataExtent);
+      if (filteredRange) {
+        setXDomain(filteredRange);
+      } else {
+        setXDomain(dataExtent);
+      }
+
+      // Set initial selection to most recent date in the filtered range (locked)
       if (!selectionDate) {
-        setSelectionDate(maxDate);
+        const mostRecentDate = filteredRange ? filteredRange[1] : maxDate;
+        setSelectionDate(mostRecentDate);
       }
     }
-  }, [metrics, selectionDate]);
+  }, [metrics, selectionDate, globalSettings.dateRange]);
 
   // Close modals on click outside
   useEffect(() => {
@@ -148,13 +162,16 @@ export function MetricGrid({
       if (shadowPopupRef.current && !shadowPopupRef.current.contains(event.target as Node)) {
         setShowShadowModal(false);
       }
+      if (rangePopupRef.current && !rangePopupRef.current.contains(event.target as Node)) {
+        setShowRangeModal(false);
+      }
     };
 
-    if (showAggregationModal || showShadowModal) {
+    if (showAggregationModal || showShadowModal || showRangeModal) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showAggregationModal, showShadowModal]);
+  }, [showAggregationModal, showShadowModal, showRangeModal]);
 
   // Calculate row values for all metrics using locked selection date
   const metricsWithValues = useMemo(() => {
@@ -508,10 +525,9 @@ export function MetricGrid({
 
   if (!xDomain) return <div>Loading...</div>;
 
-  // Get shadow and goal labels from first metric for column headers
+  // Get shadow label from first metric for column headers
   const shadowLabel = sortedMetrics.length > 0 ? sortedMetrics[0].values.shadowLabel : undefined;
-  const goalLabel = sortedMetrics.length > 0 ? sortedMetrics[0].values.goalLabel : undefined;
-  const columnDefinitions = getColumnDefinitions(shadowLabel, goalLabel);
+  const columnDefinitions = getColumnDefinitions(shadowLabel);
 
   return (
     <div className="w-full overflow-x-auto">
@@ -635,7 +651,7 @@ export function MetricGrid({
 
         {/* Column Headers Row */}
         <div className="grid py-1" style={{
-          gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 74px 20px 210px ' + (chartWidth / 2) + 'px ' + (chartWidth / 2) + 'px repeat(12, 80px)',
+          gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 74px 20px 210px ' + (chartWidth / 3) + 'px ' + (chartWidth / 3) + 'px ' + (chartWidth / 3) + 'px repeat(12, 80px)',
           minWidth: 'fit-content'
         }}>
           {/* Drag Handle Header Placeholder */}
@@ -703,13 +719,26 @@ export function MetricGrid({
           </div>
 
           {/* Shadow with Edit button */}
-          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 flex items-center justify-center gap-1">
+          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center flex items-center justify-center gap-1">
             <span>Shadow</span>
             <button
               ref={shadowEditButtonRef}
               onClick={() => setShowShadowModal(true)}
               className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
               title="Edit shadow"
+            >
+              Edit
+            </button>
+          </div>
+
+          {/* Range with Edit button */}
+          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 flex items-center justify-center gap-1">
+            <span>Range</span>
+            <button
+              ref={rangeEditButtonRef}
+              onClick={() => setShowRangeModal(true)}
+              className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
+              title="Edit range"
             >
               Edit
             </button>
@@ -833,6 +862,31 @@ export function MetricGrid({
           />
           <button
             onClick={() => setShowShadowModal(false)}
+            className="mt-3 w-full text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+          >
+            Close
+          </button>
+        </div>
+      )}
+
+      {/* Range Popup */}
+      {showRangeModal && (
+        <div
+          ref={rangePopupRef}
+          className="absolute bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
+          style={{
+            top: rangeEditButtonRef.current ? rangeEditButtonRef.current.offsetTop + rangeEditButtonRef.current.offsetHeight + 5 : '50%',
+            left: rangeEditButtonRef.current ? rangeEditButtonRef.current.offsetLeft : '50%',
+            width: '320px'
+          }}
+        >
+          <RangeControls
+            range={globalSettings.dateRange || { preset: 'YTD' }}
+            onChange={onDateRangeChange}
+            dataExtent={dataExtent}
+          />
+          <button
+            onClick={() => setShowRangeModal(false)}
             className="mt-3 w-full text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
           >
             Close

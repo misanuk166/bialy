@@ -76,6 +76,11 @@ export function CompactTimeSeriesChart({
       }));
     }
 
+    // Filter data to xDomain range
+    displayData = displayData.filter(d =>
+      d.date >= xDomain[0] && d.date <= xDomain[1]
+    );
+
     // Generate shadow data
     const shadowsData = shadows && shadows.length > 0 ? generateShadowsData(series.data, shadows) : [];
 
@@ -90,17 +95,26 @@ export function CompactTimeSeriesChart({
 
     const shadowsDataWithValues = aggregatedShadowsData.map(sd => ({
       shadow: sd.shadow,
-      data: sd.data.map(d => ({
-        date: d.date,
-        value: d.numerator / d.denominator
-      })),
+      data: sd.data
+        .map(d => ({
+          date: d.date,
+          value: d.numerator / d.denominator
+        }))
+        .filter(d => d.date >= xDomain[0] && d.date <= xDomain[1]), // Filter shadow data to xDomain
       color: sd.color
     }));
 
     // Calculate averaged shadow data if enabled
-    const averagedShadowData = averageShadows && aggregatedShadowsData.length > 1
+    let averagedShadowData = averageShadows && aggregatedShadowsData.length > 1
       ? calculateShadowAverage(aggregatedShadowsData)
       : [];
+
+    // Filter averaged shadow data to xDomain
+    if (averagedShadowData.length > 0) {
+      averagedShadowData = averagedShadowData.filter(d =>
+        d.date >= xDomain[0] && d.date <= xDomain[1]
+      );
+    }
 
     // Generate forecast
     let forecastData: Array<{ date: Date; value: number }> = [];

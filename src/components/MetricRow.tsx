@@ -111,7 +111,7 @@ export const MetricRow = memo(function MetricRow({
       style={{
         ...style,
         display: 'grid',
-        gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 74px 20px 210px ' + (chartWidth / 2) + 'px ' + (chartWidth / 2) + 'px repeat(12, 80px)',
+        gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 74px 20px 210px ' + (chartWidth / 3) + 'px ' + (chartWidth / 3) + 'px ' + (chartWidth / 3) + 'px repeat(12, 80px)',
         minWidth: 'fit-content'
       }}
       className={`py-1 border-b border-gray-200 hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}
@@ -282,8 +282,8 @@ export const MetricRow = memo(function MetricRow({
           )}
         </div>
 
-        {/* Compact Chart - spans both Aggregation and Shadow columns */}
-        <div className="border-r border-gray-300" style={{ gridColumn: 'span 2' }}>
+        {/* Compact Chart - spans Aggregation, Shadow, and Range columns */}
+        <div className="border-r border-gray-300" style={{ gridColumn: 'span 3' }}>
           <CompactTimeSeriesChart
             series={metric.series}
             aggregationConfig={globalSettings.aggregation}
