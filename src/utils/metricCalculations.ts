@@ -57,13 +57,65 @@ export function calculateMetricRowValues(
 
   if (!currentPoint) return {};
 
-  const selectionValue = currentPoint.value;
+  // Calculate selection mean and range
+  let selectionValue: number;
+  let selectionRange: { min: number; max: number } | undefined;
 
-  // Find raw point if aggregation enabled
-  let selectionPointValue: number | undefined;
   if (aggregationConfig?.enabled) {
-    const rawPoint = dataWithValues.find(p => p.date.getTime() === currentPoint.date.getTime());
-    selectionPointValue = rawPoint?.value;
+    // For aggregated data, calculate mean and range from all raw points in the aggregated period
+    // Find the aggregated period boundaries
+    const aggregatedPointDate = currentPoint.date;
+
+    // Determine the period start based on aggregation mode
+    let periodStart: Date;
+    let periodEnd: Date = new Date(aggregatedPointDate);
+
+    if (aggregationConfig.mode === 'groupBy') {
+      // For group-by, the aggregated point represents a period
+      // Use the normalized date as the period end and calculate start based on grouping
+      periodStart = new Date(aggregatedPointDate);
+      periodEnd = new Date(aggregatedPointDate);
+
+      switch (aggregationConfig.groupByPeriod) {
+        case 'week':
+          periodStart.setDate(periodStart.getDate() - 6);
+          break;
+        case 'month':
+          periodStart.setMonth(periodStart.getMonth(), 1);
+          break;
+        case 'quarter':
+          const quarter = Math.floor(periodStart.getMonth() / 3);
+          periodStart.setMonth(quarter * 3, 1);
+          break;
+        case 'year':
+          periodStart.setMonth(0, 1);
+          break;
+      }
+    } else {
+      // For smoothing, use the window size
+      periodStart = new Date(aggregatedPointDate);
+      const periodDays = aggregationConfig.period;
+      periodStart.setDate(periodStart.getDate() - periodDays + 1);
+    }
+
+    // Find all raw data points within this period
+    const periodData = dataWithValues.filter(d =>
+      d.date >= periodStart && d.date <= periodEnd
+    );
+
+    if (periodData.length > 0) {
+      const values = periodData.map(d => d.value);
+      selectionValue = values.reduce((sum, v) => sum + v, 0) / values.length;
+      selectionRange = {
+        min: Math.min(...values),
+        max: Math.max(...values)
+      };
+    } else {
+      selectionValue = currentPoint.value;
+    }
+  } else {
+    // No aggregation: just use the point value
+    selectionValue = currentPoint.value;
   }
 
   // Calculate shadow values
@@ -180,7 +232,7 @@ export function calculateMetricRowValues(
 
   return {
     selectionValue,
-    selectionPointValue,
+    selectionRange,
     selectionVsShadowAbs,
     selectionVsShadowPct,
     selectionVsGoalAbs,

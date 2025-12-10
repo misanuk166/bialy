@@ -64,7 +64,7 @@ export interface AppState {
 export interface MetricRowValues {
   // Selection columns
   selectionValue?: number;
-  selectionPointValue?: number;
+  selectionRange?: { min: number; max: number };
   selectionVsShadowAbs?: number;
   selectionVsShadowPct?: number;
   selectionVsGoalAbs?: number;

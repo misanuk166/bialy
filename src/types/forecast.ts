@@ -1,6 +1,7 @@
 export interface ForecastConfig {
   enabled: boolean;
   type?: 'auto' | 'manual'; // Auto uses algorithms, manual uses target value
+  startDate?: Date; // Date at which the forecast begins (defaults to day after last data point)
   horizon: number; // Number of periods to forecast
   targetValue?: number; // For manual forecast: the end target value
   interpolation?: 'linear' | 'exponential'; // How to interpolate between current and target

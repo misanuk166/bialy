@@ -52,9 +52,14 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
     onChange({ ...config, interpolation });
   };
 
-  // Calculate days to end of quarter, end of year, and 1 year from today
+  const handleStartDateChange = (value: string) => {
+    const startDate = value ? new Date(value) : undefined;
+    onChange({ ...config, startDate });
+  };
+
+  // Calculate days to end of quarter, end of year, and 1 year from start date
   const calculateHorizonDays = (type: 'EOQ' | 'EOY' | '1-year'): number => {
-    const today = new Date();
+    const today = config.startDate || new Date();
 
     if (type === '1-year') {
       return 365;
@@ -144,6 +149,22 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
                 Manual
               </button>
             </div>
+          </div>
+
+          {/* Start Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Start Date
+            </label>
+            <input
+              type="date"
+              value={config.startDate ? config.startDate.toISOString().split('T')[0] : ''}
+              onChange={(e) => handleStartDateChange(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              The date at which the forecast begins (defaults to day after last data point)
+            </p>
           </div>
 
           {/* Forecast Horizon */}

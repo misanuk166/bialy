@@ -121,7 +121,7 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            QTD
+            Current Quarter
           </button>
           <button
             onClick={() => handlePresetChange('YTD')}
@@ -131,7 +131,7 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            YTD
+            Current Year
           </button>
           <button
             onClick={() => handlePresetChange('12M')}

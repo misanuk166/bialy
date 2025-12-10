@@ -14,11 +14,11 @@ function App() {
   const [metrics, setMetrics] = useState<MetricConfig[]>([]);
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({
     aggregation: {
-      enabled: false,
-      mode: 'smoothing',
+      enabled: true,
+      mode: 'groupBy',
       period: 7,
       unit: 'days',
-      groupByPeriod: 'month'
+      groupByPeriod: 'week'
     },
     shadows: [],
     averageShadows: false,

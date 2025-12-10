@@ -200,7 +200,7 @@ export const MetricRow = memo(function MetricRow({
               />
             ) : (
               <div
-                className="flex-1 text-sm font-medium text-gray-900 cursor-pointer hover:bg-gray-100 rounded px-1 leading-tight"
+                className="flex-1 text-sm font-medium text-gray-900 cursor-pointer hover:bg-gray-100 rounded leading-tight text-left"
                 onDoubleClick={() => setIsEditingName(true)}
                 title="Double-click to edit"
               >
@@ -245,7 +245,7 @@ export const MetricRow = memo(function MetricRow({
               )}
             </div>
           </div>
-          <div className="text-xs text-gray-500 mt-1 leading-tight">{metric.series.metadata.description}</div>
+          <div className="text-xs text-gray-500 mt-1 leading-tight text-left">{metric.series.metadata.description}</div>
 
           {/* Goal Controls Modal */}
           {showGoalControls && (
@@ -302,7 +302,7 @@ export const MetricRow = memo(function MetricRow({
 
         {/* Selection Columns */}
         <ColumnCell value={rowValues.selectionValue} precision={precision} />
-        <ColumnCell value={rowValues.selectionPointValue} precision={precision} isEmpty={!globalSettings.aggregation?.enabled} />
+        <RangeCell min={rowValues.selectionRange?.min} max={rowValues.selectionRange?.max} precision={precision} />
         <ColumnCell
           value={rowValues.selectionVsShadowAbs}
           precision={precision}

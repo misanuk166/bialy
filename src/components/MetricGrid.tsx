@@ -48,8 +48,8 @@ const getColumnDefinitions = (shadowLabel?: string) => [
   { key: 'group' as ColumnKey, label: 'Group', sortable: true },
   { key: 'metricIndex' as ColumnKey, label: '', sortable: true },
   { key: 'name' as ColumnKey, label: 'Metric', sortable: true },
-  { key: 'selectionValue' as ColumnKey, label: 'Selection', sortable: true },
-  { key: 'selectionPoint' as ColumnKey, label: 'Point', sortable: true },
+  { key: 'selectionValue' as ColumnKey, label: 'Mean', sortable: true },
+  { key: 'selectionPoint' as ColumnKey, label: 'Range', sortable: true },
   { key: 'selectionVsShadowAbs' as ColumnKey, label: shadowLabel ? `vs ${shadowLabel}` : 'vs Shadow', sortable: true },
   { key: 'selectionVsShadowPct' as ColumnKey, label: shadowLabel ? `vs ${shadowLabel} %` : 'vs Shadow %', sortable: true },
   { key: 'selectionVsGoalAbs' as ColumnKey, label: 'vs Goal', sortable: true },
@@ -268,8 +268,8 @@ export function MetricGrid({
           bVal = b.values.selectionValue;
           break;
         case 'selectionPoint':
-          aVal = a.values.selectionPointValue;
-          bVal = b.values.selectionPointValue;
+          aVal = a.values.selectionRange ? (a.values.selectionRange.max - a.values.selectionRange.min) : 0;
+          bVal = b.values.selectionRange ? (b.values.selectionRange.max - b.values.selectionRange.min) : 0;
           break;
         case 'selectionVsShadowAbs':
           aVal = a.values.selectionVsShadowAbs;
@@ -326,6 +326,66 @@ export function MetricGrid({
     if (!selectionDate) return null;
     return normalizeSelectionDate(selectionDate, globalSettings.aggregation);
   }, [selectionDate, globalSettings.aggregation]);
+
+  // Generate the selection label based on aggregation settings
+  const getSelectionLabel = useMemo(() => {
+    const agg = globalSettings.aggregation;
+
+    if (!agg.enabled) {
+      return 'Selection:';
+    }
+
+    if (agg.mode === 'groupBy') {
+      switch (agg.groupByPeriod) {
+        case 'week':
+          return 'Week of:';
+        case 'month':
+          return 'Month of:';
+        case 'quarter':
+          return 'Quarter of:';
+        case 'year':
+          return 'Year:';
+        default:
+          return 'Selection:';
+      }
+    }
+
+    if (agg.mode === 'smoothing') {
+      const periodStr = `${agg.period}-${agg.unit}`;
+      return `${periodStr} ending on:`;
+    }
+
+    return 'Selection:';
+  }, [globalSettings.aggregation]);
+
+  // Generate the range label based on date range settings
+  const getRangeLabel = useMemo(() => {
+    const range = globalSettings.dateRange;
+
+    if (!range) {
+      return 'Range: All Data';
+    }
+
+    if (range.preset === 'custom' && range.startDate && range.endDate) {
+      const start = range.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const end = range.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return `${start} - ${end}`;
+    }
+
+    if (range.preset === 'QTD') {
+      return 'Current Quarter';
+    }
+
+    if (range.preset === 'YTD') {
+      return 'Current Year';
+    }
+
+    if (range.preset === '12M') {
+      return 'Last 12 Months';
+    }
+
+    return 'Range';
+  }, [globalSettings.dateRange]);
 
   const handleColumnHeaderClick = (columnKey: ColumnKey) => {
     if (sortColumn === columnKey) {
@@ -593,9 +653,17 @@ export function MetricGrid({
               </div>
             )}
           </div>
-          {/* Chart Group */}
-          <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300">
-            Chart
+          {/* Range with Edit button */}
+          <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300 flex items-center justify-center gap-1">
+            <span>{getRangeLabel}</span>
+            <button
+              ref={rangeEditButtonRef}
+              onClick={() => setShowRangeModal(true)}
+              className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
+              title="Edit range"
+            >
+              Edit
+            </button>
           </div>
           {/* Selection Group */}
           <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300" style={{ gridColumn: 'span 6' }}>
@@ -627,7 +695,7 @@ export function MetricGrid({
                 className="cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
                 title="Double-click to edit selection date"
               >
-                Selection: {displaySelectionDate ? displaySelectionDate.toLocaleDateString() : '—'}
+                {getSelectionLabel} {displaySelectionDate ? displaySelectionDate.toLocaleDateString() : '—'}
               </span>
             )}
           </div>
@@ -651,7 +719,7 @@ export function MetricGrid({
 
         {/* Column Headers Row */}
         <div className="grid py-1" style={{
-          gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 74px 20px 210px ' + (chartWidth / 3) + 'px ' + (chartWidth / 3) + 'px ' + (chartWidth / 3) + 'px repeat(12, 80px)',
+          gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 74px 20px 210px ' + (chartWidth / 2) + 'px ' + (chartWidth / 2) + 'px repeat(12, 80px)',
           minWidth: 'fit-content'
         }}>
           {/* Drag Handle Header Placeholder */}
@@ -710,7 +778,16 @@ export function MetricGrid({
             <span>Aggregation</span>
             <button
               ref={aggregationEditButtonRef}
-              onClick={() => setShowAggregationModal(true)}
+              onClick={() => {
+                // Auto-select "group by" and "week" when opening aggregation modal
+                onAggregationChange({
+                  ...globalSettings.aggregation,
+                  enabled: true,
+                  mode: 'groupBy',
+                  groupByPeriod: 'week'
+                });
+                setShowAggregationModal(true);
+              }}
               className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
               title="Edit aggregation"
             >
@@ -719,7 +796,7 @@ export function MetricGrid({
           </div>
 
           {/* Shadow with Edit button */}
-          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center flex items-center justify-center gap-1">
+          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 flex items-center justify-center gap-1">
             <span>Shadow</span>
             <button
               ref={shadowEditButtonRef}
@@ -731,25 +808,12 @@ export function MetricGrid({
             </button>
           </div>
 
-          {/* Range with Edit button */}
-          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 flex items-center justify-center gap-1">
-            <span>Range</span>
-            <button
-              ref={rangeEditButtonRef}
-              onClick={() => setShowRangeModal(true)}
-              className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-              title="Edit range"
-            >
-              Edit
-            </button>
-          </div>
-
           {/* Selection column header */}
           <div
             className="px-1.5 text-xs font-semibold text-gray-700 text-right cursor-pointer hover:bg-gray-100"
             onClick={() => handleColumnHeaderClick('selectionValue')}
           >
-            Selection
+            Mean
             {sortColumn === 'selectionValue' && (
               <span className="ml-1">{sortDirection === 'desc' ? '↓' : '↑'}</span>
             )}

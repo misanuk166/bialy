@@ -328,8 +328,10 @@ export function generateForecast(
 
     // Generate forecast dates
     const lastDate = dates[dates.length - 1];
+    const forecastStartDate = config.startDate || addDays(lastDate, 1);
+
     const forecast: ForecastPoint[] = validForecastValues.map((value, i) => ({
-      date: addDays(lastDate, i + 1),
+      date: addDays(forecastStartDate, i),
       value
     }));
 
@@ -405,8 +407,10 @@ export function generateForecast(
 
   // Generate forecast dates
   const lastDate = dates[dates.length - 1];
+  const forecastStartDate = config.startDate || addDays(lastDate, 1);
+
   const forecast: ForecastPoint[] = validForecastValues.map((value, i) => ({
-    date: addDays(lastDate, i + 1),
+    date: addDays(forecastStartDate, i),
     value
   }));
 

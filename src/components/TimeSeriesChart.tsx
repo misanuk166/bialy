@@ -366,11 +366,17 @@ export function TimeSeriesChart({
 
     // Separate aggregated historical from aggregated forecast
     const lastHistoricalDate = series.data[series.data.length - 1].date;
+
+    // Determine the actual forecast start date
+    const forecastStartDate = rawForecastResult && rawForecastResult.forecast.length > 0
+      ? rawForecastResult.forecast[0].date
+      : null;
+
     const aggregatedHistorical = aggregationConfig?.enabled
-      ? aggregatedDataWithValues.filter(d => d.date <= lastHistoricalDate)
+      ? aggregatedDataWithValues.filter(d => !forecastStartDate || d.date < forecastStartDate)
       : dataWithValues;
     const aggregatedForecast = aggregationConfig?.enabled
-      ? aggregatedDataWithValues.filter(d => d.date > lastHistoricalDate)
+      ? aggregatedDataWithValues.filter(d => forecastStartDate && d.date >= forecastStartDate)
       : rawForecastResult?.forecast || [];
 
     // Create forecast result with aggregated values
