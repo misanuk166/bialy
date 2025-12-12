@@ -155,7 +155,7 @@ export function GoalControls({
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
+    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button
@@ -164,7 +164,7 @@ export function GoalControls({
             aria-label={isExpanded ? "Collapse" : "Expand"}
           >
             <svg
-              className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+              className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -172,7 +172,7 @@ export function GoalControls({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
-          <h3 className="text-lg font-semibold text-gray-900">Goals</h3>
+          <h3 className="text-sm font-semibold text-gray-900">Goals</h3>
         </div>
         <label className="relative inline-flex items-center cursor-pointer">
           <input
@@ -181,23 +181,23 @@ export function GoalControls({
             onChange={handleToggle}
             className="sr-only peer"
           />
-          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
         </label>
       </div>
 
       {enabled && isExpanded && (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {/* Creation/Edit form */}
           {(isCreating || editingGoalId) && (
-            <div className="border border-gray-200 bg-white rounded-lg p-4 space-y-3">
+            <div className="border border-gray-200 bg-white rounded-lg p-3 space-y-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Goal Type
                 </label>
                 <select
                   value={goalType}
                   onChange={(e) => setGoalType(e.target.value as GoalType)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full text-sm px-2 py-1 border border-gray-300 rounded bg-white"
                 >
                   <option value="continuous">Continuous Target</option>
                   <option value="end-of-period">End-of-Period Target</option>
@@ -205,7 +205,7 @@ export function GoalControls({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Label
                 </label>
                 <input
@@ -213,13 +213,13 @@ export function GoalControls({
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
                   placeholder="e.g., Q4 Target"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
                 />
               </div>
 
               {goalType === 'continuous' ? (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Target Value
                   </label>
                   <input
@@ -228,13 +228,13 @@ export function GoalControls({
                     value={targetValue}
                     onChange={(e) => setTargetValue(e.target.value)}
                     placeholder="e.g., 100"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
                   />
                 </div>
               ) : (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       End Value
                     </label>
                     <input
@@ -243,37 +243,37 @@ export function GoalControls({
                       value={endValue}
                       onChange={(e) => setEndValue(e.target.value)}
                       placeholder="e.g., 150"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Start Date
                     </label>
                     <input
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       End Date
                     </label>
                     <input
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
                     />
                   </div>
                 </>
               )}
 
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 pt-1">
                 <button
                   onClick={editingGoalId ? handleSaveEdit : handleCreateGoal}
                   disabled={
@@ -281,13 +281,13 @@ export function GoalControls({
                     (goalType === 'continuous' && !targetValue) ||
                     (goalType === 'end-of-period' && (!endValue || !endDate || !startDate))
                   }
-                  className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  className="flex-1 text-xs px-2 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                   {editingGoalId ? 'Save Changes' : 'Create Goal'}
                 </button>
                 <button
                   onClick={handleCancel}
-                  className="flex-1 px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                  className="flex-1 text-xs px-2 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
                 >
                   Cancel
                 </button>
@@ -298,13 +298,13 @@ export function GoalControls({
           {/* Goals list */}
           {goals.length > 0 ? (
             <div className="space-y-2">
-              <div className="text-sm font-medium text-gray-700">Active Goals ({goals.length})</div>
+              <div className="text-xs font-medium text-gray-700">Active Goals ({goals.length})</div>
               {goals.map((goal) => (
                 <div
                   key={goal.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded border border-gray-200"
+                  className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200"
                 >
-                  <div className="flex items-center gap-3 flex-1">
+                  <div className="flex items-center gap-2 flex-1">
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
@@ -312,10 +312,10 @@ export function GoalControls({
                         onChange={() => handleToggleGoal(goal.id)}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                     </label>
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-900">{goal.label}</div>
+                      <div className="text-xs font-medium text-gray-900">{goal.label}</div>
                       <div className="text-xs text-gray-500">
                         {goal.type === 'continuous'
                           ? `Target: ${goal.targetValue}`
@@ -329,7 +329,7 @@ export function GoalControls({
                       className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                       title="Edit goal"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
@@ -338,7 +338,7 @@ export function GoalControls({
                       className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
                       title="Delete goal"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
@@ -347,7 +347,7 @@ export function GoalControls({
               ))}
             </div>
           ) : !isCreating ? (
-            <div className="text-sm text-gray-500 text-center py-4">
+            <div className="text-xs text-gray-500 text-center py-3">
               No goals created yet. Click "Add Goal" to create one.
             </div>
           ) : null}
@@ -355,7 +355,7 @@ export function GoalControls({
           {!isCreating && !editingGoalId && (
             <button
               onClick={() => setIsCreating(true)}
-              className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+              className="px-2 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
             >
               + Add Goal
             </button>

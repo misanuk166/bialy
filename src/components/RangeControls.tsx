@@ -103,19 +103,15 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-gray-600">
-        Select a time range for data analysis
-      </p>
-
       {/* Preset Selection */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
+      <div className="space-y-1">
+        <label className="block text-xs font-medium text-gray-700">
           Range Preset
         </label>
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => handlePresetChange('QTD')}
-            className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
               range.preset === 'QTD'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -125,7 +121,7 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
           </button>
           <button
             onClick={() => handlePresetChange('YTD')}
-            className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
               range.preset === 'YTD'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -135,7 +131,7 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
           </button>
           <button
             onClick={() => handlePresetChange('12M')}
-            className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
               range.preset === '12M'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -145,7 +141,7 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
           </button>
           <button
             onClick={() => handlePresetChange('custom')}
-            className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
               range.preset === 'custom'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -158,9 +154,9 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
 
       {/* Custom Date Range */}
       {range.preset === 'custom' && (
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               Start Date
             </label>
             <input
@@ -169,11 +165,11 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
               onChange={(e) => handleCustomDateChange('start', e.target.value)}
               min={dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined}
               max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               End Date
             </label>
             <input
@@ -182,16 +178,11 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
               onChange={(e) => handleCustomDateChange('end', e.target.value)}
               min={dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined}
               max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
             />
           </div>
         </div>
       )}
-
-      {/* Current Range Display */}
-      <div className="text-sm text-gray-500 bg-gray-50 p-2 rounded">
-        Range: <span className="font-semibold">{getDateRangeLabel()}</span>
-      </div>
     </div>
   );
 }

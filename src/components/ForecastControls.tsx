@@ -92,7 +92,7 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
   const confidenceLevels = [90, 95, 99];
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
+    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button
@@ -101,7 +101,7 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
             aria-label={isExpanded ? "Collapse" : "Expand"}
           >
             <svg
-              className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+              className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -109,7 +109,7 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
-          <h3 className="text-lg font-semibold text-gray-900">Forecast</h3>
+          <h3 className="text-sm font-semibold text-gray-900">Forecast</h3>
         </div>
         <label className="relative inline-flex items-center cursor-pointer">
           <input
@@ -118,32 +118,32 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
             onChange={handleToggle}
             className="sr-only peer"
           />
-          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
         </label>
       </div>
 
       {config.enabled && isExpanded && (
-        <div className="p-4 space-y-4">
+        <div className="space-y-2">
           {/* Forecast Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               Forecast Type
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => handleTypeChange('auto')}
-                className={`px-3 py-2 text-sm rounded-lg border transition-colors ${config.type === 'auto'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                className={`px-2 py-1 text-xs rounded transition-colors ${config.type === 'auto'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
                 Auto
               </button>
               <button
                 onClick={() => handleTypeChange('manual')}
-                className={`px-3 py-2 text-sm rounded-lg border transition-colors ${config.type === 'manual'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                className={`px-2 py-1 text-xs rounded transition-colors ${config.type === 'manual'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
                 Manual
@@ -153,23 +153,20 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
 
           {/* Start Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               Start Date
             </label>
             <input
               type="date"
               value={config.startDate ? config.startDate.toISOString().split('T')[0] : ''}
               onChange={(e) => handleStartDateChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
             />
-            <p className="text-xs text-gray-500 mt-1">
-              The date at which the forecast begins (defaults to day after last data point)
-            </p>
           </div>
 
           {/* Forecast Horizon */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               Forecast Horizon
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -182,9 +179,9 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
                   <button
                     key={option.type}
                     onClick={() => handleHorizonChange(option.days)}
-                    className={`px-3 py-2 text-sm rounded-lg border transition-colors ${isSelected
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                    className={`px-2 py-1 text-xs rounded transition-colors ${isSelected
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     title={`${option.days} days`}
                   >
@@ -199,7 +196,7 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
           {config.type === 'manual' && (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Target Value
                 </label>
                 <input
@@ -208,32 +205,29 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
                   placeholder="e.g., 75"
                   value={config.targetValue || ''}
                   onChange={(e) => handleTargetValueChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  The value you want to reach at the end of the forecast period
-                </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Interpolation
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => handleInterpolationChange('linear')}
-                    className={`px-3 py-2 text-sm rounded-lg border transition-colors ${config.interpolation === 'linear'
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                    className={`px-2 py-1 text-xs rounded transition-colors ${config.interpolation === 'linear'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                   >
                     Linear
                   </button>
                   <button
                     onClick={() => handleInterpolationChange('exponential')}
-                    className={`px-3 py-2 text-sm rounded-lg border transition-colors ${config.interpolation === 'exponential'
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                    className={`px-2 py-1 text-xs rounded transition-colors ${config.interpolation === 'exponential'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                   >
                     Exponential
@@ -248,13 +242,13 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
             <>
               {/* Seasonality */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Seasonality
                 </label>
                 <select
                   value={config.seasonal}
                   onChange={(e) => handleSeasonalChange(e.target.value as 'additive' | 'multiplicative' | 'none')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full text-sm px-2 py-1 border border-gray-300 rounded bg-white"
                 >
                   <option value="none">None</option>
                   <option value="additive">Additive</option>
@@ -265,7 +259,7 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
               {/* Season Length (only show if seasonality is enabled) */}
               {config.seasonal !== 'none' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Season Length (optional)
                   </label>
                   <input
@@ -274,11 +268,8 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
                     placeholder="Auto-detect"
                     value={config.seasonLength || ''}
                     onChange={(e) => handleSeasonLengthChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    e.g., 7 for weekly, 30 for monthly
-                  </p>
                 </div>
               )}
             </>
@@ -286,12 +277,12 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
 
           {/* Confidence Intervals (for all types) */}
           <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+            <label className="flex items-center gap-2 text-xs font-medium text-gray-700">
               <input
                 type="checkbox"
                 checked={config.showConfidenceIntervals}
                 onChange={handleConfidenceToggle}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded"
               />
               Show Confidence Intervals
             </label>
@@ -300,7 +291,7 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
           {/* Confidence Level */}
           {config.showConfidenceIntervals && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
                 Confidence Level
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -308,27 +299,15 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
                   <button
                     key={level}
                     onClick={() => handleConfidenceLevelChange(level)}
-                    className={`px-3 py-2 text-sm rounded-lg border transition-colors ${config.confidenceLevel === level
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                    className={`px-2 py-1 text-xs rounded transition-colors ${config.confidenceLevel === level
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                   >
                     {level}%
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Info text */}
-          {config.enabled && (
-            <div className="pt-2 border-t border-gray-200">
-              <p className="text-xs text-gray-600">
-                {config.type === 'manual'
-                  ? `Manual forecast with ${config.interpolation} interpolation to target value`
-                  : `Using ${config.seasonal !== 'none' ? 'Holt-Winters' : 'Exponential Smoothing'} method${config.seasonal !== 'none' ? ` with ${config.seasonal} seasonality` : ''}`
-                }
-              </p>
             </div>
           )}
         </div>
