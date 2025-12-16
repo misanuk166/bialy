@@ -459,8 +459,8 @@ export function MetricGrid({
   const getRangeLabel = useMemo(() => {
     const range = globalSettings.dateRange;
 
-    if (!range) {
-      return 'Range: All Data';
+    if (!range || range.preset === 'all') {
+      return 'All Data';
     }
 
     if (range.preset === 'custom' && range.startDate && range.endDate) {
@@ -475,10 +475,6 @@ export function MetricGrid({
 
     if (range.preset === 'YTD') {
       return 'Current Year';
-    }
-
-    if (range.preset === '12M') {
-      return 'Last 12 Months';
     }
 
     return 'Range';
@@ -1092,7 +1088,7 @@ export function MetricGrid({
           }}
         >
           <RangeControls
-            range={globalSettings.dateRange || { preset: 'YTD' }}
+            range={globalSettings.dateRange || { preset: 'all' }}
             onChange={onDateRangeChange}
             dataExtent={dataExtent}
           />

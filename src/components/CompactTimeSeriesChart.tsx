@@ -472,26 +472,43 @@ export function CompactTimeSeriesChart({
           .attr('x2', x)
           .style('opacity', 1);
 
-        hoverCircle
-          .attr('cx', x)
-          .attr('cy', y);
+        // Check if we're in the forecast period
+        const lastDataDate = displayData[displayData.length - 1]?.date;
+        const isForecastPeriod = showXAxis && forecastData.length > 0 && lastDataDate && hoveredDate > lastDataDate;
 
-        // Position text to upper-right of circle
-        const labelText = closestPoint.value.toFixed(2);
-        const textWidth = labelText.length * 6 + 4; // Approximate width
+        // Always find and show the closest actual data point at hover position
+        if (displayData.length > 0) {
+          const dataBisect = d3.bisector((d: any) => d.date).left;
+          const dataIndex = dataBisect(displayData, hoveredDate);
+          const d0 = displayData[dataIndex - 1];
+          const d1 = displayData[dataIndex];
+          const closestActualPoint = !d1 ? d0 : !d0 ? d1 :
+            hoveredDate.getTime() - d0.date.getTime() > d1.date.getTime() - hoveredDate.getTime() ? d1 : d0;
 
-        hoverTextBg
-          .attr('x', x + 5)
-          .attr('y', y - 16)
-          .attr('width', textWidth)
-          .attr('height', 12);
+          if (closestActualPoint) {
+            const actualX = xScale(closestActualPoint.date);
+            const actualY = yScale(closestActualPoint.value);
+            const actualText = closestActualPoint.value.toFixed(2);
+            const actualTextWidth = actualText.length * 6 + 4;
 
-        hoverLabel
-          .attr('x', x + 6)
-          .attr('y', y - 6)
-          .text(labelText);
+            hoverCircle
+              .attr('cx', actualX)
+              .attr('cy', actualY);
 
-        hoverGroup.style('opacity', 1);
+            hoverTextBg
+              .attr('x', actualX + 5)
+              .attr('y', actualY - 16)
+              .attr('width', actualTextWidth)
+              .attr('height', 12);
+
+            hoverLabel
+              .attr('x', actualX + 6)
+              .attr('y', actualY - 6)
+              .text(actualText);
+
+            hoverGroup.style('opacity', 1);
+          }
+        }
 
         // Show goal hover if expanded and goals exist
         if (showXAxis && goals && goals.length > 0) {
@@ -644,7 +661,6 @@ export function CompactTimeSeriesChart({
                 .text(forecastText);
 
               hoverGroupForecast.style('opacity', 1);
-              hoverGroup.style('opacity', 0); // Hide main series in forecast period
             } else {
               hoverGroupForecast.style('opacity', 0);
             }
@@ -714,26 +730,31 @@ export function CompactTimeSeriesChart({
           .attr('x2', x)
           .style('opacity', 1);
 
-        hoverCircle
-          .attr('cx', x)
-          .attr('cy', y);
+        // Check if we're in the forecast period
+        const lastDataDate = displayData[displayData.length - 1]?.date;
+        const isForecastPeriod = showXAxis && forecastData.length > 0 && lastDataDate && currentHoverDate > lastDataDate;
 
-        // Position text to upper-right of circle
-        const labelText = closestPoint.value.toFixed(2);
-        const textWidth = labelText.length * 6 + 4; // Approximate width
+        // Always find and show the closest actual data point at hover position
+        if (displayData.length > 0) {
+          const dataBisect = d3.bisector((d: any) => d.date).left;
+          const dataIndex = dataBisect(displayData, currentHoverDate);
+          const d0 = displayData[dataIndex - 1];
+          const d1 = displayData[dataIndex];
+          const closestActualPoint = !d1 ? d0 : !d0 ? d1 :
+            currentHoverDate.getTime() - d0.date.getTime() > d1.date.getTime() - currentHoverDate.getTime() ? d1 : d0;
 
-        hoverTextBg
-          .attr('x', x + 5)
-          .attr('y', y - 16)
-          .attr('width', textWidth)
-          .attr('height', 12);
+          if (closestActualPoint) {
+            const actualX = xScale(closestActualPoint.date);
+            const actualY = yScale(closestActualPoint.value);
+            const actualText = closestActualPoint.value.toFixed(2);
+            const actualTextWidth = actualText.length * 6 + 4;
 
-        hoverLabel
-          .attr('x', x + 6)
-          .attr('y', y - 6)
-          .text(labelText);
-
-        hoverGroup.style('opacity', 1);
+            hoverCircle.attr('cx', actualX).attr('cy', actualY);
+            hoverTextBg.attr('x', actualX + 5).attr('y', actualY - 16).attr('width', actualTextWidth).attr('height', 12);
+            hoverLabel.attr('x', actualX + 6).attr('y', actualY - 6).text(actualText);
+            hoverGroup.style('opacity', 1);
+          }
+        }
 
         // Also show goal, shadow, forecast hovers in synchronized mode if expanded
         if (showXAxis) {
@@ -824,9 +845,42 @@ export function CompactTimeSeriesChart({
           } else {
             hoverGroupShadow.style('opacity', 0);
           }
+          // Forecast hover in synchronized mode
+          if (forecastData.length > 0) {
+            const lastDataDate = displayData[displayData.length - 1]?.date;
+            const isForecastPeriod = lastDataDate && currentHoverDate > lastDataDate;
+
+            if (isForecastPeriod) {
+              const forecastBisect = d3.bisector((d: any) => d.date).left;
+              const forecastIndex = forecastBisect(forecastData, currentHoverDate);
+              const f0 = forecastData[forecastIndex - 1];
+              const f1 = forecastData[forecastIndex];
+              const closestForecast = !f1 ? f0 : !f0 ? f1 :
+                currentHoverDate.getTime() - f0.date.getTime() > f1.date.getTime() - currentHoverDate.getTime() ? f1 : f0;
+
+              if (closestForecast) {
+                const forecastX = xScale(closestForecast.date);
+                const forecastY = yScale(closestForecast.value);
+                const forecastText = closestForecast.value.toFixed(2);
+                const forecastTextWidth = forecastText.length * 6 + 4;
+
+                hoverCircleForecast.attr('cx', forecastX).attr('cy', forecastY);
+                hoverTextBgForecast.attr('x', forecastX + 5).attr('y', forecastY - 16).attr('width', forecastTextWidth).attr('height', 12);
+                hoverLabelForecast.attr('x', forecastX + 6).attr('y', forecastY - 6).text(forecastText);
+                hoverGroupForecast.style('opacity', 1);
+              } else {
+                hoverGroupForecast.style('opacity', 0);
+              }
+            } else {
+              hoverGroupForecast.style('opacity', 0);
+            }
+          } else {
+            hoverGroupForecast.style('opacity', 0);
+          }
         } else {
           hoverGroupGoal.style('opacity', 0);
           hoverGroupShadow.style('opacity', 0);
+          hoverGroupForecast.style('opacity', 0);
         }
       }
     } else {

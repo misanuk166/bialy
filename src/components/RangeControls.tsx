@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export type RangePreset = 'QTD' | 'YTD' | '12M' | 'custom';
+export type RangePreset = 'QTD' | 'YTD' | 'all' | 'custom';
 
 export interface DateRange {
   preset: RangePreset;
@@ -22,6 +22,13 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
     range.endDate ? range.endDate.toISOString().split('T')[0] : ''
   );
 
+  const getEndOfQuarter = (date: Date): Date => {
+    const quarter = Math.floor(date.getMonth() / 3);
+    const endOfQuarter = new Date(date.getFullYear(), (quarter + 1) * 3, 0);
+    endOfQuarter.setHours(23, 59, 59, 999);
+    return endOfQuarter;
+  };
+
   const handlePresetChange = (preset: RangePreset) => {
     if (preset === 'custom') {
       onChange({
@@ -29,34 +36,39 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
         startDate: range.startDate,
         endDate: range.endDate
       });
+    } else if (preset === 'all') {
+      // All Data - use undefined to signal full data extent
+      onChange({
+        preset: 'all',
+        startDate: undefined,
+        endDate: undefined
+      });
     } else {
       // Calculate date ranges based on preset
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Normalize to start of day
       let startDate: Date;
-      const endDate = new Date(today);
-      endDate.setHours(23, 59, 59, 999); // End of today
+      let endDate: Date;
 
       switch (preset) {
         case 'QTD': {
           // Quarter to Date - start of current quarter
           const quarter = Math.floor(today.getMonth() / 3);
           startDate = new Date(today.getFullYear(), quarter * 3, 1);
+          // Extend to end of current quarter
+          endDate = getEndOfQuarter(today);
           break;
         }
         case 'YTD': {
           // Year to Date - start of current year
           startDate = new Date(today.getFullYear(), 0, 1);
-          break;
-        }
-        case '12M': {
-          // Last 12 months
-          startDate = new Date(today);
-          startDate.setMonth(startDate.getMonth() - 12);
+          // Extend to end of quarter containing today
+          endDate = getEndOfQuarter(today);
           break;
         }
         default:
           startDate = today;
+          endDate = getEndOfQuarter(today);
       }
 
       startDate.setHours(0, 0, 0, 0);
@@ -76,6 +88,7 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
 
     if (type === 'start') {
       setLocalStartDate(value);
+      date.setHours(0, 0, 0, 0);
       onChange({
         preset: 'custom',
         startDate: date,
@@ -83,10 +96,12 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
       });
     } else {
       setLocalEndDate(value);
+      // Extend end date to end of quarter
+      const endDate = getEndOfQuarter(date);
       onChange({
         preset: 'custom',
         startDate: range.startDate,
-        endDate: date
+        endDate: endDate
       });
     }
   };
@@ -130,14 +145,14 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
             Current Year
           </button>
           <button
-            onClick={() => handlePresetChange('12M')}
+            onClick={() => handlePresetChange('all')}
             className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-              range.preset === '12M'
+              range.preset === 'all'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            12 Months
+            All Data
           </button>
           <button
             onClick={() => handlePresetChange('custom')}

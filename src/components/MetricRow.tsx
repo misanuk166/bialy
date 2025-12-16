@@ -350,7 +350,7 @@ export const MetricRow = memo(function MetricRow({
             averageShadows={globalSettings.averageShadows}
             forecastConfig={metric.forecast}
             focusPeriod={globalSettings.focusPeriod}
-            goals={isChartExpanded && metric.goalsEnabled ? metric.goals : []}
+            goals={isChartExpanded && (metric.goalsEnabled !== false) ? (metric.goals || []) : []}
             xDomain={xDomain}
             width={chartWidth - 8}
             height={isChartExpanded ? 380 : 58}

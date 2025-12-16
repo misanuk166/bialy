@@ -26,6 +26,9 @@ function App() {
     focusPeriod: {
       enabled: false
     },
+    dateRange: {
+      preset: 'all'
+    },
     comparisons: [...DEFAULT_SELECTION_COMPARISONS, ...DEFAULT_FOCUS_COMPARISONS],
     selectionIncludesForecast: false,
     focusIncludesForecast: false

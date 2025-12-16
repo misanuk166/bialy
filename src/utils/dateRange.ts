@@ -1,11 +1,22 @@
 import type { DateRange } from '../components/RangeControls';
 
 /**
+ * Get the end date of the quarter for a given date
+ */
+function getEndOfQuarter(date: Date): Date {
+  const quarter = Math.floor(date.getMonth() / 3);
+  const endOfQuarter = new Date(date.getFullYear(), (quarter + 1) * 3, 0);
+  endOfQuarter.setHours(23, 59, 59, 999);
+  return endOfQuarter;
+}
+
+/**
  * Calculate the actual date range based on preset or custom dates
+ * Always extends to end of quarter for the selected period
  */
 export function calculateDateRange(range: DateRange | undefined, dataExtent?: [Date, Date]): [Date, Date] | undefined {
-  if (!range) {
-    return dataExtent; // No range specified, use full data extent
+  if (!range || range.preset === 'all') {
+    return dataExtent; // No range specified or 'all' preset, use full data extent
   }
 
   const today = new Date();
@@ -19,6 +30,8 @@ export function calculateDateRange(range: DateRange | undefined, dataExtent?: [D
     if (range.startDate && range.endDate) {
       startDate = new Date(range.startDate);
       endDate = new Date(range.endDate);
+      // Extend custom end date to end of quarter
+      endDate = getEndOfQuarter(endDate);
     } else {
       return dataExtent; // Fallback to full extent if custom dates not set
     }
@@ -31,17 +44,15 @@ export function calculateDateRange(range: DateRange | undefined, dataExtent?: [D
         // Quarter to Date - start of current quarter
         const quarter = Math.floor(today.getMonth() / 3);
         startDate = new Date(today.getFullYear(), quarter * 3, 1);
+        // Extend to end of current quarter
+        endDate = getEndOfQuarter(today);
         break;
       }
       case 'YTD': {
         // Year to Date - start of current year
         startDate = new Date(today.getFullYear(), 0, 1);
-        break;
-      }
-      case '12M': {
-        // Last 12 months
-        startDate = new Date(today);
-        startDate.setMonth(startDate.getMonth() - 12);
+        // Extend to end of quarter containing today
+        endDate = getEndOfQuarter(today);
         break;
       }
       default:
@@ -49,9 +60,8 @@ export function calculateDateRange(range: DateRange | undefined, dataExtent?: [D
     }
   }
 
-  // Ensure dates are normalized
+  // Ensure start date is normalized
   startDate.setHours(0, 0, 0, 0);
-  endDate.setHours(23, 59, 59, 999);
 
   return [startDate, endDate];
 }
