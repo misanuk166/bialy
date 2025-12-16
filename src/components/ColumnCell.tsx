@@ -114,3 +114,114 @@ export function RangeCell({ min, max, precision = 2 }: { min?: number; max?: num
     </div>
   );
 }
+
+export function MeanRangeCell({
+  mean,
+  min,
+  max,
+  precision = 2
+}: {
+  mean?: number;
+  min?: number;
+  max?: number;
+  precision?: number;
+}) {
+  if (mean === undefined || min === undefined || max === undefined) {
+    return (
+      <div className="text-center text-gray-400 px-1.5 py-0.5 leading-tight">
+        —
+      </div>
+    );
+  }
+
+  const meanValue = mean.toLocaleString(undefined, {
+    minimumFractionDigits: precision,
+    maximumFractionDigits: precision
+  });
+
+  const rangeValue = `${min.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })} - ${max.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}`;
+
+  return (
+    <div className="text-right px-1.5 py-0.5 leading-tight flex flex-col justify-center">
+      <div className="text-sm font-medium text-gray-900">
+        {meanValue}
+      </div>
+      <div className="text-xs text-gray-600 mt-0.5">
+        {rangeValue}
+      </div>
+    </div>
+  );
+}
+
+export function PercentAbsCell({
+  percentValue,
+  absValue,
+  precision = 2,
+  colorCode = false,
+  showSign = false,
+  isEmpty = false,
+  scaledColorPct,
+  maxPositivePct,
+  maxNegativePct,
+  isExtreme = false
+}: {
+  percentValue?: number;
+  absValue?: number;
+  precision?: number;
+  colorCode?: boolean;
+  showSign?: boolean;
+  isEmpty?: boolean;
+  scaledColorPct?: number;
+  maxPositivePct?: number;
+  maxNegativePct?: number;
+  isExtreme?: boolean;
+}) {
+  if (isEmpty || percentValue === undefined || absValue === undefined) {
+    return (
+      <div className="text-center text-gray-400 px-1.5 py-0.5 leading-tight">
+        —
+      </div>
+    );
+  }
+
+  let textColorClass = 'text-gray-600';
+  let textColorStyle: string | undefined = undefined;
+
+  if (colorCode) {
+    // Use gradient scaling if parameters are provided
+    if (scaledColorPct !== undefined && maxPositivePct !== undefined && maxNegativePct !== undefined) {
+      textColorStyle = getGradientColor(scaledColorPct, maxPositivePct, maxNegativePct);
+      textColorClass = ''; // Clear the class since we're using inline style
+    } else {
+      // Fallback to simple binary coloring
+      textColorClass = percentValue >= 0 ? 'text-green-600' : 'text-red-600';
+    }
+  }
+
+  const displayPercent = (showSign && percentValue >= 0 ? '+' : '') + percentValue.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }) + '%';
+
+  const displayAbs = (showSign && absValue >= 0 ? '+' : '') + absValue.toLocaleString(undefined, {
+    minimumFractionDigits: precision,
+    maximumFractionDigits: precision
+  });
+
+  return (
+    <div className="text-right px-1.5 py-0.5 leading-tight flex flex-col justify-center">
+      <div
+        className={`text-sm ${isExtreme ? 'font-bold' : 'font-medium'} ${textColorClass}`}
+        style={textColorStyle ? { color: textColorStyle } : undefined}
+      >
+        {displayPercent}
+      </div>
+      <div
+        className={`text-xs mt-0.5 ${textColorClass}`}
+        style={textColorStyle ? { color: textColorStyle } : undefined}
+      >
+        {displayAbs}
+      </div>
+    </div>
+  );
+}

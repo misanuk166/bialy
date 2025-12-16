@@ -5,6 +5,7 @@ import type { Goal } from './goal';
 import type { ForecastConfig } from './forecast';
 import type { FocusPeriod } from './focusPeriod';
 import type { DateRange } from '../components/RangeControls';
+import type { ComparisonConfig, ComparisonResult } from './comparison';
 
 /**
  * Global settings applied to all metrics
@@ -15,6 +16,9 @@ export interface GlobalSettings {
   averageShadows?: boolean;
   focusPeriod?: FocusPeriod;
   dateRange?: DateRange;
+  comparisons?: ComparisonConfig[];
+  selectionIncludesForecast?: boolean;
+  focusIncludesForecast?: boolean;
 }
 
 /**
@@ -65,6 +69,8 @@ export interface MetricRowValues {
   // Selection columns
   selectionValue?: number;
   selectionRange?: { min: number; max: number };
+
+  // Legacy comparison values (kept for backward compatibility during migration)
   selectionVsShadowAbs?: number;
   selectionVsShadowPct?: number;
   selectionVsGoalAbs?: number;
@@ -73,12 +79,17 @@ export interface MetricRowValues {
   // Focus period columns
   focusPeriodMean?: number;
   focusPeriodRange?: { min: number; max: number };
+
+  // Legacy comparison values (kept for backward compatibility during migration)
   focusPeriodVsShadowAbs?: number;
   focusPeriodVsShadowPct?: number;
   focusPeriodVsGoalAbs?: number;
   focusPeriodVsGoalPct?: number;
 
-  // Shadow and goal metadata
+  // Dynamic comparison results
+  comparisons?: Map<string, ComparisonResult>;
+
+  // Shadow and goal metadata (legacy)
   shadowValue?: number;
   shadowLabel?: string;
   goalValue?: number;

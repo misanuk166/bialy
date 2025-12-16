@@ -9,6 +9,7 @@ import type { AggregationConfig } from './utils/aggregation';
 import type { Shadow } from './types/shadow';
 import type { FocusPeriod } from './types/focusPeriod';
 import type { DateRange } from './components/RangeControls';
+import { DEFAULT_SELECTION_COMPARISONS, DEFAULT_FOCUS_COMPARISONS, type ComparisonConfig } from './types/comparison';
 
 function App() {
   const [metrics, setMetrics] = useState<MetricConfig[]>([]);
@@ -24,7 +25,10 @@ function App() {
     averageShadows: false,
     focusPeriod: {
       enabled: false
-    }
+    },
+    comparisons: [...DEFAULT_SELECTION_COMPARISONS, ...DEFAULT_FOCUS_COMPARISONS],
+    selectionIncludesForecast: false,
+    focusIncludesForecast: false
   });
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [expandedMetricId, setExpandedMetricId] = useState<string | null>(null);
@@ -62,13 +66,10 @@ function App() {
   const handleMetricRemove = (metricId: string) => {
     setMetrics(prevMetrics => {
       if (prevMetrics.length <= 1) {
-        alert('Cannot remove the last metric');
+        // Silently ignore removal of the last metric
         return prevMetrics;
       }
-      if (confirm('Are you sure you want to remove this metric?')) {
-        return prevMetrics.filter(m => m.id !== metricId);
-      }
-      return prevMetrics;
+      return prevMetrics.filter(m => m.id !== metricId);
     });
   };
 
@@ -98,24 +99,53 @@ function App() {
     setGlobalSettings(prev => ({ ...prev, dateRange }));
   };
 
+  const handleComparisonsChange = (comparisons: ComparisonConfig[]) => {
+    setGlobalSettings(prev => ({ ...prev, comparisons }));
+  };
+
+  const handleForecastInclusionChange = (selectionIncludes: boolean, focusIncludes: boolean) => {
+    setGlobalSettings(prev => ({
+      ...prev,
+      selectionIncludesForecast: selectionIncludes,
+      focusIncludesForecast: focusIncludes
+    }));
+  };
+
   const handleAddMetric = () => {
     setShowAddMetricModal(true);
   };
 
   const handleClearAllMetrics = () => {
-    if (confirm('Are you sure you want to clear all metrics?')) {
-      setMetrics([]);
-    }
+    setMetrics([]);
   };
 
-  // Get data extent for focus period controls
+  // Get data extent for focus period controls (including forecast)
   const dataExtent = metrics.length > 0 ? (() => {
     const allDates: Date[] = [];
-    metrics.forEach(m => m.series.data.forEach(d => allDates.push(d.date)));
-    return allDates.length > 0 ? [
+    metrics.forEach(m => {
+      m.series.data.forEach(d => allDates.push(d.date));
+
+      // Include forecast extent if forecast is enabled
+      if (m.forecast?.enabled && m.forecast.horizon > 0) {
+        const lastDataDate = m.series.data[m.series.data.length - 1]?.date;
+        if (lastDataDate) {
+          // Calculate forecast end date (horizon is in days)
+          const forecastEndDate = new Date(lastDataDate);
+          forecastEndDate.setDate(forecastEndDate.getDate() + m.forecast.horizon);
+          allDates.push(forecastEndDate);
+        }
+      }
+    });
+    const extent = allDates.length > 0 ? [
       new Date(Math.min(...allDates.map(d => d.getTime()))),
       new Date(Math.max(...allDates.map(d => d.getTime())))
     ] as [Date, Date] : undefined;
+    console.log('Data extent calculated:', {
+      min: extent?.[0].toISOString(),
+      max: extent?.[1].toISOString(),
+      forecastsEnabled: metrics.filter(m => m.forecast?.enabled).length
+    });
+    return extent;
   })() : undefined;
 
   const expandedMetric = expandedMetricId ? metrics.find(m => m.id === expandedMetricId) : null;
@@ -213,6 +243,8 @@ function App() {
                   onShadowsChange={handleShadowsChange}
                   onFocusPeriodChange={handleFocusPeriodChange}
                   onDateRangeChange={handleDateRangeChange}
+                  onComparisonsChange={handleComparisonsChange}
+                  onForecastInclusionChange={handleForecastInclusionChange}
                   onAddMetric={handleAddMetric}
                   onClearAllMetrics={handleClearAllMetrics}
                 />

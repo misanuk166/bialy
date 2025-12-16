@@ -16,14 +16,17 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { FocusPeriodModal } from './FocusPeriodModal';
+import { SelectionPeriodModal } from './SelectionPeriodModal';
 import { AggregateControls } from './AggregateControls';
 import { ShadowControls } from './ShadowControls';
 import { RangeControls, type DateRange } from './RangeControls';
+import { ComparisonControls } from './ComparisonControls';
 import type { MetricConfig, GlobalSettings, ColumnKey } from '../types/appState';
 import type { FocusPeriod } from '../types/focusPeriod';
 import type { AggregationConfig } from '../utils/aggregation';
 import type { Shadow } from '../types/shadow';
-import { calculateMetricRowValues } from '../utils/metricCalculations';
+import type { ComparisonConfig } from '../types/comparison';
+import { calculateMetricRowValues, calculateComparisons } from '../utils/metricCalculations';
 import { normalizeSelectionDate } from '../utils/aggregation';
 import { calculateDateRange } from '../utils/dateRange';
 
@@ -39,28 +42,54 @@ interface MetricGridProps {
   onShadowsChange: (shadows: Shadow[], averageShadows: boolean) => void;
   onFocusPeriodChange: (focusPeriod: FocusPeriod) => void;
   onDateRangeChange: (range: DateRange) => void;
+  onComparisonsChange: (comparisons: ComparisonConfig[]) => void;
+  onForecastInclusionChange: (selectionIncludes: boolean, focusIncludes: boolean) => void;
   onAddMetric: () => void;
   onClearAllMetrics: () => void;
 }
 
-const getColumnDefinitions = (shadowLabel?: string) => [
-  { key: 'groupIndex' as ColumnKey, label: '', sortable: true },
-  { key: 'group' as ColumnKey, label: 'Group', sortable: true },
-  { key: 'metricIndex' as ColumnKey, label: '', sortable: true },
-  { key: 'name' as ColumnKey, label: 'Metric', sortable: true },
-  { key: 'selectionValue' as ColumnKey, label: 'Mean', sortable: true },
-  { key: 'selectionPoint' as ColumnKey, label: 'Range', sortable: true },
-  { key: 'selectionVsShadowAbs' as ColumnKey, label: shadowLabel ? `vs ${shadowLabel}` : 'vs Shadow', sortable: true },
-  { key: 'selectionVsShadowPct' as ColumnKey, label: shadowLabel ? `vs ${shadowLabel} %` : 'vs Shadow %', sortable: true },
-  { key: 'selectionVsGoalAbs' as ColumnKey, label: 'vs Goal', sortable: true },
-  { key: 'selectionVsGoalPct' as ColumnKey, label: 'vs Goal %', sortable: true },
-  { key: 'focusMean' as ColumnKey, label: 'Focus Mean', sortable: true },
-  { key: 'focusRange' as ColumnKey, label: 'Focus Range', sortable: false },
-  { key: 'focusVsShadowAbs' as ColumnKey, label: shadowLabel ? `vs ${shadowLabel}` : 'vs Shadow', sortable: true },
-  { key: 'focusVsShadowPct' as ColumnKey, label: shadowLabel ? `vs ${shadowLabel} %` : 'vs Shadow %', sortable: true },
-  { key: 'focusVsGoalAbs' as ColumnKey, label: 'vs Goal', sortable: true },
-  { key: 'focusVsGoalPct' as ColumnKey, label: 'vs Goal %', sortable: true },
-];
+const getColumnDefinitions = (comparisons?: ComparisonConfig[]) => {
+  const baseColumns = [
+    { key: 'groupIndex' as ColumnKey, label: '', sortable: true },
+    { key: 'group' as ColumnKey, label: 'Group', sortable: true },
+    { key: 'metricIndex' as ColumnKey, label: '', sortable: true },
+    { key: 'name' as ColumnKey, label: 'Metric', sortable: true },
+  ];
+
+  const selectionColumns = [
+    { key: 'selectionValue' as ColumnKey, label: 'Mean / Range', sortable: true },
+  ];
+
+  const focusColumns = [
+    { key: 'focusMean' as ColumnKey, label: 'Mean / Range', sortable: true },
+  ];
+
+  // Add dynamic comparison columns
+  const selectionComparisons = comparisons?.filter(c => c.enabled && c.periodType === 'selection').sort((a, b) => a.order - b.order) || [];
+  const focusComparisons = comparisons?.filter(c => c.enabled && c.periodType === 'focus').sort((a, b) => a.order - b.order) || [];
+
+  const selectionComparisonColumns = selectionComparisons.map(c => ({
+    key: `comparison-${c.id}` as ColumnKey,
+    label: c.label,
+    sortable: true,
+    comparisonId: c.id
+  }));
+
+  const focusComparisonColumns = focusComparisons.map(c => ({
+    key: `comparison-${c.id}` as ColumnKey,
+    label: c.label,
+    sortable: true,
+    comparisonId: c.id
+  }));
+
+  return [
+    ...baseColumns,
+    ...selectionColumns,
+    ...selectionComparisonColumns,
+    ...focusColumns,
+    ...focusComparisonColumns
+  ];
+};
 
 export function MetricGrid({
   metrics,
@@ -74,32 +103,39 @@ export function MetricGrid({
   onShadowsChange,
   onFocusPeriodChange,
   onDateRangeChange,
+  onComparisonsChange,
+  onForecastInclusionChange,
   onAddMetric,
   onClearAllMetrics
 }: MetricGridProps) {
   const [selectionDate, setSelectionDate] = useState<Date | null>(null); // Locked selection for calculations
   const [currentHoverDate, setCurrentHoverDate] = useState<Date | null>(null); // For chart hover only
-  const [isEditingSelection, setIsEditingSelection] = useState(false);
   const [sortColumn, setSortColumn] = useState<ColumnKey | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [xDomain, setXDomain] = useState<[Date, Date] | null>(null);
+  const [showSelectionPeriodModal, setShowSelectionPeriodModal] = useState(false);
   const [showFocusPeriodModal, setShowFocusPeriodModal] = useState(false);
   const [showAggregationModal, setShowAggregationModal] = useState(false);
   const [showShadowModal, setShowShadowModal] = useState(false);
   const [showRangeModal, setShowRangeModal] = useState(false);
+  const [showComparisonModal, setShowComparisonModal] = useState(false);
+  const [comparisonModalPeriodType, setComparisonModalPeriodType] = useState<'selection' | 'focus' | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedMetricIds, setSelectedMetricIds] = useState<Set<string>>(new Set());
   const [isEditingGroupSet, setIsEditingGroupSet] = useState(false);
   const [groupSetInputValue, setGroupSetInputValue] = useState('');
 
+  const selectionPeriodEditButtonRef = useRef<HTMLButtonElement>(null);
   const focusPeriodEditButtonRef = useRef<HTMLButtonElement>(null);
   const aggregationEditButtonRef = useRef<HTMLButtonElement>(null);
   const shadowEditButtonRef = useRef<HTMLButtonElement>(null);
   const rangeEditButtonRef = useRef<HTMLButtonElement>(null);
+  const comparisonEditButtonRef = useRef<HTMLButtonElement>(null);
   const groupSetInputRef = useRef<HTMLInputElement>(null);
   const aggregationPopupRef = useRef<HTMLDivElement>(null);
   const shadowPopupRef = useRef<HTMLDivElement>(null);
   const rangePopupRef = useRef<HTMLDivElement>(null);
+  const comparisonPopupRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const chartWidth = 390;
@@ -130,6 +166,17 @@ export function MetricGrid({
     const allDates: Date[] = [];
     metrics.forEach(m => {
       m.series.data.forEach(d => allDates.push(d.date));
+
+      // Include forecast extent if forecast is enabled
+      if (m.forecast?.enabled && m.forecast.horizon > 0) {
+        const lastDataDate = m.series.data[m.series.data.length - 1]?.date;
+        if (lastDataDate) {
+          // Calculate forecast end date (horizon is in days)
+          const forecastEndDate = new Date(lastDataDate);
+          forecastEndDate.setDate(forecastEndDate.getDate() + m.forecast.horizon);
+          allDates.push(forecastEndDate);
+        }
+      }
     });
 
     if (allDates.length > 0) {
@@ -165,33 +212,76 @@ export function MetricGrid({
       if (rangePopupRef.current && !rangePopupRef.current.contains(event.target as Node)) {
         setShowRangeModal(false);
       }
+      if (comparisonPopupRef.current && !comparisonPopupRef.current.contains(event.target as Node)) {
+        setShowComparisonModal(false);
+        setComparisonModalPeriodType(null);
+      }
     };
 
-    if (showAggregationModal || showShadowModal || showRangeModal) {
+    if (showAggregationModal || showShadowModal || showRangeModal || showComparisonModal) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showAggregationModal, showShadowModal, showRangeModal]);
+  }, [showAggregationModal, showShadowModal, showRangeModal, showComparisonModal]);
+
+  // Note: Selection Period and Focus Period modals handle their own click-outside logic
 
   // Calculate row values for all metrics using locked selection date
   const metricsWithValues = useMemo(() => {
-    return metrics.map(metric => ({
-      metric,
-      values: calculateMetricRowValues(
+    return metrics.map(metric => {
+      const baseValues = calculateMetricRowValues(
         metric.series,
         selectionDate,
         globalSettings.aggregation,
         globalSettings.shadows,
         globalSettings.averageShadows,
         metric.goals,
-        globalSettings.focusPeriod
-      )
-    }));
+        globalSettings.focusPeriod,
+        metric.forecast
+      );
+
+      // Calculate dynamic comparisons
+      const comparisons = calculateComparisons(
+        metric.series,
+        selectionDate,
+        baseValues?.selectionValue,
+        baseValues?.focusPeriodMean,
+        globalSettings.aggregation,
+        globalSettings.shadows,
+        globalSettings.averageShadows,
+        metric.goals,
+        metric.forecast,
+        globalSettings.comparisons,
+        globalSettings.selectionIncludesForecast,
+        globalSettings.focusIncludesForecast
+      );
+
+      return {
+        metric,
+        values: {
+          ...baseValues,
+          comparisons
+        }
+      };
+    });
   }, [metrics, selectionDate, globalSettings]);
 
-  // Calculate min/max percentage values for gradient scaling
+  // Calculate min/max percentage values for gradient scaling (per comparison)
   const colorScaling = useMemo(() => {
-    const pctValues = {
+    // Collect all unique comparison IDs
+    const comparisonIds = new Set<string>();
+    if (globalSettings.comparisons) {
+      globalSettings.comparisons.forEach(c => {
+        if (c.enabled) comparisonIds.add(c.id);
+      });
+    }
+
+    // Build map of comparison ID -> percentage values
+    const pctValuesByComparison = new Map<string, number[]>();
+    comparisonIds.forEach(id => pctValuesByComparison.set(id, []));
+
+    // Also keep legacy values for backward compatibility
+    const legacyPctValues = {
       selectionVsShadow: [] as number[],
       selectionVsGoal: [] as number[],
       focusVsShadow: [] as number[],
@@ -199,17 +289,28 @@ export function MetricGrid({
     };
 
     metricsWithValues.forEach(({ values }) => {
+      // Collect from dynamic comparisons
+      if (values.comparisons) {
+        values.comparisons.forEach((result, comparisonId) => {
+          if (result.percentDifference !== undefined) {
+            const arr = pctValuesByComparison.get(comparisonId);
+            if (arr) arr.push(result.percentDifference);
+          }
+        });
+      }
+
+      // Collect legacy values
       if (values.selectionVsShadowPct !== undefined) {
-        pctValues.selectionVsShadow.push(values.selectionVsShadowPct);
+        legacyPctValues.selectionVsShadow.push(values.selectionVsShadowPct);
       }
       if (values.selectionVsGoalPct !== undefined) {
-        pctValues.selectionVsGoal.push(values.selectionVsGoalPct);
+        legacyPctValues.selectionVsGoal.push(values.selectionVsGoalPct);
       }
       if (values.focusPeriodVsShadowPct !== undefined) {
-        pctValues.focusVsShadow.push(values.focusPeriodVsShadowPct);
+        legacyPctValues.focusVsShadow.push(values.focusPeriodVsShadowPct);
       }
       if (values.focusPeriodVsGoalPct !== undefined) {
-        pctValues.focusVsGoal.push(values.focusPeriodVsGoalPct);
+        legacyPctValues.focusVsGoal.push(values.focusPeriodVsGoalPct);
       }
     });
 
@@ -223,24 +324,33 @@ export function MetricGrid({
       };
     };
 
-    const scales = {
-      selectionVsShadow: getMinMax(pctValues.selectionVsShadow),
-      selectionVsGoal: getMinMax(pctValues.selectionVsGoal),
-      focusVsShadow: getMinMax(pctValues.focusVsShadow),
-      focusVsGoal: getMinMax(pctValues.focusVsGoal)
+    // Calculate scales for each comparison
+    const comparisonScales = new Map<string, { max: number; min: number }>();
+    pctValuesByComparison.forEach((values, comparisonId) => {
+      comparisonScales.set(comparisonId, getMinMax(values));
+    });
+
+    // Calculate legacy scales
+    const legacyScales = {
+      selectionVsShadow: getMinMax(legacyPctValues.selectionVsShadow),
+      selectionVsGoal: getMinMax(legacyPctValues.selectionVsGoal),
+      focusVsShadow: getMinMax(legacyPctValues.focusVsShadow),
+      focusVsGoal: getMinMax(legacyPctValues.focusVsGoal)
     };
 
     return {
-      ...scales,
-      // Include the actual extreme values for bold detection
+      // Legacy structure for backward compatibility
+      ...legacyScales,
       extremes: {
-        selectionVsShadow: scales.selectionVsShadow,
-        selectionVsGoal: scales.selectionVsGoal,
-        focusVsShadow: scales.focusVsShadow,
-        focusVsGoal: scales.focusVsGoal
-      }
+        selectionVsShadow: legacyScales.selectionVsShadow,
+        selectionVsGoal: legacyScales.selectionVsGoal,
+        focusVsShadow: legacyScales.focusVsShadow,
+        focusVsGoal: legacyScales.focusVsGoal
+      },
+      // New dynamic comparison scales
+      comparisonScales
     };
-  }, [metricsWithValues]);
+  }, [metricsWithValues, globalSettings.comparisons]);
 
   // Sort metrics
   const sortedMetrics = useMemo(() => {
@@ -250,63 +360,50 @@ export function MetricGrid({
       let aVal: number | string | undefined;
       let bVal: number | string | undefined;
 
-      switch (sortColumn) {
-        case 'group':
-          aVal = a.metric.group || '';
-          bVal = b.metric.group || '';
-          break;
-        case 'groupIndex':
-          aVal = a.metric.groupIndex ?? Number.MAX_SAFE_INTEGER;
-          bVal = b.metric.groupIndex ?? Number.MAX_SAFE_INTEGER;
-          break;
-        case 'metricIndex':
-          aVal = a.metric.metricIndex ?? Number.MAX_SAFE_INTEGER;
-          bVal = b.metric.metricIndex ?? Number.MAX_SAFE_INTEGER;
-          break;
-        case 'selectionValue':
-          aVal = a.values.selectionValue;
-          bVal = b.values.selectionValue;
-          break;
-        case 'selectionPoint':
-          aVal = a.values.selectionRange ? (a.values.selectionRange.max - a.values.selectionRange.min) : 0;
-          bVal = b.values.selectionRange ? (b.values.selectionRange.max - b.values.selectionRange.min) : 0;
-          break;
-        case 'selectionVsShadowAbs':
-          aVal = a.values.selectionVsShadowAbs;
-          bVal = b.values.selectionVsShadowAbs;
-          break;
-        case 'selectionVsShadowPct':
-          aVal = a.values.selectionVsShadowPct;
-          bVal = b.values.selectionVsShadowPct;
-          break;
-        case 'selectionVsGoalAbs':
-          aVal = a.values.selectionVsGoalAbs;
-          bVal = b.values.selectionVsGoalAbs;
-          break;
-        case 'selectionVsGoalPct':
-          aVal = a.values.selectionVsGoalPct;
-          bVal = b.values.selectionVsGoalPct;
-          break;
-        case 'focusMean':
-          aVal = a.values.focusPeriodMean;
-          bVal = b.values.focusPeriodMean;
-          break;
-        case 'focusVsShadowAbs':
-          aVal = a.values.focusPeriodVsShadowAbs;
-          bVal = b.values.focusPeriodVsShadowAbs;
-          break;
-        case 'focusVsShadowPct':
-          aVal = a.values.focusPeriodVsShadowPct;
-          bVal = b.values.focusPeriodVsShadowPct;
-          break;
-        case 'focusVsGoalAbs':
-          aVal = a.values.focusPeriodVsGoalAbs;
-          bVal = b.values.focusPeriodVsGoalAbs;
-          break;
-        case 'focusVsGoalPct':
-          aVal = a.values.focusPeriodVsGoalPct;
-          bVal = b.values.focusPeriodVsGoalPct;
-          break;
+      // Check if this is a dynamic comparison column
+      if (sortColumn.startsWith('comparison-')) {
+        const comparisonId = sortColumn.replace('comparison-', '');
+        aVal = a.values.comparisons?.get(comparisonId)?.percentDifference;
+        bVal = b.values.comparisons?.get(comparisonId)?.percentDifference;
+      } else {
+        switch (sortColumn) {
+          case 'group':
+            aVal = a.metric.group || '';
+            bVal = b.metric.group || '';
+            break;
+          case 'groupIndex':
+            aVal = a.metric.groupIndex ?? Number.MAX_SAFE_INTEGER;
+            bVal = b.metric.groupIndex ?? Number.MAX_SAFE_INTEGER;
+            break;
+          case 'metricIndex':
+            aVal = a.metric.metricIndex ?? Number.MAX_SAFE_INTEGER;
+            bVal = b.metric.metricIndex ?? Number.MAX_SAFE_INTEGER;
+            break;
+          case 'selectionValue':
+            aVal = a.values.selectionValue;
+            bVal = b.values.selectionValue;
+            break;
+          case 'selectionVsShadowPct':
+            aVal = a.values.selectionVsShadowPct;
+            bVal = b.values.selectionVsShadowPct;
+            break;
+          case 'selectionVsGoalPct':
+            aVal = a.values.selectionVsGoalPct;
+            bVal = b.values.selectionVsGoalPct;
+            break;
+          case 'focusMean':
+            aVal = a.values.focusPeriodMean;
+            bVal = b.values.focusPeriodMean;
+            break;
+          case 'focusVsShadowPct':
+            aVal = a.values.focusPeriodVsShadowPct;
+            bVal = b.values.focusPeriodVsShadowPct;
+            break;
+          case 'focusVsGoalPct':
+            aVal = a.values.focusPeriodVsGoalPct;
+            bVal = b.values.focusPeriodVsGoalPct;
+            break;
+        }
       }
 
       // Handle undefined values
@@ -585,19 +682,50 @@ export function MetricGrid({
 
   if (!xDomain) return <div>Loading...</div>;
 
-  // Get shadow label from first metric for column headers
-  const shadowLabel = sortedMetrics.length > 0 ? sortedMetrics[0].values.shadowLabel : undefined;
-  const columnDefinitions = getColumnDefinitions(shadowLabel);
+  // Get column definitions based on comparisons
+  const columnDefinitions = getColumnDefinitions(globalSettings.comparisons);
+
+  // Calculate dynamic grid template columns
+  const selectionComparisons = globalSettings.comparisons?.filter(c => c.enabled && c.periodType === 'selection') || [];
+  const focusComparisons = globalSettings.comparisons?.filter(c => c.enabled && c.periodType === 'focus') || [];
+
+  const groupHeaderGridTemplate = [
+    isEditMode ? '30px' : null,
+    '20px',  // Group index
+    '74px',  // Group name
+    '20px',  // Metric index
+    '273px', // Metric name
+    `${chartWidth}px`, // Chart
+    `100px`, // Selection Mean/Range
+    ...selectionComparisons.map(() => '100px'), // Selection comparisons
+    `100px`, // Focus Mean/Range
+    ...focusComparisons.map(() => '100px') // Focus comparisons
+  ].filter(Boolean).join(' ');
+
+  const columnHeaderGridTemplate = [
+    isEditMode ? '30px' : null,
+    '20px',  // Group index
+    '74px',  // Group name
+    '20px',  // Metric index
+    '273px', // Metric name
+    `${chartWidth / 2}px`, // Chart column 1
+    `${chartWidth / 2}px`, // Chart column 2
+    `100px`, // Selection Mean/Range
+    ...selectionComparisons.map(() => '100px'), // Selection comparisons
+    `100px`, // Focus Mean/Range
+    ...focusComparisons.map(() => '100px') // Focus comparisons
+  ].filter(Boolean).join(' ');
 
   return (
-    <div className="w-full overflow-x-auto">
-      {/* Column Headers */}
-      <div className="sticky top-0 bg-white border-b-2 border-gray-300 z-10">
-        {/* Group Headers Row */}
-        <div className="grid py-1 border-b border-gray-200" style={{
-          gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 74px 20px 210px ' + chartWidth + 'px repeat(12, 80px)',
-          minWidth: 'fit-content'
-        }}>
+    <div className="w-full">
+      {/* Column Headers - Sticky wrapper */}
+      <div className="sticky top-0 bg-white border-b-2 border-gray-300 z-50 shadow-sm overflow-x-auto">
+        <div className="w-full">
+          {/* Group Headers Row */}
+          <div className="grid py-1 border-b border-gray-200" style={{
+            gridTemplateColumns: groupHeaderGridTemplate,
+            minWidth: 'fit-content'
+          }}>
           {/* Metrics label - Spans Drag Handle (if visible), Grp Idx, Group, Mtr Idx, and Name columns */}
           <div className="px-1.5 text-sm font-bold text-gray-800 border-r border-gray-300 flex items-center justify-between" style={{ gridColumn: isEditMode ? 'span 5' : 'span 4' }}>
             <div className="flex items-center gap-2">
@@ -666,41 +794,32 @@ export function MetricGrid({
             </button>
           </div>
           {/* Selection Group */}
-          <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300" style={{ gridColumn: 'span 6' }}>
-            {isEditingSelection ? (
-              <div className="flex items-center justify-center gap-2">
-                <input
-                  type="date"
-                  value={selectionDate ? selectionDate.toISOString().split('T')[0] : ''}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setSelectionDate(new Date(e.target.value));
-                    }
-                  }}
-                  onBlur={() => setIsEditingSelection(false)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === 'Escape') {
-                      setIsEditingSelection(false);
-                    }
-                  }}
-                  min={dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined}
-                  max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
-                  autoFocus
-                  className="text-sm border border-blue-500 rounded px-2 py-1"
-                />
-              </div>
-            ) : (
-              <span
-                onDoubleClick={() => setIsEditingSelection(true)}
-                className="cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
-                title="Double-click to edit selection date"
-              >
-                {getSelectionLabel} {displaySelectionDate ? displaySelectionDate.toLocaleDateString() : '—'}
-              </span>
-            )}
+          <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300 flex items-center justify-center gap-2" style={{ gridColumn: `span ${1 + selectionComparisons.length}` }}>
+            <span>
+              {getSelectionLabel} {displaySelectionDate ? displaySelectionDate.toLocaleDateString() : '—'}
+            </span>
+            <button
+              ref={selectionPeriodEditButtonRef}
+              onClick={() => setShowSelectionPeriodModal(true)}
+              className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
+              title="Edit selection period"
+            >
+              Edit
+            </button>
+            <button
+              ref={comparisonEditButtonRef}
+              onClick={() => {
+                setComparisonModalPeriodType('selection');
+                setShowComparisonModal(true);
+              }}
+              className="text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded px-1"
+              title="Manage comparisons"
+            >
+              +
+            </button>
           </div>
           {/* Focus Period Group */}
-          <div className="px-1.5 text-sm font-bold text-gray-800 text-center flex items-center justify-center gap-2" style={{ gridColumn: 'span 6' }}>
+          <div className="px-1.5 text-sm font-bold text-gray-800 text-center flex items-center justify-center gap-2" style={{ gridColumn: `span ${1 + focusComparisons.length}` }}>
             <span>
               {globalSettings.focusPeriod?.enabled && globalSettings.focusPeriod.label
                 ? globalSettings.focusPeriod.label
@@ -714,12 +833,22 @@ export function MetricGrid({
             >
               Edit
             </button>
+            <button
+              onClick={() => {
+                setComparisonModalPeriodType('focus');
+                setShowComparisonModal(true);
+              }}
+              className="text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded px-1"
+              title="Manage comparisons"
+            >
+              +
+            </button>
           </div>
         </div>
 
         {/* Column Headers Row */}
         <div className="grid py-1" style={{
-          gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 74px 20px 210px ' + (chartWidth / 2) + 'px ' + (chartWidth / 2) + 'px repeat(12, 80px)',
+          gridTemplateColumns: columnHeaderGridTemplate,
           minWidth: 'fit-content'
         }}>
           {/* Drag Handle Header Placeholder */}
@@ -808,43 +937,41 @@ export function MetricGrid({
             </button>
           </div>
 
-          {/* Selection column header */}
-          <div
-            className="px-1.5 text-xs font-semibold text-gray-700 text-right cursor-pointer hover:bg-gray-100"
-            onClick={() => handleColumnHeaderClick('selectionValue')}
-          >
-            Mean
-            {sortColumn === 'selectionValue' && (
-              <span className="ml-1">{sortDirection === 'desc' ? '↓' : '↑'}</span>
-            )}
-          </div>
+          {/* Dynamic column headers (Selection and Focus) */}
+          {columnDefinitions.slice(4).map((col, index) => {
+            // Calculate if this should have a right border (after last selection comparison, before focus period)
+            const selectionCompCount = selectionComparisons.length + 1; // +1 for Mean/Range
+            const shouldHaveBorder = index === selectionCompCount - 1;
 
-          {columnDefinitions.slice(5).map((col, index) => (
-            <div
-              key={col.key}
-              className={`px-1.5 text-xs font-semibold text-gray-700 text-right ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''} ${index === 4 ? 'border-r border-gray-300' : ''}`}
-              onClick={() => col.sortable && handleColumnHeaderClick(col.key)}
-            >
-              {col.label}
-              {sortColumn === col.key && (
-                <span className="ml-1">{sortDirection === 'desc' ? '↓' : '↑'}</span>
-              )}
-            </div>
-          ))}
+            return (
+              <div
+                key={col.key}
+                className={`px-1.5 text-xs font-semibold text-gray-700 text-right whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''} ${shouldHaveBorder ? 'border-r border-gray-300' : ''}`}
+                onClick={() => col.sortable && handleColumnHeaderClick(col.key)}
+              >
+                {col.label}
+                {sortColumn === col.key && (
+                  <span className="ml-1">{sortDirection === 'desc' ? '↓' : '↑'}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
         </div>
       </div>
 
       {/* Metric Rows */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={sortedMetrics.map(m => m.metric.id)} // Assuming sortedMetrics is an array of { metric, values }
-          strategy={verticalListSortingStrategy}
+      <div className="w-full overflow-x-auto">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
         >
-          <div className="divide-y divide-gray-200 border-b border-gray-200">
+          <SortableContext
+            items={sortedMetrics.map(m => m.metric.id)} // Assuming sortedMetrics is an array of { metric, values }
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="divide-y divide-gray-200 border-b border-gray-200">
             {sortedMetrics.map(({ metric, values }) => ( // Changed back to destructuring to match original data structure
               <MetricRow
                 key={metric.id}
@@ -871,13 +998,33 @@ export function MetricGrid({
           </div>
         </SortableContext>
       </DndContext>
+      </div>
+
+      {/* Selection Period Popup */}
+      {showSelectionPeriodModal && selectionDate && (
+        <SelectionPeriodModal
+          selectionDate={selectionDate}
+          includesForecast={globalSettings.selectionIncludesForecast}
+          dataExtent={dataExtent}
+          onSelectionDateChange={setSelectionDate}
+          onIncludesForecastChange={(includesForecast) => {
+            onForecastInclusionChange(includesForecast, globalSettings.focusIncludesForecast || false);
+          }}
+          onClose={() => setShowSelectionPeriodModal(false)}
+          anchorElement={selectionPeriodEditButtonRef.current || undefined}
+        />
+      )}
 
       {/* Focus Period Popup */}
       {showFocusPeriodModal && (
         <FocusPeriodModal
           focusPeriod={globalSettings.focusPeriod || { enabled: false }}
+          includesForecast={globalSettings.focusIncludesForecast}
           dataExtent={dataExtent}
           onSave={onFocusPeriodChange}
+          onIncludesForecastChange={(includesForecast) => {
+            onForecastInclusionChange(globalSettings.selectionIncludesForecast || false, includesForecast);
+          }}
           onClose={() => setShowFocusPeriodModal(false)}
           anchorElement={focusPeriodEditButtonRef.current || undefined}
         />
@@ -887,10 +1034,10 @@ export function MetricGrid({
       {showAggregationModal && (
         <div
           ref={aggregationPopupRef}
-          className="absolute bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
+          className="fixed bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
           style={{
-            top: aggregationEditButtonRef.current ? aggregationEditButtonRef.current.offsetTop + aggregationEditButtonRef.current.offsetHeight + 5 : '50%',
-            left: aggregationEditButtonRef.current ? aggregationEditButtonRef.current.offsetLeft : '50%',
+            top: aggregationEditButtonRef.current ? aggregationEditButtonRef.current.getBoundingClientRect().bottom + 5 : '50%',
+            left: aggregationEditButtonRef.current ? aggregationEditButtonRef.current.getBoundingClientRect().left : '50%',
             width: '300px'
           }}
         >
@@ -911,10 +1058,10 @@ export function MetricGrid({
       {showShadowModal && (
         <div
           ref={shadowPopupRef}
-          className="absolute bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
+          className="fixed bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
           style={{
-            top: shadowEditButtonRef.current ? shadowEditButtonRef.current.offsetTop + shadowEditButtonRef.current.offsetHeight + 5 : '50%',
-            left: shadowEditButtonRef.current ? shadowEditButtonRef.current.offsetLeft : '50%',
+            top: shadowEditButtonRef.current ? shadowEditButtonRef.current.getBoundingClientRect().bottom + 5 : '50%',
+            left: shadowEditButtonRef.current ? shadowEditButtonRef.current.getBoundingClientRect().left : '50%',
             width: '320px'
           }}
         >
@@ -937,10 +1084,10 @@ export function MetricGrid({
       {showRangeModal && (
         <div
           ref={rangePopupRef}
-          className="absolute bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
+          className="fixed bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
           style={{
-            top: rangeEditButtonRef.current ? rangeEditButtonRef.current.offsetTop + rangeEditButtonRef.current.offsetHeight + 5 : '50%',
-            left: rangeEditButtonRef.current ? rangeEditButtonRef.current.offsetLeft : '50%',
+            top: rangeEditButtonRef.current ? rangeEditButtonRef.current.getBoundingClientRect().bottom + 5 : '50%',
+            left: rangeEditButtonRef.current ? rangeEditButtonRef.current.getBoundingClientRect().left : '50%',
             width: '320px'
           }}
         >
@@ -951,6 +1098,41 @@ export function MetricGrid({
           />
           <button
             onClick={() => setShowRangeModal(false)}
+            className="mt-3 w-full text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+          >
+            Close
+          </button>
+        </div>
+      )}
+
+      {/* Comparison Popup */}
+      {showComparisonModal && (
+        <div
+          ref={comparisonPopupRef}
+          className="fixed bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
+          style={{
+            top: comparisonEditButtonRef.current ? comparisonEditButtonRef.current.getBoundingClientRect().bottom + 5 : '50%',
+            left: comparisonEditButtonRef.current ? comparisonEditButtonRef.current.getBoundingClientRect().left : '50%',
+            width: '400px',
+            maxHeight: '600px',
+            overflowY: 'auto'
+          }}
+        >
+          <h3 className="text-sm font-bold text-gray-900 mb-3">
+            Manage {comparisonModalPeriodType === 'selection' ? 'Selection' : comparisonModalPeriodType === 'focus' ? 'Focus Period' : ''} Comparisons
+          </h3>
+          <ComparisonControls
+            comparisons={globalSettings.comparisons || []}
+            shadows={globalSettings.shadows}
+            goals={metrics.flatMap(m => m.goals || [])}
+            onChange={onComparisonsChange}
+            filterPeriodType={comparisonModalPeriodType || undefined}
+          />
+          <button
+            onClick={() => {
+              setShowComparisonModal(false);
+              setComparisonModalPeriodType(null);
+            }}
             className="mt-3 w-full text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
           >
             Close

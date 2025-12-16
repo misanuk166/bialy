@@ -3,10 +3,13 @@ import type { AggregationConfig } from './aggregation';
 import type { Shadow } from '../types/shadow';
 import type { Goal } from '../types/goal';
 import type { FocusPeriod } from '../types/focusPeriod';
+import type { ForecastConfig } from '../types/forecast';
 import type { MetricRowValues } from '../types/appState';
+import type { ComparisonConfig, ComparisonResult } from '../types/comparison';
 import { applyAggregation, normalizeSelectionDate } from './aggregation';
 import { generateShadowsData, calculateShadowAverage } from './shadows';
 import { generateGoalsData } from './goals';
+import { generateForecast } from './forecasting';
 
 // Helper function to determine decimal precision (currently unused)
 // function getDecimalPrecision(num: number): number {
@@ -22,7 +25,8 @@ export function calculateMetricRowValues(
   shadows?: Shadow[],
   averageShadows?: boolean,
   goals?: Goal[],
-  focusPeriod?: FocusPeriod
+  focusPeriod?: FocusPeriod,
+  forecastConfig?: ForecastConfig
 ): MetricRowValues {
   if (!currentDate) return {};
 
@@ -45,23 +49,71 @@ export function calculateMetricRowValues(
     }));
   }
 
+  // Generate forecast if enabled
+  let forecastData: Array<{ date: Date; value: number }> = [];
+  if (forecastConfig?.enabled) {
+    const forecastResult = generateForecast(displayData, forecastConfig);
+    if (forecastResult) {
+      forecastData = forecastResult.forecast;
+
+      // If aggregation is enabled, apply it to forecast data as well
+      if (aggregationConfig?.enabled) {
+        // Convert forecast values to TimeSeriesPoint format
+        const forecastPoints = forecastData.map(d => ({
+          date: d.date,
+          numerator: d.value,
+          denominator: 1
+        }));
+
+        // Apply aggregation
+        const aggregatedForecast = applyAggregation(forecastPoints, aggregationConfig);
+
+        // Convert back to value format
+        forecastData = aggregatedForecast.map(d => ({
+          date: d.date,
+          value: d.numerator / d.denominator
+        }));
+      }
+
+    }
+  }
+
   // Normalize selection date to match aggregation period
   const normalizedDate = normalizeSelectionDate(currentDate, aggregationConfig);
 
-  // Find current point
+  // Find current point (check both display data and forecast data)
   const dateTime = normalizedDate.getTime();
-  const currentPoint = displayData.find(p => {
+  let currentPoint = displayData.find(p => {
     const diff = Math.abs(p.date.getTime() - dateTime);
     return diff < 24 * 60 * 60 * 1000; // 1 day tolerance
   });
 
-  if (!currentPoint) return {};
+  // Track if we're using a forecast point
+  let isForecastPoint = false;
+
+  // If not found in display data, check forecast data
+  if (!currentPoint && forecastData.length > 0) {
+    currentPoint = forecastData.find(p => {
+      const diff = Math.abs(p.date.getTime() - dateTime);
+      return diff < 24 * 60 * 60 * 1000; // 1 day tolerance
+    });
+    isForecastPoint = !!currentPoint;
+  }
+
+  if (!currentPoint) {
+    return {};
+  }
 
   // Calculate selection mean and range
   let selectionValue: number;
   let selectionRange: { min: number; max: number } | undefined;
 
-  if (aggregationConfig?.enabled) {
+  // If this is a forecast point, just use the forecast value directly
+  if (isForecastPoint) {
+    selectionValue = currentPoint.value;
+    // No range for forecast points
+    selectionRange = undefined;
+  } else if (aggregationConfig?.enabled) {
     // For aggregated data, calculate mean and range from all raw points in the aggregated period
     // Find the aggregated period boundaries
     const aggregatedPointDate = currentPoint.date;
@@ -230,7 +282,7 @@ export function calculateMetricRowValues(
     ? (selectionVsGoalAbs / goalValue) * 100
     : undefined;
 
-  return {
+  const result = {
     selectionValue,
     selectionRange,
     selectionVsShadowAbs,
@@ -248,4 +300,224 @@ export function calculateMetricRowValues(
     goalValue,
     goalLabel
   };
+  return result;
+}
+
+/**
+ * Calculate a single comparison result
+ */
+function calculateComparison(
+  comparison: ComparisonConfig,
+  actualValue: number,
+  shadows: Shadow[] | undefined,
+  averageShadows: boolean | undefined,
+  goals: Goal[] | undefined,
+  forecastConfig: ForecastConfig | undefined,
+  displayData: Array<{ date: Date; value: number }>,
+  aggregationConfig: AggregationConfig | undefined,
+  currentDate: Date,
+  seriesData: any
+): ComparisonResult | null {
+  const dateTime = currentDate.getTime();
+
+  let targetValue: number | undefined;
+  let targetLabel: string | undefined;
+
+  // Calculate target value based on comparison type
+  switch (comparison.type) {
+    case 'shadow': {
+      if (!shadows || shadows.length === 0) return null;
+
+      const shadowsData = generateShadowsData(seriesData, shadows);
+      const aggregatedShadowsData = aggregationConfig?.enabled
+        ? shadowsData.map(sd => ({
+            shadow: sd.shadow,
+            data: applyAggregation(sd.data, aggregationConfig),
+            color: sd.color
+          }))
+        : shadowsData;
+
+      if (comparison.targetIndex !== undefined && comparison.targetIndex < aggregatedShadowsData.length) {
+        // Use specific shadow
+        const shadowData = aggregatedShadowsData[comparison.targetIndex];
+        const shadowDataWithValues = shadowData.data.map(d => ({
+          date: d.date,
+          value: d.numerator / d.denominator
+        }));
+        const shadowPoint = shadowDataWithValues.find(p => {
+          const diff = Math.abs(p.date.getTime() - dateTime);
+          return diff < 24 * 60 * 60 * 1000;
+        });
+        targetValue = shadowPoint?.value;
+        targetLabel = shadowData.shadow.label;
+      } else if (averageShadows && aggregatedShadowsData.length > 1) {
+        // Use average of all shadows
+        const averagedShadowData = calculateShadowAverage(aggregatedShadowsData);
+        const shadowPoint = averagedShadowData.find(p => {
+          const diff = Math.abs(p.date.getTime() - dateTime);
+          return diff < 24 * 60 * 60 * 1000;
+        });
+        targetValue = shadowPoint?.mean;
+        targetLabel = `avg of ${shadows.filter(s => s.enabled).length} periods`;
+      } else if (aggregatedShadowsData.length > 0) {
+        // Use first shadow
+        const shadowData = aggregatedShadowsData[0];
+        const shadowDataWithValues = shadowData.data.map(d => ({
+          date: d.date,
+          value: d.numerator / d.denominator
+        }));
+        const shadowPoint = shadowDataWithValues.find(p => {
+          const diff = Math.abs(p.date.getTime() - dateTime);
+          return diff < 24 * 60 * 60 * 1000;
+        });
+        targetValue = shadowPoint?.value;
+        targetLabel = shadowData.shadow.label;
+      }
+      break;
+    }
+
+    case 'goal': {
+      if (!goals || goals.length === 0) return null;
+
+      const goalsData = generateGoalsData(seriesData, goals);
+      const enabledGoals = goalsData.filter(gd => gd.goal.enabled);
+
+      if (enabledGoals.length === 0) return null;
+
+      const goalIndex = comparison.targetIndex !== undefined ? comparison.targetIndex : 0;
+      if (goalIndex >= enabledGoals.length) return null;
+
+      const goalData = enabledGoals[goalIndex];
+      const goalDataWithValues = goalData.data.map(d => ({
+        date: d.date,
+        value: d.numerator / d.denominator
+      }));
+
+      if (goalData.goal.type === 'continuous' && goalDataWithValues.length === 2) {
+        const startDate = goalDataWithValues[0].date;
+        const endDate = goalDataWithValues[1].date;
+        if (currentDate >= startDate && currentDate <= endDate) {
+          targetValue = goalDataWithValues[0].value;
+        }
+      } else {
+        const goalPoint = goalDataWithValues.find(p => {
+          const diff = Math.abs(p.date.getTime() - dateTime);
+          return diff < 24 * 60 * 60 * 1000;
+        });
+        targetValue = goalPoint?.value;
+      }
+
+      targetLabel = goalData.goal.label;
+      break;
+    }
+
+    case 'forecast': {
+      if (!forecastConfig || !forecastConfig.enabled) return null;
+
+      // Generate forecast from the series data
+      const forecastResult = generateForecast(displayData, forecastConfig);
+      if (!forecastResult) return null;
+
+      // Find forecast value at the current date
+      const forecastPoint = forecastResult.forecast.find(f => {
+        const diff = Math.abs(f.date.getTime() - dateTime);
+        return diff < 24 * 60 * 60 * 1000; // 1 day tolerance
+      });
+
+      if (!forecastPoint) return null;
+
+      targetValue = forecastPoint.value;
+      targetLabel = 'Forecast';
+      break;
+    }
+  }
+
+  if (targetValue === undefined) return null;
+
+  const absoluteDifference = actualValue - targetValue;
+  const percentDifference = (absoluteDifference / targetValue) * 100;
+
+  return {
+    comparisonId: comparison.id,
+    absoluteDifference,
+    percentDifference,
+    targetValue,
+    targetLabel
+  };
+}
+
+/**
+ * Calculate comparison results for all configured comparisons
+ */
+export function calculateComparisons(
+  series: Series,
+  currentDate: Date | null,
+  selectionValue: number | undefined,
+  focusPeriodMean: number | undefined,
+  aggregationConfig: AggregationConfig | undefined,
+  shadows: Shadow[] | undefined,
+  averageShadows: boolean | undefined,
+  goals: Goal[] | undefined,
+  forecastConfig: ForecastConfig | undefined,
+  comparisons: ComparisonConfig[] | undefined,
+  selectionIncludesForecast?: boolean,
+  focusIncludesForecast?: boolean
+): Map<string, ComparisonResult> {
+  const results = new Map<string, ComparisonResult>();
+
+  if (!comparisons || comparisons.length === 0 || !currentDate) {
+    return results;
+  }
+
+  // Prepare display data
+  const dataWithValues = series.data.map(d => ({
+    date: d.date,
+    value: d.numerator / d.denominator
+  }));
+
+  let displayData = dataWithValues;
+  if (aggregationConfig?.enabled) {
+    const aggregated = applyAggregation(series.data, aggregationConfig);
+    displayData = aggregated.map(d => ({
+      date: d.date,
+      value: d.numerator / d.denominator
+    }));
+  }
+
+  const normalizedDate = normalizeSelectionDate(currentDate, aggregationConfig);
+
+  // Calculate each comparison
+  for (const comparison of comparisons) {
+    if (!comparison.enabled) continue;
+
+    // Skip forecast comparisons if not included for this period type
+    if (comparison.type === 'forecast') {
+      const includesForecast = comparison.periodType === 'selection'
+        ? selectionIncludesForecast
+        : focusIncludesForecast;
+      if (!includesForecast) continue;
+    }
+
+    const actualValue = comparison.periodType === 'selection' ? selectionValue : focusPeriodMean;
+    if (actualValue === undefined) continue;
+
+    const result = calculateComparison(
+      comparison,
+      actualValue,
+      shadows,
+      averageShadows,
+      goals,
+      forecastConfig,
+      displayData,
+      aggregationConfig,
+      normalizedDate,
+      series.data
+    );
+
+    if (result) {
+      results.set(comparison.id, result);
+    }
+  }
+
+  return results;
 }

@@ -1,6 +1,6 @@
 import { useState, memo } from 'react';
 import { CompactTimeSeriesChart } from './CompactTimeSeriesChart';
-import { ColumnCell, RangeCell } from './ColumnCell';
+import { ColumnCell, RangeCell, MeanRangeCell, PercentAbsCell } from './ColumnCell';
 import { GoalControls } from './GoalControls';
 import { ForecastControls } from './ForecastControls';
 import type { MetricConfig, GlobalSettings, MetricRowValues } from '../types/appState';
@@ -12,6 +12,7 @@ interface ColorScaling {
   selectionVsGoal: { max: number; min: number };
   focusVsShadow: { max: number; min: number };
   focusVsGoal: { max: number; min: number };
+  comparisonScales?: Map<string, { max: number; min: number }>;
 }
 
 interface MetricRowProps {
@@ -80,6 +81,7 @@ export const MetricRow = memo(function MetricRow({
 
   const [isEditingGroup, setIsEditingGroup] = useState(false);
   const [editedGroup, setEditedGroup] = useState(metric.group || '');
+  const [isChartExpanded, setIsChartExpanded] = useState(false);
 
   const handleNameSave = () => {
     if (editedName.trim()) {
@@ -105,13 +107,32 @@ export const MetricRow = memo(function MetricRow({
     setIsEditingGroup(false);
   };
 
+  // Calculate dynamic grid template columns based on comparisons
+  const selectionComparisons = globalSettings.comparisons?.filter(c => c.enabled && c.periodType === 'selection') || [];
+  const focusComparisons = globalSettings.comparisons?.filter(c => c.enabled && c.periodType === 'focus') || [];
+
+  const gridTemplateColumns = [
+    isEditMode ? '30px' : null,
+    '20px',  // Group index
+    '74px',  // Group name with checkbox
+    '20px',  // Metric index
+    '273px', // Metric name & description
+    `${chartWidth / 3}px`,  // Chart column 1
+    `${chartWidth / 3}px`,  // Chart column 2
+    `${chartWidth / 3}px`,  // Chart column 3
+    '100px', // Selection Mean/Range
+    ...selectionComparisons.map(() => '100px'), // Dynamic selection comparisons
+    '100px', // Focus Mean/Range
+    ...focusComparisons.map(() => '100px') // Dynamic focus comparisons
+  ].filter(Boolean).join(' ');
+
   return (
     <div
       ref={setNodeRef}
       style={{
         ...style,
         display: 'grid',
-        gridTemplateColumns: (isEditMode ? '30px ' : '') + '20px 74px 20px 210px ' + (chartWidth / 3) + 'px ' + (chartWidth / 3) + 'px ' + (chartWidth / 3) + 'px repeat(12, 80px)',
+        gridTemplateColumns,
         minWidth: 'fit-content'
       }}
       className={`py-1 border-b border-gray-200 hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}
@@ -209,10 +230,10 @@ export const MetricRow = memo(function MetricRow({
             )}
 
             {/* Edit Menu Button */}
-            <div className="relative flex-shrink-0">
+            <div className="relative flex-shrink-0 -mt-1">
               <button
                 onClick={() => setShowActionMenu(!showActionMenu)}
-                className="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                className="text-xs font-bold text-black hover:text-gray-700"
                 title="Actions"
               >
                 ⋮
@@ -220,7 +241,7 @@ export const MetricRow = memo(function MetricRow({
 
               {/* Action Menu Dropdown */}
               {showActionMenu && (
-                <div className="absolute right-0 top-8 bg-white border border-gray-300 rounded shadow-lg z-30 min-w-[120px]">
+                <div className="absolute right-0 top-8 bg-white border border-gray-300 rounded shadow-lg z-30 min-w-[150px]">
                   <button
                     onClick={() => {
                       onExpand();
@@ -229,7 +250,7 @@ export const MetricRow = memo(function MetricRow({
                     className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
                   >
                     <span>⤢</span>
-                    <span>Expand</span>
+                    <span>View Details</span>
                   </button>
                   <button
                     onClick={() => {
@@ -247,9 +268,47 @@ export const MetricRow = memo(function MetricRow({
           </div>
           <div className="text-xs text-gray-500 mt-1 leading-tight text-left">{metric.series.metadata.description}</div>
 
+          {/* Forecast and Goals buttons (shown when expanded) */}
+          {isChartExpanded && (
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => {
+                  setShowForecastControls(!showForecastControls);
+                  if (!showForecastControls && !metric.forecast?.enabled) {
+                    onMetricUpdate({
+                      ...metric,
+                      forecast: {
+                        ...metric.forecast,
+                        enabled: true,
+                        horizon: 90,
+                        seasonal: 'none',
+                        showConfidenceIntervals: true,
+                        confidenceLevel: 95
+                      }
+                    });
+                  }
+                }}
+                className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                Forecast
+              </button>
+              <button
+                onClick={() => {
+                  setShowGoalControls(!showGoalControls);
+                  if (!showGoalControls && !metric.goalsEnabled) {
+                    onMetricUpdate({ ...metric, goalsEnabled: true });
+                  }
+                }}
+                className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                Goals
+              </button>
+            </div>
+          )}
+
           {/* Goal Controls Modal */}
           {showGoalControls && (
-            <div className="absolute z-20 bg-white border border-gray-300 rounded-lg p-4 shadow-lg mt-2" style={{ width: '250px' }}>
+            <div className="absolute z-20 bg-white border border-gray-300 rounded-lg p-4 shadow-lg mt-2" style={{ width: '312px' }}>
               <GoalControls
                 goals={metric.goals || []}
                 onChange={(goals) => onMetricUpdate({ ...metric, goals })}
@@ -267,7 +326,7 @@ export const MetricRow = memo(function MetricRow({
 
           {/* Forecast Controls Modal */}
           {showForecastControls && (
-            <div className="absolute z-20 bg-white border border-gray-300 rounded-lg p-4 shadow-lg mt-2" style={{ width: '250px' }}>
+            <div className="absolute z-20 bg-white border border-gray-300 rounded-lg p-4 shadow-lg mt-2" style={{ width: '312px' }}>
               <ForecastControls
                 config={metric.forecast || { enabled: false, horizon: 90, seasonal: 'none', showConfidenceIntervals: true, confidenceLevel: 95 }}
                 onChange={(config) => onMetricUpdate({ ...metric, forecast: config })}
@@ -283,7 +342,7 @@ export const MetricRow = memo(function MetricRow({
         </div>
 
         {/* Compact Chart - spans Aggregation, Shadow, and Range columns */}
-        <div className="border-r border-gray-300" style={{ gridColumn: 'span 3' }}>
+        <div className="border-r border-gray-300 relative my-[1px] mx-[4px]" style={{ gridColumn: 'span 3', height: isChartExpanded ? '400px' : '60px' }}>
           <CompactTimeSeriesChart
             series={metric.series}
             aggregationConfig={globalSettings.aggregation}
@@ -291,155 +350,95 @@ export const MetricRow = memo(function MetricRow({
             averageShadows={globalSettings.averageShadows}
             forecastConfig={metric.forecast}
             focusPeriod={globalSettings.focusPeriod}
+            goals={isChartExpanded && metric.goalsEnabled ? metric.goals : []}
             xDomain={xDomain}
-            width={chartWidth}
+            width={chartWidth - 8}
+            height={isChartExpanded ? 380 : 58}
+            showXAxis={isChartExpanded}
             selectionDate={selectionDate}
             currentHoverDate={currentHoverDate}
             onHover={onHover}
             onClick={onSelectionChange}
           />
+          {/* Expand in Grid Icon */}
+          <button
+            onClick={() => setIsChartExpanded(!isChartExpanded)}
+            className="absolute top-1 left-1 text-xs font-bold text-black bg-gray-100 hover:bg-gray-200 px-1 py-0.5 rounded"
+            title={isChartExpanded ? "Collapse Chart" : "Expand in Grid"}
+          >
+            {isChartExpanded ? '⤡' : '⤢'}
+          </button>
         </div>
 
         {/* Selection Columns */}
-        <ColumnCell value={rowValues.selectionValue} precision={precision} />
-        <RangeCell min={rowValues.selectionRange?.min} max={rowValues.selectionRange?.max} precision={precision} />
-        <ColumnCell
-          value={rowValues.selectionVsShadowAbs}
+        <MeanRangeCell
+          mean={rowValues.selectionValue}
+          min={rowValues.selectionRange?.min}
+          max={rowValues.selectionRange?.max}
           precision={precision}
-          colorCode
-          showSign
-          isEmpty={rowValues.selectionVsShadowAbs === undefined}
-          scaledColorPct={rowValues.selectionVsShadowPct}
-          maxPositivePct={colorScaling?.selectionVsShadow.max}
-          maxNegativePct={colorScaling?.selectionVsShadow.min}
-          isExtreme={
-            rowValues.selectionVsShadowPct !== undefined && colorScaling && (
-              rowValues.selectionVsShadowPct === colorScaling.selectionVsShadow.max ||
-              rowValues.selectionVsShadowPct === colorScaling.selectionVsShadow.min
-            )
-          }
-        />
-        <ColumnCell
-          value={rowValues.selectionVsShadowPct}
-          precision={0}
-          colorCode
-          showSign
-          isEmpty={rowValues.selectionVsShadowPct === undefined}
-          scaledColorPct={rowValues.selectionVsShadowPct}
-          maxPositivePct={colorScaling?.selectionVsShadow.max}
-          maxNegativePct={colorScaling?.selectionVsShadow.min}
-          isPercentage={true}
-          isExtreme={
-            rowValues.selectionVsShadowPct !== undefined && colorScaling && (
-              rowValues.selectionVsShadowPct === colorScaling.selectionVsShadow.max ||
-              rowValues.selectionVsShadowPct === colorScaling.selectionVsShadow.min
-            )
-          }
-        />
-        <ColumnCell
-          value={rowValues.selectionVsGoalAbs}
-          precision={precision}
-          colorCode
-          showSign
-          isEmpty={rowValues.selectionVsGoalAbs === undefined}
-          scaledColorPct={rowValues.selectionVsGoalPct}
-          maxPositivePct={colorScaling?.selectionVsGoal.max}
-          maxNegativePct={colorScaling?.selectionVsGoal.min}
-          isExtreme={
-            rowValues.selectionVsGoalPct !== undefined && colorScaling && (
-              rowValues.selectionVsGoalPct === colorScaling.selectionVsGoal.max ||
-              rowValues.selectionVsGoalPct === colorScaling.selectionVsGoal.min
-            )
-          }
-        />
-        <ColumnCell
-          value={rowValues.selectionVsGoalPct}
-          precision={0}
-          colorCode
-          showSign
-          isEmpty={rowValues.selectionVsGoalPct === undefined}
-          className="border-r border-gray-300"
-          scaledColorPct={rowValues.selectionVsGoalPct}
-          maxPositivePct={colorScaling?.selectionVsGoal.max}
-          maxNegativePct={colorScaling?.selectionVsGoal.min}
-          isPercentage={true}
-          isExtreme={
-            rowValues.selectionVsGoalPct !== undefined && colorScaling && (
-              rowValues.selectionVsGoalPct === colorScaling.selectionVsGoal.max ||
-              rowValues.selectionVsGoalPct === colorScaling.selectionVsGoal.min
-            )
-          }
         />
 
+        {/* Dynamic Selection Comparisons */}
+        {globalSettings.comparisons?.filter(c => c.enabled && c.periodType === 'selection').sort((a, b) => a.order - b.order).map(comparison => {
+          const result = rowValues.comparisons?.get(comparison.id);
+          const scaling = colorScaling?.comparisonScales?.get(comparison.id);
+
+          return (
+            <PercentAbsCell
+              key={comparison.id}
+              percentValue={result?.percentDifference}
+              absValue={result?.absoluteDifference}
+              precision={precision}
+              colorCode
+              showSign
+              isEmpty={result === undefined}
+              scaledColorPct={result?.percentDifference}
+              maxPositivePct={scaling?.max}
+              maxNegativePct={scaling?.min}
+              isExtreme={
+                result?.percentDifference !== undefined && scaling && (
+                  result.percentDifference === scaling.max ||
+                  result.percentDifference === scaling.min
+                )
+              }
+            />
+          );
+        })}
+
         {/* Focus Period Columns */}
-        <ColumnCell value={rowValues.focusPeriodMean} precision={precision} isEmpty={rowValues.focusPeriodMean === undefined} />
-        <RangeCell min={rowValues.focusPeriodRange?.min} max={rowValues.focusPeriodRange?.max} precision={precision} />
-        <ColumnCell
-          value={rowValues.focusPeriodVsShadowAbs}
+        <MeanRangeCell
+          mean={rowValues.focusPeriodMean}
+          min={rowValues.focusPeriodRange?.min}
+          max={rowValues.focusPeriodRange?.max}
           precision={precision}
-          colorCode
-          showSign
-          isEmpty={rowValues.focusPeriodVsShadowAbs === undefined}
-          scaledColorPct={rowValues.focusPeriodVsShadowPct}
-          maxPositivePct={colorScaling?.focusVsShadow.max}
-          maxNegativePct={colorScaling?.focusVsShadow.min}
-          isExtreme={
-            rowValues.focusPeriodVsShadowPct !== undefined && colorScaling && (
-              rowValues.focusPeriodVsShadowPct === colorScaling.focusVsShadow.max ||
-              rowValues.focusPeriodVsShadowPct === colorScaling.focusVsShadow.min
-            )
-          }
         />
-        <ColumnCell
-          value={rowValues.focusPeriodVsShadowPct}
-          precision={0}
-          colorCode
-          showSign
-          isEmpty={rowValues.focusPeriodVsShadowPct === undefined}
-          scaledColorPct={rowValues.focusPeriodVsShadowPct}
-          maxPositivePct={colorScaling?.focusVsShadow.max}
-          maxNegativePct={colorScaling?.focusVsShadow.min}
-          isPercentage={true}
-          isExtreme={
-            rowValues.focusPeriodVsShadowPct !== undefined && colorScaling && (
-              rowValues.focusPeriodVsShadowPct === colorScaling.focusVsShadow.max ||
-              rowValues.focusPeriodVsShadowPct === colorScaling.focusVsShadow.min
-            )
-          }
-        />
-        <ColumnCell
-          value={rowValues.focusPeriodVsGoalAbs}
-          precision={precision}
-          colorCode
-          showSign
-          isEmpty={rowValues.focusPeriodVsGoalAbs === undefined}
-          scaledColorPct={rowValues.focusPeriodVsGoalPct}
-          maxPositivePct={colorScaling?.focusVsGoal.max}
-          maxNegativePct={colorScaling?.focusVsGoal.min}
-          isExtreme={
-            rowValues.focusPeriodVsGoalPct !== undefined && colorScaling && (
-              rowValues.focusPeriodVsGoalPct === colorScaling.focusVsGoal.max ||
-              rowValues.focusPeriodVsGoalPct === colorScaling.focusVsGoal.min
-            )
-          }
-        />
-        <ColumnCell
-          value={rowValues.focusPeriodVsGoalPct}
-          precision={0}
-          colorCode
-          showSign
-          isEmpty={rowValues.focusPeriodVsGoalPct === undefined}
-          scaledColorPct={rowValues.focusPeriodVsGoalPct}
-          maxPositivePct={colorScaling?.focusVsGoal.max}
-          maxNegativePct={colorScaling?.focusVsGoal.min}
-          isPercentage={true}
-          isExtreme={
-            rowValues.focusPeriodVsGoalPct !== undefined && colorScaling && (
-              rowValues.focusPeriodVsGoalPct === colorScaling.focusVsGoal.max ||
-              rowValues.focusPeriodVsGoalPct === colorScaling.focusVsGoal.min
-            )
-          }
-        />
+
+        {/* Dynamic Focus Comparisons */}
+        {globalSettings.comparisons?.filter(c => c.enabled && c.periodType === 'focus').sort((a, b) => a.order - b.order).map(comparison => {
+          const result = rowValues.comparisons?.get(comparison.id);
+          const scaling = colorScaling?.comparisonScales?.get(comparison.id);
+
+          return (
+            <PercentAbsCell
+              key={comparison.id}
+              percentValue={result?.percentDifference}
+              absValue={result?.absoluteDifference}
+              precision={precision}
+              colorCode
+              showSign
+              isEmpty={result === undefined}
+              scaledColorPct={result?.percentDifference}
+              maxPositivePct={scaling?.max}
+              maxNegativePct={scaling?.min}
+              isExtreme={
+                result?.percentDifference !== undefined && scaling && (
+                  result.percentDifference === scaling.max ||
+                  result.percentDifference === scaling.min
+                )
+              }
+            />
+          );
+        })}
     </div>
   );
 });

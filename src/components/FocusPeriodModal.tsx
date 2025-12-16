@@ -3,16 +3,20 @@ import type { FocusPeriod } from '../types/focusPeriod';
 
 interface FocusPeriodModalProps {
   focusPeriod: FocusPeriod;
+  includesForecast?: boolean;
   dataExtent?: [Date, Date];
   onSave: (focusPeriod: FocusPeriod) => void;
+  onIncludesForecastChange?: (includesForecast: boolean) => void;
   onClose: () => void;
   anchorElement?: HTMLElement;
 }
 
 export function FocusPeriodModal({
   focusPeriod,
+  includesForecast = false,
   dataExtent,
   onSave,
+  onIncludesForecastChange,
   onClose,
   anchorElement
 }: FocusPeriodModalProps) {
@@ -97,10 +101,10 @@ export function FocusPeriodModal({
   return (
     <div
       ref={popupRef}
-      className="absolute bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
+      className="fixed bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
       style={{
-        top: anchorElement ? anchorElement.offsetTop + anchorElement.offsetHeight + 5 : '50%',
-        right: anchorElement ? `calc(100% - ${anchorElement.offsetLeft + anchorElement.offsetWidth}px)` : 'auto',
+        top: anchorElement ? anchorElement.getBoundingClientRect().bottom + 5 : '50%',
+        right: anchorElement ? `calc(100vw - ${anchorElement.getBoundingClientRect().right}px)` : 'auto',
         width: '280px'
       }}
     >
@@ -144,6 +148,18 @@ export function FocusPeriodModal({
             max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
             className="w-full text-sm border border-gray-300 rounded px-2 py-1"
           />
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={includesForecast}
+              onChange={(e) => onIncludesForecastChange?.(e.target.checked)}
+              className="cursor-pointer"
+            />
+            <span>Include forecast in comparisons</span>
+          </label>
         </div>
       </div>
 
