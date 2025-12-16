@@ -83,6 +83,30 @@ export const MetricRow = memo(function MetricRow({
   const [editedGroup, setEditedGroup] = useState(metric.group || '');
   const [isChartExpanded, setIsChartExpanded] = useState(false);
 
+  // Helper function to get default forecast config
+  const getDefaultForecastConfig = () => {
+    // Calculate first day of current quarter
+    const today = new Date();
+    const currentQuarter = Math.floor(today.getMonth() / 3);
+    const quarterStartDate = new Date(today.getFullYear(), currentQuarter * 3, 1);
+
+    // Calculate days to end of quarter
+    const endOfQuarterMonth = (currentQuarter + 1) * 3 - 1;
+    const endOfQuarter = new Date(today.getFullYear(), endOfQuarterMonth + 1, 0);
+    const diffTime = endOfQuarter.getTime() - quarterStartDate.getTime();
+    const daysToEOQ = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return {
+      enabled: false,
+      startDate: quarterStartDate,
+      horizon: daysToEOQ,
+      seasonal: 'none' as const,
+      showConfidenceIntervals: true,
+      confidenceLevel: 95,
+      type: 'auto' as const
+    };
+  };
+
   const handleNameSave = () => {
     if (editedName.trim()) {
       onMetricUpdate({
@@ -275,15 +299,13 @@ export const MetricRow = memo(function MetricRow({
                 onClick={() => {
                   setShowForecastControls(!showForecastControls);
                   if (!showForecastControls && !metric.forecast?.enabled) {
+                    const defaultConfig = getDefaultForecastConfig();
                     onMetricUpdate({
                       ...metric,
                       forecast: {
                         ...metric.forecast,
-                        enabled: true,
-                        horizon: 90,
-                        seasonal: 'none',
-                        showConfidenceIntervals: true,
-                        confidenceLevel: 95
+                        ...defaultConfig,
+                        enabled: true
                       }
                     });
                   }
@@ -328,7 +350,7 @@ export const MetricRow = memo(function MetricRow({
           {showForecastControls && (
             <div className="absolute z-20 bg-white border border-gray-300 rounded-lg p-4 shadow-lg mt-2" style={{ width: '312px' }}>
               <ForecastControls
-                config={metric.forecast || { enabled: false, horizon: 90, seasonal: 'none', showConfidenceIntervals: true, confidenceLevel: 95 }}
+                config={metric.forecast || getDefaultForecastConfig()}
                 onChange={(config) => onMetricUpdate({ ...metric, forecast: config })}
               />
               <button

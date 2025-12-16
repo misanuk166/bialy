@@ -51,10 +51,14 @@ export function calculateMetricRowValues(
 
   // Generate forecast if enabled
   let forecastData: Array<{ date: Date; value: number }> = [];
+  let rawForecastData: Array<{ date: Date; value: number }> = []; // Keep raw forecast for range calculation
+  let forecastConfidenceIntervals: { upper: number[]; lower: number[] } | undefined;
   if (forecastConfig?.enabled) {
     const forecastResult = generateForecast(displayData, forecastConfig);
     if (forecastResult) {
+      rawForecastData = forecastResult.forecast; // Store raw forecast
       forecastData = forecastResult.forecast;
+      forecastConfidenceIntervals = forecastResult.confidenceIntervals;
 
       // If aggregation is enabled, apply it to forecast data as well
       if (aggregationConfig?.enabled) {
@@ -88,16 +92,20 @@ export function calculateMetricRowValues(
     return diff < 24 * 60 * 60 * 1000; // 1 day tolerance
   });
 
-  // Track if we're using a forecast point
+  // Track if we're using a forecast point and its index
   let isForecastPoint = false;
+  let forecastPointIndex = -1;
 
   // If not found in display data, check forecast data
   if (!currentPoint && forecastData.length > 0) {
-    currentPoint = forecastData.find(p => {
+    forecastPointIndex = forecastData.findIndex(p => {
       const diff = Math.abs(p.date.getTime() - dateTime);
       return diff < 24 * 60 * 60 * 1000; // 1 day tolerance
     });
-    isForecastPoint = !!currentPoint;
+    if (forecastPointIndex >= 0) {
+      currentPoint = forecastData[forecastPointIndex];
+      isForecastPoint = true;
+    }
   }
 
   if (!currentPoint) {
@@ -108,11 +116,60 @@ export function calculateMetricRowValues(
   let selectionValue: number;
   let selectionRange: { min: number; max: number } | undefined;
 
-  // If this is a forecast point, just use the forecast value directly
-  if (isForecastPoint) {
+  // If this is a forecast point, calculate mean/range the same way as actual data
+  if (isForecastPoint && aggregationConfig?.enabled) {
+    // For aggregated forecast data, calculate mean and range from raw forecast points in the aggregated period
+    const aggregatedPointDate = currentPoint.date;
+
+    // Determine the period start based on aggregation mode (same logic as actual data)
+    let periodStart: Date;
+    let periodEnd: Date = new Date(aggregatedPointDate);
+
+    if (aggregationConfig.mode === 'groupBy') {
+      periodStart = new Date(aggregatedPointDate);
+      periodEnd = new Date(aggregatedPointDate);
+
+      switch (aggregationConfig.groupByPeriod) {
+        case 'week':
+          periodStart.setDate(periodStart.getDate() - 6);
+          break;
+        case 'month':
+          periodStart.setMonth(periodStart.getMonth(), 1);
+          break;
+        case 'quarter':
+          const quarter = Math.floor(periodStart.getMonth() / 3);
+          periodStart.setMonth(quarter * 3, 1);
+          break;
+        case 'year':
+          periodStart.setMonth(0, 1);
+          break;
+      }
+    } else {
+      // For smoothing, use the window size
+      periodStart = new Date(aggregatedPointDate);
+      const periodDays = aggregationConfig.period;
+      periodStart.setDate(periodStart.getDate() - periodDays + 1);
+    }
+
+    // Find all raw forecast points within this period
+    const periodForecastData = rawForecastData.filter(d =>
+      d.date >= periodStart && d.date <= periodEnd
+    );
+
+    if (periodForecastData.length > 0) {
+      const values = periodForecastData.map(d => d.value);
+      selectionValue = values.reduce((sum, v) => sum + v, 0) / values.length;
+      selectionRange = {
+        min: Math.min(...values),
+        max: Math.max(...values)
+      };
+    } else {
+      // Fallback to aggregated value
+      selectionValue = currentPoint.value;
+    }
+  } else if (isForecastPoint) {
+    // No aggregation: just use the forecast point value
     selectionValue = currentPoint.value;
-    // No range for forecast points
-    selectionRange = undefined;
   } else if (aggregationConfig?.enabled) {
     // For aggregated data, calculate mean and range from all raw points in the aggregated period
     // Find the aggregated period boundaries
