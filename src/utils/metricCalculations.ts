@@ -167,6 +167,11 @@ export function calculateMetricRowValues(
   } else if (isForecastPoint) {
     // No aggregation: just use the forecast point value
     selectionValue = currentPoint.value;
+    // For consistency, set range to the same value
+    selectionRange = {
+      min: currentPoint.value,
+      max: currentPoint.value
+    };
   } else if (aggregationConfig?.enabled) {
     // For aggregated data, calculate mean and range from all raw points in the aggregated period
     // Find the aggregated period boundaries
@@ -222,6 +227,11 @@ export function calculateMetricRowValues(
   } else {
     // No aggregation: just use the point value
     selectionValue = currentPoint.value;
+    // For consistency, set range to the same value
+    selectionRange = {
+      min: currentPoint.value,
+      max: currentPoint.value
+    };
   }
 
   // Calculate shadow values
