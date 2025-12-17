@@ -6,9 +6,11 @@ import type { ForecastConfig, ForecastSnapshot } from '../types/forecast';
 import type { FocusPeriod } from '../types/focusPeriod';
 import type { Shadow } from '../types/shadow';
 import type { Goal } from '../types/goal';
+import type { Annotation } from '../types/annotation';
 import { applyAggregation, normalizeSelectionDate } from '../utils/aggregation';
 import { generateShadowsData, calculateShadowAverage } from '../utils/shadows';
 import { generateGoalsData } from '../utils/goals';
+import { generateAnnotationData, mergeAnnotations } from '../utils/annotations';
 
 interface CompactTimeSeriesChartProps {
   series: Series;
@@ -19,6 +21,9 @@ interface CompactTimeSeriesChartProps {
   forecastSnapshot?: ForecastSnapshot;
   focusPeriod?: FocusPeriod;
   goals?: Goal[];
+  annotations?: Annotation[];
+  annotationsEnabled?: boolean;
+  metricAnnotations?: Annotation[];
   xDomain: [Date, Date];
   width: number;
   height?: number;
@@ -39,6 +44,9 @@ export function CompactTimeSeriesChart({
   forecastSnapshot,
   focusPeriod,
   goals = [],
+  annotations = [],
+  annotationsEnabled = false,
+  metricAnnotations = [],
   xDomain,
   width,
   height = 72,
@@ -183,6 +191,105 @@ export function CompactTimeSeriesChart({
         .attr('height', innerHeight)
         .attr('fill', '#fbbf24')
         .attr('fill-opacity', 0.1);
+    }
+
+    // Draw annotations (if enabled)
+    if (annotationsEnabled) {
+      const allAnnotations = mergeAnnotations(annotations, metricAnnotations);
+      const annotationData = generateAnnotationData(allAnnotations, xDomain);
+
+      // Draw range annotations first (as background with hover labels)
+      annotationData
+        .filter(ad => ad.annotation.type === 'range')
+        .forEach(ad => {
+          const annotation = ad.annotation;
+          if (annotation.startDate && annotation.endDate) {
+            const startX = xScale(annotation.startDate);
+            const endX = xScale(annotation.endDate);
+
+            // Create a group for the annotation
+            const annotationGroup = g.append('g')
+              .attr('class', `annotation-range-group-${annotation.id}`);
+
+            // Draw the range rectangle
+            const rangeRect = annotationGroup.append('rect')
+              .attr('x', startX)
+              .attr('y', 0)
+              .attr('width', endX - startX)
+              .attr('height', innerHeight)
+              .attr('fill', ad.color)
+              .attr('fill-opacity', annotation.opacity || 0.1)
+              .attr('cursor', 'help');
+
+            // Prepare label (full text, no truncation)
+            const labelText = annotation.label;
+            const labelX = startX + (endX - startX) / 2;
+            const labelY = innerHeight / 2;
+            const labelWidth = Math.max(labelText.length * 5.5, 40);
+
+            // Create label background (hidden initially)
+            const labelBg = annotationGroup.append('rect')
+              .attr('x', labelX - labelWidth / 2 - 2)
+              .attr('y', labelY - 6)
+              .attr('width', labelWidth + 4)
+              .attr('height', 11)
+              .attr('fill', 'white')
+              .attr('fill-opacity', 0.9)
+              .attr('stroke', ad.color)
+              .attr('stroke-width', 0.5)
+              .attr('rx', 2)
+              .style('display', 'none');
+
+            // Create label text (hidden initially)
+            const labelTextElem = annotationGroup.append('text')
+              .attr('x', labelX)
+              .attr('y', labelY + 2)
+              .attr('text-anchor', 'middle')
+              .attr('font-size', '8px')
+              .attr('fill', ad.color)
+              .attr('font-weight', 'bold')
+              .text(labelText)
+              .style('display', 'none');
+
+            // Show label on mouseover
+            rangeRect.on('mouseover', function() {
+              labelBg.style('display', null);
+              labelTextElem.style('display', null);
+            });
+
+            // Hide label on mouseout
+            rangeRect.on('mouseout', function() {
+              labelBg.style('display', 'none');
+              labelTextElem.style('display', 'none');
+            });
+
+            // Add title for native tooltip
+            rangeRect.append('title')
+              .text(annotation.label + (annotation.description ? `\n${annotation.description}` : ''));
+          }
+        });
+
+      // Draw event annotations (vertical lines only - interactive elements added later)
+      annotationData
+        .filter(ad => ad.annotation.type === 'event')
+        .forEach(ad => {
+          const annotation = ad.annotation;
+          if (annotation.date) {
+            const xPos = xScale(annotation.date);
+
+            // Draw vertical line (visual element only)
+            g.append('line')
+              .attr('class', `annotation-event-line-${annotation.id}`)
+              .attr('x1', xPos)
+              .attr('x2', xPos)
+              .attr('y1', 0)
+              .attr('y2', innerHeight)
+              .attr('stroke', ad.color)
+              .attr('stroke-width', 1)
+              .attr('stroke-dasharray', annotation.style === 'dashed' ? '2,2' : '0')
+              .attr('opacity', 0.5);
+          }
+        });
     }
 
     // Draw confidence interval
@@ -702,6 +809,97 @@ export function CompactTimeSeriesChart({
         onClick(closestPoint.date);
       }
     });
+
+    // Add annotation interactive elements on top of overlay
+    if (annotationsEnabled) {
+      const allAnnotations = mergeAnnotations(annotations, metricAnnotations);
+      const annotationData = generateAnnotationData(allAnnotations, xDomain);
+
+      // Add interactive elements for event annotations
+      annotationData
+        .filter(ad => ad.annotation.type === 'event')
+        .forEach(ad => {
+          const annotation = ad.annotation;
+          if (annotation.date) {
+            const xPos = xScale(annotation.date);
+
+            // Create a group for interactive elements (on top of overlay)
+            const interactiveGroup = g.append('g')
+              .attr('class', `annotation-event-interactive-${annotation.id}`);
+
+            // Add a small circle at the top for easier hover targeting
+            const topCircle = interactiveGroup.append('circle')
+              .attr('cx', xPos)
+              .attr('cy', 3)
+              .attr('r', 3)
+              .attr('fill', ad.color)
+              .attr('stroke', 'white')
+              .attr('stroke-width', 1)
+              .attr('cursor', 'help')
+              .attr('pointer-events', 'all');
+
+            // Invisible wider line for easier mouse targeting
+            const hitArea = interactiveGroup.append('line')
+              .attr('x1', xPos)
+              .attr('x2', xPos)
+              .attr('y1', 0)
+              .attr('y2', innerHeight)
+              .attr('stroke', 'transparent')
+              .attr('stroke-width', 10)
+              .attr('cursor', 'help')
+              .attr('pointer-events', 'all');
+
+            // Prepare label (full text, no truncation)
+            const labelText = annotation.label;
+            const labelWidth = Math.max(labelText.length * 5.5, 40);
+
+            // Create label background (hidden initially)
+            const labelBg = interactiveGroup.append('rect')
+              .attr('x', xPos + 1)
+              .attr('y', 1)
+              .attr('width', labelWidth + 4)
+              .attr('height', 11)
+              .attr('fill', 'white')
+              .attr('fill-opacity', 0.9)
+              .attr('rx', 2)
+              .attr('stroke', ad.color)
+              .attr('stroke-width', 0.5)
+              .attr('pointer-events', 'none')
+              .style('display', 'none');
+
+            // Create label text (hidden initially)
+            const labelTextElem = interactiveGroup.append('text')
+              .attr('x', xPos + 3)
+              .attr('y', 9)
+              .attr('text-anchor', 'start')
+              .attr('font-size', '8px')
+              .attr('fill', ad.color)
+              .attr('font-weight', 'bold')
+              .attr('pointer-events', 'none')
+              .text(labelText)
+              .style('display', 'none');
+
+            // Show label on mouseover (for both circle and hit area)
+            const showLabel = function() {
+              labelBg.style('display', null);
+              labelTextElem.style('display', null);
+            };
+            const hideLabel = function() {
+              labelBg.style('display', 'none');
+              labelTextElem.style('display', 'none');
+            };
+
+            hitArea.on('mouseover', showLabel);
+            hitArea.on('mouseout', hideLabel);
+            topCircle.on('mouseover', showLabel);
+            topCircle.on('mouseout', hideLabel);
+
+            // Add title for native tooltip
+            hitArea.append('title')
+              .text(annotation.label + (annotation.description ? `\n${annotation.description}` : ''));
+          }
+        });
+    }
 
     // Show hover indicators from parent (synchronized across all charts)
     if (currentHoverDate) {

@@ -9,6 +9,7 @@ import type { MetricConfig, GlobalSettings, ViewMode } from './types/appState';
 import type { AggregationConfig } from './utils/aggregation';
 import type { Shadow } from './types/shadow';
 import type { FocusPeriod } from './types/focusPeriod';
+import type { Annotation } from './types/annotation';
 import type { DateRange } from './components/RangeControls';
 import { DEFAULT_SELECTION_COMPARISONS, DEFAULT_FOCUS_COMPARISONS, type ComparisonConfig } from './types/comparison';
 
@@ -32,7 +33,9 @@ function App() {
     },
     comparisons: [...DEFAULT_SELECTION_COMPARISONS, ...DEFAULT_FOCUS_COMPARISONS],
     selectionIncludesForecast: false,
-    focusIncludesForecast: false
+    focusIncludesForecast: false,
+    annotations: [],
+    annotationsEnabled: false
   });
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [expandedMetricId, setExpandedMetricId] = useState<string | null>(null);
@@ -122,6 +125,10 @@ function App() {
 
   const handleFocusPeriodChange = (focusPeriod: FocusPeriod) => {
     setGlobalSettings(prev => ({ ...prev, focusPeriod }));
+  };
+
+  const handleAnnotationsChange = (annotations: Annotation[], annotationsEnabled: boolean) => {
+    setGlobalSettings(prev => ({ ...prev, annotations, annotationsEnabled }));
   };
 
   const handleDateRangeChange = (dateRange: DateRange) => {
@@ -259,6 +266,7 @@ function App() {
                   onDateRangeChange={handleDateRangeChange}
                   onComparisonsChange={handleComparisonsChange}
                   onForecastInclusionChange={handleForecastInclusionChange}
+                  onAnnotationsChange={handleAnnotationsChange}
                   onAddMetric={handleAddMetric}
                   onClearAllMetrics={handleClearAllMetrics}
                 />

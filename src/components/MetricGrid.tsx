@@ -21,11 +21,13 @@ import { AggregateControls } from './AggregateControls';
 import { ShadowControls } from './ShadowControls';
 import { RangeControls, type DateRange } from './RangeControls';
 import { ComparisonControls } from './ComparisonControls';
+import { AnnotationControls } from './AnnotationControls';
 import type { MetricConfig, GlobalSettings, ColumnKey } from '../types/appState';
 import type { FocusPeriod } from '../types/focusPeriod';
 import type { AggregationConfig } from '../utils/aggregation';
 import type { Shadow } from '../types/shadow';
 import type { ComparisonConfig } from '../types/comparison';
+import type { Annotation } from '../types/annotation';
 import { calculateMetricRowValues, calculateComparisons } from '../utils/metricCalculations';
 import { normalizeSelectionDate } from '../utils/aggregation';
 import { calculateDateRange } from '../utils/dateRange';
@@ -45,6 +47,7 @@ interface MetricGridProps {
   onDateRangeChange: (range: DateRange) => void;
   onComparisonsChange: (comparisons: ComparisonConfig[]) => void;
   onForecastInclusionChange: (selectionIncludes: boolean, focusIncludes: boolean) => void;
+  onAnnotationsChange: (annotations: Annotation[], annotationsEnabled: boolean) => void;
   onAddMetric: () => void;
   onClearAllMetrics: () => void;
 }
@@ -106,6 +109,7 @@ export function MetricGrid({
   onDateRangeChange,
   onComparisonsChange,
   onForecastInclusionChange,
+  onAnnotationsChange,
   onAddMetric,
   onClearAllMetrics
 }: MetricGridProps) {
@@ -119,6 +123,7 @@ export function MetricGrid({
   const [showAggregationModal, setShowAggregationModal] = useState(false);
   const [showShadowModal, setShowShadowModal] = useState(false);
   const [showRangeModal, setShowRangeModal] = useState(false);
+  const [showAnnotationModal, setShowAnnotationModal] = useState(false);
   const [showComparisonModal, setShowComparisonModal] = useState(false);
   const [comparisonModalPeriodType, setComparisonModalPeriodType] = useState<'selection' | 'focus' | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -130,11 +135,13 @@ export function MetricGrid({
   const focusPeriodEditButtonRef = useRef<HTMLButtonElement>(null);
   const aggregationEditButtonRef = useRef<HTMLButtonElement>(null);
   const shadowEditButtonRef = useRef<HTMLButtonElement>(null);
+  const annotationEditButtonRef = useRef<HTMLButtonElement>(null);
   const rangeEditButtonRef = useRef<HTMLButtonElement>(null);
   const comparisonEditButtonRef = useRef<HTMLButtonElement>(null);
   const groupSetInputRef = useRef<HTMLInputElement>(null);
   const aggregationPopupRef = useRef<HTMLDivElement>(null);
   const shadowPopupRef = useRef<HTMLDivElement>(null);
+  const annotationPopupRef = useRef<HTMLDivElement>(null);
   const rangePopupRef = useRef<HTMLDivElement>(null);
   const comparisonPopupRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -230,6 +237,9 @@ export function MetricGrid({
       if (shadowPopupRef.current && !shadowPopupRef.current.contains(event.target as Node)) {
         setShowShadowModal(false);
       }
+      if (annotationPopupRef.current && !annotationPopupRef.current.contains(event.target as Node)) {
+        setShowAnnotationModal(false);
+      }
       if (rangePopupRef.current && !rangePopupRef.current.contains(event.target as Node)) {
         setShowRangeModal(false);
       }
@@ -239,11 +249,11 @@ export function MetricGrid({
       }
     };
 
-    if (showAggregationModal || showShadowModal || showRangeModal || showComparisonModal) {
+    if (showAggregationModal || showShadowModal || showAnnotationModal || showRangeModal || showComparisonModal) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showAggregationModal, showShadowModal, showRangeModal, showComparisonModal]);
+  }, [showAggregationModal, showShadowModal, showAnnotationModal, showRangeModal, showComparisonModal]);
 
   // Note: Selection Period and Focus Period modals handle their own click-outside logic
 
@@ -727,8 +737,9 @@ export function MetricGrid({
     '74px',  // Group name
     '20px',  // Metric index
     '273px', // Metric name
-    `${chartWidth / 2}px`, // Chart column 1
-    `${chartWidth / 2}px`, // Chart column 2
+    `${chartWidth / 3}px`, // Chart column 1 (Aggregation)
+    `${chartWidth / 3}px`, // Chart column 2 (Shadow)
+    `${chartWidth / 3}px`, // Chart column 3 (Annotations)
     `100px`, // Selection Mean/Range
     ...selectionComparisons.map(() => '100px'), // Selection comparisons
     `100px`, // Focus Mean/Range
@@ -921,6 +932,7 @@ export function MetricGrid({
             </button>
           </div>
 
+          {/* Chart Column Sub-headers - these 3 columns share the chart area width equally */}
           {/* Aggregation with Edit button */}
           <div className="px-1.5 text-xs font-semibold text-gray-700 text-center flex items-center justify-center gap-1">
             <span>Aggregation</span>
@@ -932,6 +944,8 @@ export function MetricGrid({
                   ...globalSettings.aggregation,
                   enabled: true,
                   mode: 'groupBy',
+                  period: 7,
+                  unit: 'days',
                   groupByPeriod: 'week'
                 });
                 setShowAggregationModal(true);
@@ -944,13 +958,26 @@ export function MetricGrid({
           </div>
 
           {/* Shadow with Edit button */}
-          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 flex items-center justify-center gap-1">
+          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center flex items-center justify-center gap-1">
             <span>Shadow</span>
             <button
               ref={shadowEditButtonRef}
               onClick={() => setShowShadowModal(true)}
               className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
               title="Edit shadow"
+            >
+              Edit
+            </button>
+          </div>
+
+          {/* Annotations with Edit button */}
+          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 flex items-center justify-center gap-1">
+            <span>Annotations</span>
+            <button
+              ref={annotationEditButtonRef}
+              onClick={() => setShowAnnotationModal(true)}
+              className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
+              title="Edit annotations"
             >
               Edit
             </button>
@@ -1092,6 +1119,32 @@ export function MetricGrid({
           />
           <button
             onClick={() => setShowShadowModal(false)}
+            className="mt-3 w-full text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+          >
+            Close
+          </button>
+        </div>
+      )}
+
+      {/* Annotation Popup */}
+      {showAnnotationModal && (
+        <div
+          ref={annotationPopupRef}
+          className="fixed bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50 max-h-[80vh] overflow-y-auto"
+          style={{
+            top: annotationEditButtonRef.current ? annotationEditButtonRef.current.getBoundingClientRect().bottom + 5 : '50%',
+            left: annotationEditButtonRef.current ? annotationEditButtonRef.current.getBoundingClientRect().left : '50%',
+            width: '400px'
+          }}
+        >
+          <AnnotationControls
+            annotations={globalSettings.annotations || []}
+            onChange={(annotations) => onAnnotationsChange(annotations, globalSettings.annotationsEnabled || false)}
+            enabled={globalSettings.annotationsEnabled || false}
+            onEnabledChange={(enabled) => onAnnotationsChange(globalSettings.annotations || [], enabled)}
+          />
+          <button
+            onClick={() => setShowAnnotationModal(false)}
             className="mt-3 w-full text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
           >
             Close

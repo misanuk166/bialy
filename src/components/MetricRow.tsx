@@ -450,6 +450,9 @@ export const MetricRow = memo(function MetricRow({
             forecastSnapshot={metric.forecastSnapshot}
             focusPeriod={globalSettings.focusPeriod}
             goals={isChartExpanded && (metric.goalsEnabled !== false) ? (metric.goals || []) : []}
+            annotations={globalSettings.annotations}
+            annotationsEnabled={globalSettings.annotationsEnabled}
+            metricAnnotations={metric.annotations}
             xDomain={xDomain}
             width={chartWidth - 8}
             height={isChartExpanded ? 380 : 58}

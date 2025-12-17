@@ -1,10 +1,12 @@
 import { AggregateControls } from './AggregateControls';
 import { ShadowControls } from './ShadowControls';
 import { FocusPeriodControls } from './FocusPeriodControls';
+import { AnnotationControls } from './AnnotationControls';
 import type { GlobalSettings } from '../types/appState';
 import type { AggregationConfig } from '../utils/aggregation';
 import type { Shadow } from '../types/shadow';
 import type { FocusPeriod } from '../types/focusPeriod';
+import type { Annotation } from '../types/annotation';
 
 interface GlobalControlPanelProps {
   settings: GlobalSettings;
@@ -12,6 +14,7 @@ interface GlobalControlPanelProps {
   onAggregationChange: (config: AggregationConfig) => void;
   onShadowsChange: (shadows: Shadow[], averageShadows: boolean) => void;
   onFocusPeriodChange: (focusPeriod: FocusPeriod) => void;
+  onAnnotationsChange: (annotations: Annotation[], enabled: boolean) => void;
 }
 
 export function GlobalControlPanel({
@@ -19,7 +22,8 @@ export function GlobalControlPanel({
   dataExtent,
   onAggregationChange,
   onShadowsChange,
-  onFocusPeriodChange
+  onFocusPeriodChange,
+  onAnnotationsChange
 }: GlobalControlPanelProps) {
   return (
     <div className="bg-white border border-gray-300 rounded-lg p-4 mb-6 sticky top-0 z-10 shadow-sm">
@@ -53,6 +57,15 @@ export function GlobalControlPanel({
             focusPeriod={settings.focusPeriod || { enabled: false }}
             onChange={onFocusPeriodChange}
             dataExtent={dataExtent}
+          />
+        </div>
+        <div>
+          <h3 className="text-sm font-medium text-gray-700 mb-2">Annotations</h3>
+          <AnnotationControls
+            annotations={settings.annotations || []}
+            onChange={(annotations) => onAnnotationsChange(annotations, settings.annotationsEnabled || false)}
+            enabled={settings.annotationsEnabled || false}
+            onEnabledChange={(enabled) => onAnnotationsChange(settings.annotations || [], enabled)}
           />
         </div>
       </div>

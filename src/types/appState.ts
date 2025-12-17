@@ -6,6 +6,7 @@ import type { ForecastConfig, ForecastSnapshot } from './forecast';
 import type { FocusPeriod } from './focusPeriod';
 import type { DateRange } from '../components/RangeControls';
 import type { ComparisonConfig, ComparisonResult } from './comparison';
+import type { Annotation } from './annotation';
 
 /**
  * Global settings applied to all metrics
@@ -19,6 +20,8 @@ export interface GlobalSettings {
   comparisons?: ComparisonConfig[];
   selectionIncludesForecast?: boolean;
   focusIncludesForecast?: boolean;
+  annotations?: Annotation[]; // Global annotations displayed on all metrics
+  annotationsEnabled?: boolean; // Master toggle for all annotations
 }
 
 /**
@@ -32,6 +35,8 @@ export interface MetricConfig {
   goalsEnabled?: boolean;
   forecast?: ForecastConfig;
   forecastSnapshot?: ForecastSnapshot; // Cached forecast values
+  annotations?: Annotation[]; // Metric-specific annotations (supplement global)
+  annotationsEnabled?: boolean; // Toggle for metric-specific annotations
   group?: string;
   groupIndex?: number;
   metricIndex?: number;

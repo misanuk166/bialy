@@ -109,6 +109,28 @@ function deserializeGlobalSettings(settings: GlobalSettings): GlobalSettings {
     deserialized.dateRange.endDate = new Date(deserialized.dateRange.endDate);
   }
 
+  // Deserialize annotation dates
+  if (deserialized.annotations) {
+    // Old hardcoded colors to remove (migration to new pale purple defaults)
+    const oldColors = ['#3b82f6', '#ef4444', '#fb923c', '#10b981', '#8b5cf6'];
+
+    deserialized.annotations = deserialized.annotations.map(annotation => {
+      const updated = {
+        ...annotation,
+        date: annotation.date ? new Date(annotation.date) : undefined,
+        startDate: annotation.startDate ? new Date(annotation.startDate) : undefined,
+        endDate: annotation.endDate ? new Date(annotation.endDate) : undefined
+      };
+
+      // Remove old hardcoded colors so new defaults apply
+      if (updated.color && oldColors.includes(updated.color)) {
+        delete updated.color;
+      }
+
+      return updated;
+    });
+  }
+
   return deserialized;
 }
 
@@ -143,6 +165,28 @@ function deserializeMetric(metric: MetricConfig): MetricConfig {
       startDate: goal.startDate ? new Date(goal.startDate) : undefined,
       endDate: goal.endDate ? new Date(goal.endDate) : undefined
     }));
+  }
+
+  // Deserialize annotation dates (metric-specific)
+  if (deserialized.annotations) {
+    // Old hardcoded colors to remove (migration to new pale purple defaults)
+    const oldColors = ['#3b82f6', '#ef4444', '#fb923c', '#10b981', '#8b5cf6'];
+
+    deserialized.annotations = deserialized.annotations.map(annotation => {
+      const updated = {
+        ...annotation,
+        date: annotation.date ? new Date(annotation.date) : undefined,
+        startDate: annotation.startDate ? new Date(annotation.startDate) : undefined,
+        endDate: annotation.endDate ? new Date(annotation.endDate) : undefined
+      };
+
+      // Remove old hardcoded colors so new defaults apply
+      if (updated.color && oldColors.includes(updated.color)) {
+        delete updated.color;
+      }
+
+      return updated;
+    });
   }
 
   return deserialized;
