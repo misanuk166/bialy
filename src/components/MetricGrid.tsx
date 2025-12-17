@@ -29,6 +29,7 @@ import type { ComparisonConfig } from '../types/comparison';
 import { calculateMetricRowValues, calculateComparisons } from '../utils/metricCalculations';
 import { normalizeSelectionDate } from '../utils/aggregation';
 import { calculateDateRange } from '../utils/dateRange';
+import { updateComparisonLabelsForShadows } from '../utils/shadowLabels';
 
 interface MetricGridProps {
   metrics: MetricConfig[];
@@ -159,6 +160,26 @@ export function MetricGrid({
     };
   }, []);
 
+  // Update comparison labels when shadows change
+  useEffect(() => {
+    if (!globalSettings.shadows || globalSettings.shadows.length === 0) return;
+    if (!globalSettings.comparisons || globalSettings.comparisons.length === 0) return;
+
+    const updatedComparisons = updateComparisonLabelsForShadows(
+      globalSettings.comparisons,
+      globalSettings.shadows
+    );
+
+    // Only update if labels actually changed
+    const hasChanged = updatedComparisons.some((comp, idx) =>
+      comp.label !== globalSettings.comparisons?.[idx]?.label
+    );
+
+    if (hasChanged) {
+      onComparisonsChange(updatedComparisons);
+    }
+  }, [globalSettings.shadows]); // Only watch shadows, not comparisons to avoid loops
+
   // Calculate initial x-domain from all metrics and set initial selection
   useEffect(() => {
     if (metrics.length === 0) return;
@@ -237,7 +258,8 @@ export function MetricGrid({
         globalSettings.averageShadows,
         metric.goals,
         globalSettings.focusPeriod,
-        metric.forecast
+        metric.forecast,
+        metric.forecastSnapshot
       );
 
       // Calculate dynamic comparisons
@@ -251,6 +273,7 @@ export function MetricGrid({
         globalSettings.averageShadows,
         metric.goals,
         metric.forecast,
+        metric.forecastSnapshot,
         globalSettings.comparisons,
         globalSettings.selectionIncludesForecast,
         globalSettings.focusIncludesForecast

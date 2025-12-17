@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ComparisonConfig, ComparisonType, ComparisonPeriodType } from '../types/comparison';
 import type { Shadow } from '../types/shadow';
 import type { Goal } from '../types/goal';
+import { generateShadowPeriodLabel } from '../utils/shadowLabels';
 
 interface ComparisonControlsProps {
   comparisons: ComparisonConfig[];
@@ -41,9 +42,11 @@ export function ComparisonControls({
       case 'shadow': {
         if (targetIndex !== undefined && shadows && targetIndex < shadows.length) {
           const shadow = shadows.filter(s => s.enabled)[targetIndex];
-          return shadow?.label || `vs ${type}`;
+          return shadow ? generateShadowPeriodLabel(shadow) : `vs ${type}`;
         }
-        return 'vs Shadow';
+        // Default to first enabled shadow if no specific index
+        const firstShadow = shadows?.find(s => s.enabled);
+        return firstShadow ? generateShadowPeriodLabel(firstShadow) : 'vs Shadow';
       }
       case 'goal': {
         const enabledGoals = goals?.filter(g => g.enabled) || [];

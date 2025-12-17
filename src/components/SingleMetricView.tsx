@@ -79,6 +79,7 @@ export function SingleMetricView({
                 averageShadows={globalSettings.averageShadows}
                 goals={metric.goalsEnabled ? metric.goals : []}
                 forecastConfig={metric.forecast}
+                forecastSnapshot={metric.forecastSnapshot}
                 focusPeriod={globalSettings.focusPeriod}
                 onSeriesUpdate={(series) => onMetricUpdate({ ...metric, series })}
               />

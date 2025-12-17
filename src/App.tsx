@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CSVUpload } from './components/CSVUpload';
 import { MetricGrid } from './components/MetricGrid';
 import { SingleMetricView } from './components/SingleMetricView';
 import { loadSyntheticMetrics } from './utils/generateSyntheticData';
+import { saveAppState, loadAppState } from './utils/localStorage';
 import type { Series } from './types/series';
 import type { MetricConfig, GlobalSettings, ViewMode } from './types/appState';
 import type { AggregationConfig } from './utils/aggregation';
@@ -40,6 +41,31 @@ function App() {
   const [description, setDescription] = useState('Multi-metric time series data visualization and analysis');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
+
+  // Load app state from localStorage on mount
+  useEffect(() => {
+    const savedState = loadAppState();
+    if (savedState) {
+      console.log('Loaded app state from localStorage');
+      if (savedState.metrics) setMetrics(savedState.metrics);
+      if (savedState.globalSettings) setGlobalSettings(savedState.globalSettings);
+      if (savedState.viewMode) setViewMode(savedState.viewMode);
+      if (savedState.expandedMetricId) setExpandedMetricId(savedState.expandedMetricId);
+    }
+  }, []);
+
+  // Save app state to localStorage whenever it changes
+  useEffect(() => {
+    // Only save if we have metrics (don't save empty initial state)
+    if (metrics.length > 0) {
+      saveAppState({
+        metrics,
+        globalSettings,
+        viewMode,
+        expandedMetricId: expandedMetricId ?? undefined
+      });
+    }
+  }, [metrics, globalSettings, viewMode, expandedMetricId]);
 
   const handleSeriesLoaded = (series: Series) => {
     setMetrics(prevMetrics => {
@@ -122,32 +148,17 @@ function App() {
     setMetrics([]);
   };
 
-  // Get data extent for focus period controls (including forecast)
+  // Get data extent for focus period controls (primary series data only)
   const dataExtent = metrics.length > 0 ? (() => {
     const allDates: Date[] = [];
     metrics.forEach(m => {
+      // Only include primary series data (no forecasts, shadows, or goals)
       m.series.data.forEach(d => allDates.push(d.date));
-
-      // Include forecast extent if forecast is enabled
-      if (m.forecast?.enabled && m.forecast.horizon > 0) {
-        const lastDataDate = m.series.data[m.series.data.length - 1]?.date;
-        if (lastDataDate) {
-          // Calculate forecast end date (horizon is in days)
-          const forecastEndDate = new Date(lastDataDate);
-          forecastEndDate.setDate(forecastEndDate.getDate() + m.forecast.horizon);
-          allDates.push(forecastEndDate);
-        }
-      }
     });
     const extent = allDates.length > 0 ? [
       new Date(Math.min(...allDates.map(d => d.getTime()))),
       new Date(Math.max(...allDates.map(d => d.getTime())))
     ] as [Date, Date] : undefined;
-    console.log('Data extent calculated:', {
-      min: extent?.[0].toISOString(),
-      max: extent?.[1].toISOString(),
-      forecastsEnabled: metrics.filter(m => m.forecast?.enabled).length
-    });
     return extent;
   })() : undefined;
 

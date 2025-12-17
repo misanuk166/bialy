@@ -1,4 +1,4 @@
-import { useState, memo } from 'react';
+import { useState, memo, useEffect } from 'react';
 import { CompactTimeSeriesChart } from './CompactTimeSeriesChart';
 import { ColumnCell, RangeCell, MeanRangeCell, PercentAbsCell } from './ColumnCell';
 import { GoalControls } from './GoalControls';
@@ -6,6 +6,9 @@ import { ForecastControls } from './ForecastControls';
 import type { MetricConfig, GlobalSettings, MetricRowValues } from '../types/appState';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { applyAggregation } from '../utils/aggregation';
+import { generateForecast, forecastResultToSnapshot } from '../utils/forecasting';
+import { isForecastSnapshotValid } from '../utils/localStorage';
 
 interface ColorScaling {
   selectionVsShadow: { max: number; min: number };
@@ -129,6 +132,77 @@ export const MetricRow = memo(function MetricRow({
       group: editedGroup.trim() || undefined
     });
     setIsEditingGroup(false);
+  };
+
+  // Generate and save forecast snapshot
+  const generateAndSaveForecastSnapshot = () => {
+    if (!metric.forecast?.enabled) return;
+
+    try {
+      // Prepare data for forecast generation
+      let data: Array<{ date: Date; value: number }> = metric.series.data.map(d => ({
+        date: d.date,
+        value: d.numerator / d.denominator
+      }));
+
+      // Apply aggregation if enabled
+      if (globalSettings.aggregation?.enabled) {
+        const aggregated = applyAggregation(metric.series.data, globalSettings.aggregation);
+        data = aggregated.map(d => ({
+          date: d.date,
+          value: d.numerator / d.denominator
+        }));
+      }
+
+      // Generate forecast
+      const forecastResult = generateForecast(data, metric.forecast);
+
+      if (forecastResult) {
+        // Convert to snapshot
+        const snapshot = forecastResultToSnapshot(forecastResult, metric.forecast);
+
+        // Save snapshot to metric config
+        onMetricUpdate({
+          ...metric,
+          forecastSnapshot: snapshot
+        });
+
+        console.log(`Forecast snapshot saved for metric ${metric.series.metadata.name}`);
+      }
+    } catch (error) {
+      console.error('Failed to generate forecast snapshot:', error);
+    }
+  };
+
+  // Auto-generate snapshot if needed when forecast is enabled and no valid snapshot exists
+  useEffect(() => {
+    if (metric.forecast?.enabled) {
+      const isValid = isForecastSnapshotValid(metric.forecastSnapshot, metric.forecast, 24);
+      if (!isValid) {
+        // Delay snapshot generation slightly to avoid state update during render
+        const timer = setTimeout(() => {
+          generateAndSaveForecastSnapshot();
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metric.forecast?.enabled, metric.forecast?.horizon, metric.forecast?.seasonal, metric.forecast?.type, metric.forecast?.targetValue, metric.series.data.length]);
+
+  // Calculate snapshot age for display
+  const getSnapshotAge = (): string | undefined => {
+    if (!metric.forecastSnapshot) return undefined;
+
+    const generatedAt = new Date(metric.forecastSnapshot.generatedAt);
+    const ageMs = Date.now() - generatedAt.getTime();
+    const ageMinutes = Math.floor(ageMs / (1000 * 60));
+    const ageHours = Math.floor(ageMs / (1000 * 60 * 60));
+    const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
+
+    if (ageDays > 0) return `${ageDays} day${ageDays > 1 ? 's' : ''} ago`;
+    if (ageHours > 0) return `${ageHours} hour${ageHours > 1 ? 's' : ''} ago`;
+    if (ageMinutes > 0) return `${ageMinutes} minute${ageMinutes > 1 ? 's' : ''} ago`;
+    return 'Just now';
   };
 
   // Calculate dynamic grid template columns based on comparisons
@@ -352,6 +426,8 @@ export const MetricRow = memo(function MetricRow({
               <ForecastControls
                 config={metric.forecast || getDefaultForecastConfig()}
                 onChange={(config) => onMetricUpdate({ ...metric, forecast: config })}
+                onRefreshSnapshot={generateAndSaveForecastSnapshot}
+                snapshotAge={getSnapshotAge()}
               />
               <button
                 onClick={() => setShowForecastControls(false)}
@@ -371,6 +447,7 @@ export const MetricRow = memo(function MetricRow({
             shadows={globalSettings.shadows}
             averageShadows={globalSettings.averageShadows}
             forecastConfig={metric.forecast}
+            forecastSnapshot={metric.forecastSnapshot}
             focusPeriod={globalSettings.focusPeriod}
             goals={isChartExpanded && (metric.goalsEnabled !== false) ? (metric.goals || []) : []}
             xDomain={xDomain}

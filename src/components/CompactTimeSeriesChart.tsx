@@ -2,12 +2,11 @@ import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import type { Series } from '../types/series';
 import type { AggregationConfig } from '../utils/aggregation';
-import type { ForecastConfig } from '../types/forecast';
+import type { ForecastConfig, ForecastSnapshot } from '../types/forecast';
 import type { FocusPeriod } from '../types/focusPeriod';
 import type { Shadow } from '../types/shadow';
 import type { Goal } from '../types/goal';
 import { applyAggregation, normalizeSelectionDate } from '../utils/aggregation';
-import { generateForecast } from '../utils/forecasting';
 import { generateShadowsData, calculateShadowAverage } from '../utils/shadows';
 import { generateGoalsData } from '../utils/goals';
 
@@ -17,6 +16,7 @@ interface CompactTimeSeriesChartProps {
   shadows?: Shadow[];
   averageShadows?: boolean;
   forecastConfig?: ForecastConfig;
+  forecastSnapshot?: ForecastSnapshot;
   focusPeriod?: FocusPeriod;
   goals?: Goal[];
   xDomain: [Date, Date];
@@ -36,6 +36,7 @@ export function CompactTimeSeriesChart({
   shadows,
   averageShadows,
   forecastConfig,
+  forecastSnapshot,
   focusPeriod,
   goals = [],
   xDomain,
@@ -122,16 +123,17 @@ export function CompactTimeSeriesChart({
       );
     }
 
-    // Generate forecast
+    // Use forecast snapshot (only display pre-computed forecasts)
     let forecastData: Array<{ date: Date; value: number }> = [];
     let confidenceIntervals: { upper: number[]; lower: number[] } | undefined;
 
-    if (forecastConfig?.enabled) {
-      const forecastResult = generateForecast(displayData, forecastConfig);
-      if (forecastResult) {
-        forecastData = forecastResult.forecast;
-        confidenceIntervals = forecastResult.confidenceIntervals;
-      }
+    if (forecastConfig?.enabled && forecastSnapshot) {
+      // Convert snapshot to display format
+      forecastData = forecastSnapshot.values.map(v => ({
+        date: new Date(v.date),
+        value: v.value
+      }));
+      confidenceIntervals = forecastSnapshot.confidenceIntervals;
     }
 
     // Create scales
@@ -626,44 +628,36 @@ export function CompactTimeSeriesChart({
           hoverGroupShadow.style('opacity', 0);
         }
 
-        // Show forecast hover if expanded and in forecast period
+        // Show forecast hover if expanded and forecast exists at this date
         if (showXAxis && forecastData.length > 0) {
-          const lastDataDate = displayData[displayData.length - 1]?.date;
-          const isForecastPeriod = lastDataDate && hoveredDate > lastDataDate;
+          // Find forecast value at the current hover date (with tolerance)
+          const forecastPoint = forecastData.find(f => {
+            const diff = Math.abs(f.date.getTime() - closestPoint.date.getTime());
+            return diff < 24 * 60 * 60 * 1000; // 1 day tolerance
+          });
 
-          if (isForecastPeriod) {
-            const forecastBisect = d3.bisector((d: any) => d.date).left;
-            const forecastIndex = forecastBisect(forecastData, hoveredDate);
-            const f0 = forecastData[forecastIndex - 1];
-            const f1 = forecastData[forecastIndex];
-            const closestForecast = !f1 ? f0 : !f0 ? f1 :
-              hoveredDate.getTime() - f0.date.getTime() > f1.date.getTime() - hoveredDate.getTime() ? f1 : f0;
+          if (forecastPoint) {
+            const forecastX = xScale(forecastPoint.date);
+            const forecastY = yScale(forecastPoint.value);
+            const forecastText = forecastPoint.value.toFixed(2);
+            const forecastTextWidth = forecastText.length * 6 + 4;
 
-            if (closestForecast) {
-              const forecastX = xScale(closestForecast.date);
-              const forecastY = yScale(closestForecast.value);
-              const forecastText = closestForecast.value.toFixed(2);
-              const forecastTextWidth = forecastText.length * 6 + 4;
+            hoverCircleForecast
+              .attr('cx', forecastX)
+              .attr('cy', forecastY);
 
-              hoverCircleForecast
-                .attr('cx', forecastX)
-                .attr('cy', forecastY);
+            hoverTextBgForecast
+              .attr('x', forecastX + 5)
+              .attr('y', forecastY - 16)
+              .attr('width', forecastTextWidth)
+              .attr('height', 12);
 
-              hoverTextBgForecast
-                .attr('x', forecastX + 5)
-                .attr('y', forecastY - 16)
-                .attr('width', forecastTextWidth)
-                .attr('height', 12);
+            hoverLabelForecast
+              .attr('x', forecastX + 6)
+              .attr('y', forecastY - 6)
+              .text(forecastText);
 
-              hoverLabelForecast
-                .attr('x', forecastX + 6)
-                .attr('y', forecastY - 6)
-                .text(forecastText);
-
-              hoverGroupForecast.style('opacity', 1);
-            } else {
-              hoverGroupForecast.style('opacity', 0);
-            }
+            hoverGroupForecast.style('opacity', 1);
           } else {
             hoverGroupForecast.style('opacity', 0);
           }
@@ -847,30 +841,22 @@ export function CompactTimeSeriesChart({
           }
           // Forecast hover in synchronized mode
           if (forecastData.length > 0) {
-            const lastDataDate = displayData[displayData.length - 1]?.date;
-            const isForecastPeriod = lastDataDate && currentHoverDate > lastDataDate;
+            // Find forecast value at the current hover date (with tolerance)
+            const forecastPoint = forecastData.find(f => {
+              const diff = Math.abs(f.date.getTime() - currentHoverDate.getTime());
+              return diff < 24 * 60 * 60 * 1000; // 1 day tolerance
+            });
 
-            if (isForecastPeriod) {
-              const forecastBisect = d3.bisector((d: any) => d.date).left;
-              const forecastIndex = forecastBisect(forecastData, currentHoverDate);
-              const f0 = forecastData[forecastIndex - 1];
-              const f1 = forecastData[forecastIndex];
-              const closestForecast = !f1 ? f0 : !f0 ? f1 :
-                currentHoverDate.getTime() - f0.date.getTime() > f1.date.getTime() - currentHoverDate.getTime() ? f1 : f0;
+            if (forecastPoint) {
+              const forecastX = xScale(forecastPoint.date);
+              const forecastY = yScale(forecastPoint.value);
+              const forecastText = forecastPoint.value.toFixed(2);
+              const forecastTextWidth = forecastText.length * 6 + 4;
 
-              if (closestForecast) {
-                const forecastX = xScale(closestForecast.date);
-                const forecastY = yScale(closestForecast.value);
-                const forecastText = closestForecast.value.toFixed(2);
-                const forecastTextWidth = forecastText.length * 6 + 4;
-
-                hoverCircleForecast.attr('cx', forecastX).attr('cy', forecastY);
-                hoverTextBgForecast.attr('x', forecastX + 5).attr('y', forecastY - 16).attr('width', forecastTextWidth).attr('height', 12);
-                hoverLabelForecast.attr('x', forecastX + 6).attr('y', forecastY - 6).text(forecastText);
-                hoverGroupForecast.style('opacity', 1);
-              } else {
-                hoverGroupForecast.style('opacity', 0);
-              }
+              hoverCircleForecast.attr('cx', forecastX).attr('cy', forecastY);
+              hoverTextBgForecast.attr('x', forecastX + 5).attr('y', forecastY - 16).attr('width', forecastTextWidth).attr('height', 12);
+              hoverLabelForecast.attr('x', forecastX + 6).attr('y', forecastY - 6).text(forecastText);
+              hoverGroupForecast.style('opacity', 1);
             } else {
               hoverGroupForecast.style('opacity', 0);
             }

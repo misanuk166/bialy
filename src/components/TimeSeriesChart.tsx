@@ -4,12 +4,11 @@ import type { Series, TimeSeriesPoint } from '../types/series';
 import type { AggregationConfig } from '../utils/aggregation';
 import type { Shadow } from '../types/shadow';
 import type { Goal } from '../types/goal';
-import type { ForecastConfig } from '../types/forecast';
+import type { ForecastConfig, ForecastSnapshot } from '../types/forecast';
 import type { FocusPeriod } from '../types/focusPeriod';
 import { applyAggregation } from '../utils/aggregation';
 import { generateShadowsData, calculateShadowAverage } from '../utils/shadows';
 import { generateGoalsData } from '../utils/goals';
-import { generateForecast } from '../utils/forecasting';
 
 interface TimeSeriesChartProps {
   series: Series;
@@ -18,6 +17,7 @@ interface TimeSeriesChartProps {
   averageShadows?: boolean;
   goals?: Goal[];
   forecastConfig?: ForecastConfig;
+  forecastSnapshot?: ForecastSnapshot;
   focusPeriod?: FocusPeriod;
   width?: number;
   height?: number;
@@ -235,6 +235,7 @@ export function TimeSeriesChart({
   averageShadows = false,
   goals = [],
   forecastConfig,
+  forecastSnapshot,
   focusPeriod,
   width = 400,
   height = 500,
@@ -334,13 +335,10 @@ export function TimeSeriesChart({
       ...dataWithValues.slice(0, 100).map(d => getDecimalPrecision(d.value))
     ));
 
-    // Generate forecast data FIRST from raw data
-    const rawForecastResult = forecastConfig ? generateForecast(dataWithValues, forecastConfig) : null;
-
-    // Convert forecast to TimeSeriesPoint format for aggregation
-    const forecastAsTimeSeriesPoints: TimeSeriesPoint[] = rawForecastResult
-      ? rawForecastResult.forecast.map(f => ({
-          date: f.date,
+    // Use forecast snapshot (only display pre-computed forecasts)
+    const forecastAsTimeSeriesPoints: TimeSeriesPoint[] = forecastConfig?.enabled && forecastSnapshot
+      ? forecastSnapshot.values.map(f => ({
+          date: new Date(f.date),
           numerator: f.value,
           denominator: 1
         }))
@@ -368,8 +366,8 @@ export function TimeSeriesChart({
     const lastHistoricalDate = series.data[series.data.length - 1].date;
 
     // Determine the actual forecast start date
-    const forecastStartDate = rawForecastResult && rawForecastResult.forecast.length > 0
-      ? rawForecastResult.forecast[0].date
+    const forecastStartDate = forecastSnapshot && forecastSnapshot.values.length > 0
+      ? new Date(forecastSnapshot.values[0].date)
       : null;
 
     const aggregatedHistorical = aggregationConfig?.enabled
@@ -377,12 +375,14 @@ export function TimeSeriesChart({
       : dataWithValues;
     const aggregatedForecast = aggregationConfig?.enabled
       ? aggregatedDataWithValues.filter(d => forecastStartDate && d.date >= forecastStartDate)
-      : rawForecastResult?.forecast || [];
+      : forecastSnapshot?.values.map(v => ({ date: new Date(v.date), value: v.value })) || [];
 
-    // Create forecast result with aggregated values
-    const forecastResult = rawForecastResult ? {
-      ...rawForecastResult,
-      forecast: aggregatedForecast
+    // Create forecast result from snapshot
+    const forecastResult = forecastConfig?.enabled && forecastSnapshot ? {
+      forecast: aggregatedForecast,
+      confidenceIntervals: forecastSnapshot.confidenceIntervals,
+      parameters: forecastSnapshot.parameters,
+      method: forecastSnapshot.method
     } : null;
 
     // Create scales - use aggregated historical data for domain if available
@@ -1347,6 +1347,16 @@ export function TimeSeriesChart({
         const goalValue = findGoalValue(d.date, goalsDataWithValues, selectedGoalIndex);
         const goalLabel = goalsDataWithValues[selectedGoalIndex]?.goal.label;
 
+        // Find forecast value if exists at this date
+        let forecastValueAtDate: number | undefined;
+        if (forecastResult && forecastResult.forecast.length > 0) {
+          const forecastPoint = forecastResult.forecast.find(f => {
+            const diff = Math.abs(f.date.getTime() - d.date.getTime());
+            return diff < 24 * 60 * 60 * 1000; // 1 day tolerance
+          });
+          forecastValueAtDate = forecastPoint?.value;
+        }
+
         // Position shadow circle and text with background
         if (shadowValue !== undefined) {
           const shadowY = yScale(shadowValue);
@@ -1403,10 +1413,31 @@ export function TimeSeriesChart({
           hoverTextBgGoal.style('opacity', 0);
         }
 
-        // Hide forecast circle, text, and background (we're on actual data)
-        hoverCircleForecast.style('opacity', 0);
-        hoverTextForecast.style('opacity', 0);
-        hoverTextBgForecast.style('opacity', 0);
+        // Show forecast circle, text, and background if forecast exists at this date
+        if (forecastValueAtDate !== undefined) {
+          const forecastY = yScale(forecastValueAtDate);
+          const forecastText = formatWithPrecision(forecastValueAtDate, dataPrecision);
+          const forecastTextWidth = forecastText.length * 6 + 4;
+          hoverCircleForecast
+            .attr('cx', x)
+            .attr('cy', forecastY)
+            .style('opacity', 1);
+          hoverTextBgForecast
+            .attr('x', x + 5)
+            .attr('y', forecastY - 16)
+            .attr('width', forecastTextWidth)
+            .attr('height', 12)
+            .style('opacity', 1);
+          hoverTextForecast
+            .attr('x', x + 6)
+            .attr('y', forecastY - 6)
+            .text(forecastText)
+            .style('opacity', 1);
+        } else {
+          hoverCircleForecast.style('opacity', 0);
+          hoverTextForecast.style('opacity', 0);
+          hoverTextBgForecast.style('opacity', 0);
+        }
 
         setHoverData({
           date: d.date.toLocaleDateString(),
@@ -1417,6 +1448,7 @@ export function TimeSeriesChart({
           shadowLabel,
           goalValue,
           goalLabel,
+          forecastValue: forecastValueAtDate,
           isForecast: false
         });
       } else {

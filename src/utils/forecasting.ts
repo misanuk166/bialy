@@ -1,4 +1,4 @@
-import type { ForecastConfig, ForecastResult, ForecastPoint } from '../types/forecast';
+import type { ForecastConfig, ForecastResult, ForecastPoint, ForecastSnapshot } from '../types/forecast';
 import { addDays } from 'date-fns';
 
 /**
@@ -424,5 +424,86 @@ export function generateForecast(
     confidenceIntervals,
     parameters: params,
     method
+  };
+}
+
+/**
+ * Generate forecast using snapshot if valid, otherwise generate fresh
+ * This function provides a caching layer over generateForecast
+ */
+export function generateForecastWithSnapshot(
+  data: Array<{ date: Date; value: number }>,
+  config: ForecastConfig,
+  snapshot?: ForecastSnapshot,
+  maxAgeHours: number = 24
+): { result: ForecastResult | null; usedSnapshot: boolean } {
+  // Check if snapshot is valid
+  if (snapshot) {
+    const isValid = isForecastSnapshotValid(snapshot, config, maxAgeHours);
+    if (isValid) {
+      console.log('Using cached forecast snapshot');
+      // Convert snapshot to ForecastResult
+      const result: ForecastResult = {
+        forecast: snapshot.values.map(v => ({
+          date: new Date(v.date),
+          value: v.value
+        })),
+        confidenceIntervals: snapshot.confidenceIntervals,
+        parameters: snapshot.parameters,
+        method: snapshot.method
+      };
+      return { result, usedSnapshot: true };
+    }
+  }
+
+  // Generate fresh forecast
+  console.log('Generating fresh forecast');
+  const result = generateForecast(data, config);
+  return { result, usedSnapshot: false };
+}
+
+/**
+ * Check if a forecast snapshot is still valid
+ */
+function isForecastSnapshotValid(
+  snapshot: ForecastSnapshot,
+  currentConfig: ForecastConfig,
+  maxAgeHours: number
+): boolean {
+  // Check age
+  const generatedAt = new Date(snapshot.generatedAt);
+  const ageMs = Date.now() - generatedAt.getTime();
+  const ageHours = ageMs / (1000 * 60 * 60);
+  if (ageHours > maxAgeHours) {
+    console.log(`Forecast snapshot is too old (${ageHours.toFixed(1)} hours)`);
+    return false;
+  }
+
+  // Check if config matches (key parameters only)
+  if (snapshot.config.horizon !== currentConfig.horizon) return false;
+  if (snapshot.config.seasonal !== currentConfig.seasonal) return false;
+  if (snapshot.config.type !== currentConfig.type) return false;
+  if (snapshot.config.targetValue !== currentConfig.targetValue) return false;
+
+  return true;
+}
+
+/**
+ * Convert ForecastResult to ForecastSnapshot for storage
+ */
+export function forecastResultToSnapshot(
+  result: ForecastResult,
+  config: ForecastConfig
+): ForecastSnapshot {
+  return {
+    generatedAt: new Date().toISOString(),
+    config: config,
+    values: result.forecast.map(point => ({
+      date: point.date.toISOString(),
+      value: point.value
+    })),
+    confidenceIntervals: result.confidenceIntervals,
+    parameters: result.parameters,
+    method: result.method
   };
 }

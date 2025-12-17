@@ -2,7 +2,7 @@ import type { Series } from './series';
 import type { AggregationConfig } from '../utils/aggregation';
 import type { Shadow } from './shadow';
 import type { Goal } from './goal';
-import type { ForecastConfig } from './forecast';
+import type { ForecastConfig, ForecastSnapshot } from './forecast';
 import type { FocusPeriod } from './focusPeriod';
 import type { DateRange } from '../components/RangeControls';
 import type { ComparisonConfig, ComparisonResult } from './comparison';
@@ -31,6 +31,7 @@ export interface MetricConfig {
   goals?: Goal[];
   goalsEnabled?: boolean;
   forecast?: ForecastConfig;
+  forecastSnapshot?: ForecastSnapshot; // Cached forecast values
   group?: string;
   groupIndex?: number;
   metricIndex?: number;

@@ -4,9 +4,11 @@ import type { ForecastConfig } from '../types/forecast';
 interface ForecastControlsProps {
   config: ForecastConfig;
   onChange: (config: ForecastConfig) => void;
+  onRefreshSnapshot?: () => void;
+  snapshotAge?: string; // e.g., "2 hours ago"
 }
 
-export function ForecastControls({ config, onChange }: ForecastControlsProps) {
+export function ForecastControls({ config, onChange, onRefreshSnapshot, snapshotAge }: ForecastControlsProps) {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const handleToggle = () => {
@@ -308,6 +310,23 @@ export function ForecastControls({ config, onChange }: ForecastControlsProps) {
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Refresh Forecast Button */}
+          {onRefreshSnapshot && (
+            <div className="pt-2 border-t border-gray-200">
+              <button
+                onClick={onRefreshSnapshot}
+                className="w-full px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+              >
+                Refresh Forecast Snapshot
+              </button>
+              {snapshotAge && (
+                <p className="text-xs text-gray-500 mt-1 text-center">
+                  Last updated: {snapshotAge}
+                </p>
+              )}
             </div>
           )}
         </div>

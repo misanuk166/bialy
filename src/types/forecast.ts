@@ -32,3 +32,26 @@ export interface ForecastResult {
   };
   method: 'simple' | 'double' | 'triple'; // Simple ES, Holt (double), Holt-Winters (triple)
 }
+
+/**
+ * Snapshot of a generated forecast for persistence
+ * Stores pre-computed forecast values to avoid regeneration
+ */
+export interface ForecastSnapshot {
+  generatedAt: string; // ISO date string
+  config: ForecastConfig; // The config used to generate this snapshot
+  values: Array<{
+    date: string; // ISO date string
+    value: number;
+  }>;
+  confidenceIntervals?: {
+    upper: number[];
+    lower: number[];
+  };
+  parameters: {
+    alpha: number;
+    beta: number;
+    gamma?: number;
+  };
+  method: 'simple' | 'double' | 'triple';
+}

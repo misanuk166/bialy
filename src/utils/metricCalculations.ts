@@ -3,13 +3,12 @@ import type { AggregationConfig } from './aggregation';
 import type { Shadow } from '../types/shadow';
 import type { Goal } from '../types/goal';
 import type { FocusPeriod } from '../types/focusPeriod';
-import type { ForecastConfig } from '../types/forecast';
+import type { ForecastConfig, ForecastSnapshot } from '../types/forecast';
 import type { MetricRowValues } from '../types/appState';
 import type { ComparisonConfig, ComparisonResult } from '../types/comparison';
 import { applyAggregation, normalizeSelectionDate } from './aggregation';
 import { generateShadowsData, calculateShadowAverage } from './shadows';
 import { generateGoalsData } from './goals';
-import { generateForecast } from './forecasting';
 
 // Helper function to determine decimal precision (currently unused)
 // function getDecimalPrecision(num: number): number {
@@ -26,7 +25,8 @@ export function calculateMetricRowValues(
   averageShadows?: boolean,
   goals?: Goal[],
   focusPeriod?: FocusPeriod,
-  forecastConfig?: ForecastConfig
+  forecastConfig?: ForecastConfig,
+  forecastSnapshot?: ForecastSnapshot
 ): MetricRowValues {
   if (!currentDate) return {};
 
@@ -49,36 +49,33 @@ export function calculateMetricRowValues(
     }));
   }
 
-  // Generate forecast if enabled
+  // Use forecast snapshot (only use pre-computed forecasts)
   let forecastData: Array<{ date: Date; value: number }> = [];
   let rawForecastData: Array<{ date: Date; value: number }> = []; // Keep raw forecast for range calculation
-  let forecastConfidenceIntervals: { upper: number[]; lower: number[] } | undefined;
-  if (forecastConfig?.enabled) {
-    const forecastResult = generateForecast(displayData, forecastConfig);
-    if (forecastResult) {
-      rawForecastData = forecastResult.forecast; // Store raw forecast
-      forecastData = forecastResult.forecast;
-      forecastConfidenceIntervals = forecastResult.confidenceIntervals;
+  if (forecastConfig?.enabled && forecastSnapshot) {
+    rawForecastData = forecastSnapshot.values.map(v => ({
+      date: new Date(v.date),
+      value: v.value
+    }));
+    forecastData = rawForecastData;
 
-      // If aggregation is enabled, apply it to forecast data as well
-      if (aggregationConfig?.enabled) {
-        // Convert forecast values to TimeSeriesPoint format
-        const forecastPoints = forecastData.map(d => ({
-          date: d.date,
-          numerator: d.value,
-          denominator: 1
-        }));
+    // If aggregation is enabled, apply it to forecast data as well
+    if (aggregationConfig?.enabled) {
+      // Convert forecast values to TimeSeriesPoint format
+      const forecastPoints = forecastData.map(d => ({
+        date: d.date,
+        numerator: d.value,
+        denominator: 1
+      }));
 
-        // Apply aggregation
-        const aggregatedForecast = applyAggregation(forecastPoints, aggregationConfig);
+      // Apply aggregation
+      const aggregatedForecast = applyAggregation(forecastPoints, aggregationConfig);
 
-        // Convert back to value format
-        forecastData = aggregatedForecast.map(d => ({
-          date: d.date,
-          value: d.numerator / d.denominator
-        }));
-      }
-
+      // Convert back to value format
+      forecastData = aggregatedForecast.map(d => ({
+        date: d.date,
+        value: d.numerator / d.denominator
+      }));
     }
   }
 
@@ -370,6 +367,7 @@ function calculateComparison(
   averageShadows: boolean | undefined,
   goals: Goal[] | undefined,
   forecastConfig: ForecastConfig | undefined,
+  forecastSnapshot: ForecastSnapshot | undefined,
   displayData: Array<{ date: Date; value: number }>,
   aggregationConfig: AggregationConfig | undefined,
   currentDate: Date,
@@ -469,15 +467,15 @@ function calculateComparison(
     }
 
     case 'forecast': {
-      if (!forecastConfig || !forecastConfig.enabled) return null;
+      if (!forecastConfig || !forecastConfig.enabled || !forecastSnapshot) return null;
 
-      // Generate forecast from the series data
-      const forecastResult = generateForecast(displayData, forecastConfig);
-      if (!forecastResult) return null;
+      // Use forecast snapshot (only use pre-computed forecasts)
+      const forecastValues = forecastSnapshot.values;
 
       // Find forecast value at the current date
-      const forecastPoint = forecastResult.forecast.find(f => {
-        const diff = Math.abs(f.date.getTime() - dateTime);
+      const forecastPoint = forecastValues.find(f => {
+        const fDate = new Date(f.date);
+        const diff = Math.abs(fDate.getTime() - dateTime);
         return diff < 24 * 60 * 60 * 1000; // 1 day tolerance
       });
 
@@ -516,6 +514,7 @@ export function calculateComparisons(
   averageShadows: boolean | undefined,
   goals: Goal[] | undefined,
   forecastConfig: ForecastConfig | undefined,
+  forecastSnapshot: ForecastSnapshot | undefined,
   comparisons: ComparisonConfig[] | undefined,
   selectionIncludesForecast?: boolean,
   focusIncludesForecast?: boolean
@@ -565,6 +564,7 @@ export function calculateComparisons(
       averageShadows,
       goals,
       forecastConfig,
+      forecastSnapshot,
       displayData,
       aggregationConfig,
       normalizedDate,
