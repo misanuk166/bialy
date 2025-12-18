@@ -22,12 +22,16 @@ import { ShadowControls } from './ShadowControls';
 import { RangeControls, type DateRange } from './RangeControls';
 import { ComparisonControls } from './ComparisonControls';
 import { AnnotationControls } from './AnnotationControls';
+import { ForecastControls } from './ForecastControls';
+import { GoalControls } from './GoalControls';
 import type { MetricConfig, GlobalSettings, ColumnKey } from '../types/appState';
 import type { FocusPeriod } from '../types/focusPeriod';
 import type { AggregationConfig } from '../utils/aggregation';
 import type { Shadow } from '../types/shadow';
 import type { ComparisonConfig } from '../types/comparison';
 import type { Annotation } from '../types/annotation';
+import type { ForecastConfig } from '../types/forecast';
+import type { Goal } from '../types/goal';
 import { calculateMetricRowValues, calculateComparisons } from '../utils/metricCalculations';
 import { normalizeSelectionDate } from '../utils/aggregation';
 import { calculateDateRange } from '../utils/dateRange';
@@ -126,6 +130,12 @@ export function MetricGrid({
   const [showAnnotationModal, setShowAnnotationModal] = useState(false);
   const [showComparisonModal, setShowComparisonModal] = useState(false);
   const [comparisonModalPeriodType, setComparisonModalPeriodType] = useState<'selection' | 'focus' | null>(null);
+  const [showForecastAllModal, setShowForecastAllModal] = useState(false);
+  const [forecastAllConfig, setForecastAllConfig] = useState<ForecastConfig | null>(null);
+  const [showGoalsAllModal, setShowGoalsAllModal] = useState(false);
+  const [goalsAllStartDate, setGoalsAllStartDate] = useState<Date | null>(null);
+  const [goalsAllEndType, setGoalsAllEndType] = useState<'EOQ' | 'EOY'>('EOQ');
+  const [goalsAllLiftPercent, setGoalsAllLiftPercent] = useState(10);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedMetricIds, setSelectedMetricIds] = useState<Set<string>>(new Set());
   const [isEditingGroupSet, setIsEditingGroupSet] = useState(false);
@@ -286,7 +296,8 @@ export function MetricGrid({
         metric.forecastSnapshot,
         globalSettings.comparisons,
         globalSettings.selectionIncludesForecast,
-        globalSettings.focusIncludesForecast
+        globalSettings.focusIncludesForecast,
+        globalSettings.focusPeriod
       );
 
       return {
@@ -774,6 +785,53 @@ export function MetricGrid({
               >
                 {isEditMode ? 'Done' : 'Edit'}
               </button>
+              <button
+                onClick={() => {
+                  // Calculate default forecast config
+                  const today = new Date();
+                  const currentQuarter = Math.floor(today.getMonth() / 3);
+                  const quarterStartDate = new Date(today.getFullYear(), currentQuarter * 3, 1);
+                  const endOfQuarterMonth = (currentQuarter + 1) * 3 - 1;
+                  const endOfQuarter = new Date(today.getFullYear(), endOfQuarterMonth + 1, 0);
+                  const diffTime = endOfQuarter.getTime() - quarterStartDate.getTime();
+                  const daysToEOQ = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                  setForecastAllConfig({
+                    enabled: true,
+                    startDate: quarterStartDate,
+                    horizon: daysToEOQ,
+                    seasonal: 'none',
+                    showConfidenceIntervals: true,
+                    confidenceLevel: 95,
+                    type: 'auto'
+                  });
+                  setShowForecastAllModal(true);
+                }}
+                className="px-2 py-0.5 text-xs font-medium rounded border text-gray-600 bg-gray-100 border-gray-300 hover:bg-gray-200"
+                title="Apply forecast to all metrics"
+              >
+                Forecast All
+              </button>
+              <button
+                onClick={() => {
+                  // Calculate default start date (first day of current quarter based on max date)
+                  let maxDate = new Date();
+                  if (dataExtent && dataExtent[1]) {
+                    maxDate = dataExtent[1];
+                  }
+                  const currentQuarter = Math.floor(maxDate.getMonth() / 3);
+                  const quarterStartDate = new Date(maxDate.getFullYear(), currentQuarter * 3, 1);
+
+                  setGoalsAllStartDate(quarterStartDate);
+                  setGoalsAllEndType('EOQ');
+                  setGoalsAllLiftPercent(10);
+                  setShowGoalsAllModal(true);
+                }}
+                className="px-2 py-0.5 text-xs font-medium rounded border text-gray-600 bg-gray-100 border-gray-300 hover:bg-gray-200"
+                title="Set goals for all metrics"
+              >
+                Set Goals for All
+              </button>
             </div>
             {selectedMetricIds.size > 0 && (
               <div className="flex items-center gap-2">
@@ -1209,6 +1267,194 @@ export function MetricGrid({
           >
             Close
           </button>
+        </div>
+      )}
+
+      {/* Forecast All Modal */}
+      {showForecastAllModal && forecastAllConfig && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowForecastAllModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg p-6 shadow-xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Forecast All Metrics</h3>
+            <ForecastControls
+              config={forecastAllConfig}
+              onChange={setForecastAllConfig}
+            />
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => {
+                  // Apply forecast config to all metrics
+                  metrics.forEach(metric => {
+                    onMetricUpdate({
+                      ...metric,
+                      forecast: forecastAllConfig
+                    });
+                  });
+                  setShowForecastAllModal(false);
+                }}
+                className="flex-1 px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Add Forecasts
+              </button>
+              <button
+                onClick={() => setShowForecastAllModal(false)}
+                className="flex-1 px-4 py-2 text-sm bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Goals All Modal */}
+      {showGoalsAllModal && goalsAllStartDate && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowGoalsAllModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg p-6 shadow-xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Set Goals for All Metrics</h3>
+
+            <div className="space-y-4">
+              {/* Start Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Start of Goal
+                </label>
+                <input
+                  type="date"
+                  value={goalsAllStartDate.toISOString().split('T')[0]}
+                  onChange={(e) => setGoalsAllStartDate(new Date(e.target.value))}
+                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded"
+                />
+              </div>
+
+              {/* End Type (EOQ or EOY) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Finish Date
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setGoalsAllEndType('EOQ')}
+                    className={`px-3 py-2 text-sm rounded transition-colors ${
+                      goalsAllEndType === 'EOQ'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    End of Quarter
+                  </button>
+                  <button
+                    onClick={() => setGoalsAllEndType('EOY')}
+                    className={`px-3 py-2 text-sm rounded transition-colors ${
+                      goalsAllEndType === 'EOY'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    End of Year
+                  </button>
+                </div>
+              </div>
+
+              {/* Lift Percentage */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Lift vs. Start
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={goalsAllLiftPercent}
+                    onChange={(e) => setGoalsAllLiftPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                    className="flex-1 text-sm px-3 py-2 border border-gray-300 rounded"
+                  />
+                  <span className="text-sm text-gray-600">%</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Goal will be {(1 + goalsAllLiftPercent / 100).toFixed(2)}x the value at start date
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-2">
+              <button
+                onClick={() => {
+                  // Calculate end date based on type
+                  const startYear = goalsAllStartDate.getFullYear();
+                  const startMonth = goalsAllStartDate.getMonth();
+                  let endDate: Date;
+
+                  if (goalsAllEndType === 'EOQ') {
+                    // Find which quarter the start date is in
+                    const startQuarter = Math.floor(startMonth / 3);
+                    // Calculate the last month of that quarter (2, 5, 8, or 11)
+                    const endOfQuarterMonth = (startQuarter + 1) * 3 - 1;
+                    // Get the last day of that month
+                    endDate = new Date(startYear, endOfQuarterMonth + 1, 0);
+                  } else {
+                    // End of year - December 31
+                    endDate = new Date(startYear, 11, 31);
+                  }
+
+                  // Apply goal settings to all metrics
+                  metrics.forEach(metric => {
+                    // Find value at start date (or closest point)
+                    const sortedData = [...metric.series.data].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+                    const startPoint = sortedData.find(d => {
+                      const diff = Math.abs(d.date.getTime() - goalsAllStartDate.getTime());
+                      return diff < 24 * 60 * 60 * 1000; // 1 day tolerance
+                    });
+
+                    if (startPoint) {
+                      const startValue = startPoint.numerator / startPoint.denominator;
+                      const targetValue = startValue * (1 + goalsAllLiftPercent / 100);
+
+                      const goal: Goal = {
+                        id: crypto.randomUUID(),
+                        enabled: true,
+                        type: 'end-of-period',
+                        label: `${goalsAllLiftPercent}% Lift (${goalsAllEndType})`,
+                        startDate: new Date(goalsAllStartDate),
+                        endDate: new Date(endDate),
+                        endValue: targetValue
+                      };
+
+                      onMetricUpdate({
+                        ...metric,
+                        goals: [goal],
+                        goalsEnabled: true
+                      });
+                    }
+                  });
+                  setShowGoalsAllModal(false);
+                }}
+                className="flex-1 px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Set Goals
+              </button>
+              <button
+                onClick={() => setShowGoalsAllModal(false)}
+                className="flex-1 px-4 py-2 text-sm bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

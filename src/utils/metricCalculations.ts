@@ -28,9 +28,7 @@ export function calculateMetricRowValues(
   forecastConfig?: ForecastConfig,
   forecastSnapshot?: ForecastSnapshot
 ): MetricRowValues {
-  if (!currentDate) return {};
-
-  // Prepare data
+  // Prepare data (needed for both selection and focus period calculations)
   const dataWithValues = series.data.map(d => ({
     date: d.date,
     value: d.numerator / d.denominator
@@ -47,6 +45,37 @@ export function calculateMetricRowValues(
       date: d.date,
       value: d.numerator / d.denominator
     }));
+  }
+
+  // Calculate focus period values (independent of selection date)
+  let focusPeriodMean: number | undefined;
+  let focusPeriodRange: { min: number; max: number } | undefined;
+  let focusPeriodVsShadowAbs: number | undefined;
+  let focusPeriodVsShadowPct: number | undefined;
+  let focusPeriodVsGoalAbs: number | undefined;
+  let focusPeriodVsGoalPct: number | undefined;
+
+  if (focusPeriod?.enabled && focusPeriod.startDate && focusPeriod.endDate) {
+    const focusData = displayData.filter(d =>
+      d.date >= focusPeriod.startDate! && d.date <= focusPeriod.endDate!
+    );
+
+    if (focusData.length > 0) {
+      const values = focusData.map(d => d.value);
+      focusPeriodMean = values.reduce((sum, v) => sum + v, 0) / values.length;
+      focusPeriodRange = {
+        min: Math.min(...values),
+        max: Math.max(...values)
+      };
+    }
+  }
+
+  // If no current date selected, return only focus period values
+  if (!currentDate) {
+    return {
+      focusPeriodMean,
+      focusPeriodRange
+    };
   }
 
   // Use forecast snapshot (only use pre-computed forecasts)
@@ -300,37 +329,65 @@ export function calculateMetricRowValues(
     }
   }
 
-  // Calculate focus period values
-  let focusPeriodMean: number | undefined;
-  let focusPeriodRange: { min: number; max: number } | undefined;
-  let focusPeriodVsShadowAbs: number | undefined;
-  let focusPeriodVsShadowPct: number | undefined;
-  let focusPeriodVsGoalAbs: number | undefined;
-  let focusPeriodVsGoalPct: number | undefined;
+  // Calculate shadow and goal comparisons for focus period (independent of selection)
+  if (focusPeriodMean !== undefined && focusPeriod?.enabled && focusPeriod.startDate && focusPeriod.endDate) {
+    // Calculate average shadow value over the focus period range
+    if (shadows && shadows.length > 0) {
+      const shadowsData = generateShadowsData(series.data, shadows);
+      const aggregatedShadowsData = aggregationConfig?.enabled
+        ? shadowsData.map(sd => ({
+            shadow: sd.shadow,
+            data: applyAggregation(sd.data, aggregationConfig),
+            color: sd.color
+          }))
+        : shadowsData;
 
-  if (focusPeriod?.enabled && focusPeriod.startDate && focusPeriod.endDate) {
-    const focusData = displayData.filter(d =>
-      d.date >= focusPeriod.startDate! && d.date <= focusPeriod.endDate!
-    );
-
-    if (focusData.length > 0) {
-      const values = focusData.map(d => d.value);
-      focusPeriodMean = values.reduce((sum, v) => sum + v, 0) / values.length;
-      focusPeriodRange = {
-        min: Math.min(...values),
-        max: Math.max(...values)
-      };
-
-      // Calculate shadow comparison for focus period
-      if (shadowValue !== undefined) {
-        focusPeriodVsShadowAbs = focusPeriodMean - shadowValue;
-        focusPeriodVsShadowPct = (focusPeriodVsShadowAbs / shadowValue) * 100;
+      // Get shadow data within focus period and calculate mean
+      if (averageShadows && aggregatedShadowsData.length > 1) {
+        const averagedShadowData = calculateShadowAverage(aggregatedShadowsData);
+        const focusShadowData = averagedShadowData.filter(p =>
+          p.date >= focusPeriod.startDate! && p.date <= focusPeriod.endDate!
+        );
+        if (focusShadowData.length > 0) {
+          const focusShadowMean = focusShadowData.reduce((sum, p) => sum + p.mean, 0) / focusShadowData.length;
+          focusPeriodVsShadowAbs = focusPeriodMean - focusShadowMean;
+          focusPeriodVsShadowPct = (focusPeriodVsShadowAbs / focusShadowMean) * 100;
+        }
+      } else if (aggregatedShadowsData.length > 0) {
+        const shadowDataWithValues = aggregatedShadowsData[0].data.map(d => ({
+          date: d.date,
+          value: d.numerator / d.denominator
+        }));
+        const focusShadowData = shadowDataWithValues.filter(p =>
+          p.date >= focusPeriod.startDate! && p.date <= focusPeriod.endDate!
+        );
+        if (focusShadowData.length > 0) {
+          const focusShadowMean = focusShadowData.reduce((sum, p) => sum + p.value, 0) / focusShadowData.length;
+          focusPeriodVsShadowAbs = focusPeriodMean - focusShadowMean;
+          focusPeriodVsShadowPct = (focusPeriodVsShadowAbs / focusShadowMean) * 100;
+        }
       }
+    }
 
-      // Calculate goal comparison for focus period
-      if (goalValue !== undefined) {
-        focusPeriodVsGoalAbs = focusPeriodMean - goalValue;
-        focusPeriodVsGoalPct = (focusPeriodVsGoalAbs / goalValue) * 100;
+    // Calculate average goal value over the focus period range
+    if (goals && goals.length > 0) {
+      const goalsData = generateGoalsData(series.data, goals);
+      const enabledGoals = goalsData.filter(gd => gd.goal.enabled);
+      if (enabledGoals.length > 0) {
+        const goalData = enabledGoals[0];
+        const goalDataWithValues = goalData.data.map(d => ({
+          date: d.date,
+          value: d.numerator / d.denominator
+        }));
+
+        const focusGoalData = goalDataWithValues.filter(p =>
+          p.date >= focusPeriod.startDate! && p.date <= focusPeriod.endDate!
+        );
+        if (focusGoalData.length > 0) {
+          const focusGoalMean = focusGoalData.reduce((sum, p) => sum + p.value, 0) / focusGoalData.length;
+          focusPeriodVsGoalAbs = focusPeriodMean - focusGoalMean;
+          focusPeriodVsGoalPct = (focusPeriodVsGoalAbs / focusGoalMean) * 100;
+        }
       }
     }
   }
@@ -381,9 +438,11 @@ function calculateComparison(
   displayData: Array<{ date: Date; value: number }>,
   aggregationConfig: AggregationConfig | undefined,
   currentDate: Date,
-  seriesData: any
+  seriesData: any,
+  focusPeriod?: FocusPeriod
 ): ComparisonResult | null {
   const dateTime = currentDate.getTime();
+  const isFocusPeriodComparison = comparison.periodType === 'focus';
 
   let targetValue: number | undefined;
   let targetLabel: string | undefined;
@@ -402,41 +461,82 @@ function calculateComparison(
           }))
         : shadowsData;
 
-      if (comparison.targetIndex !== undefined && comparison.targetIndex < aggregatedShadowsData.length) {
-        // Use specific shadow
-        const shadowData = aggregatedShadowsData[comparison.targetIndex];
-        const shadowDataWithValues = shadowData.data.map(d => ({
-          date: d.date,
-          value: d.numerator / d.denominator
-        }));
-        const shadowPoint = shadowDataWithValues.find(p => {
-          const diff = Math.abs(p.date.getTime() - dateTime);
-          return diff < 24 * 60 * 60 * 1000;
-        });
-        targetValue = shadowPoint?.value;
-        targetLabel = shadowData.shadow.label;
-      } else if (averageShadows && aggregatedShadowsData.length > 1) {
-        // Use average of all shadows
-        const averagedShadowData = calculateShadowAverage(aggregatedShadowsData);
-        const shadowPoint = averagedShadowData.find(p => {
-          const diff = Math.abs(p.date.getTime() - dateTime);
-          return diff < 24 * 60 * 60 * 1000;
-        });
-        targetValue = shadowPoint?.mean;
-        targetLabel = `avg of ${shadows.filter(s => s.enabled).length} periods`;
-      } else if (aggregatedShadowsData.length > 0) {
-        // Use first shadow
-        const shadowData = aggregatedShadowsData[0];
-        const shadowDataWithValues = shadowData.data.map(d => ({
-          date: d.date,
-          value: d.numerator / d.denominator
-        }));
-        const shadowPoint = shadowDataWithValues.find(p => {
-          const diff = Math.abs(p.date.getTime() - dateTime);
-          return diff < 24 * 60 * 60 * 1000;
-        });
-        targetValue = shadowPoint?.value;
-        targetLabel = shadowData.shadow.label;
+      if (isFocusPeriodComparison && focusPeriod?.enabled && focusPeriod.startDate && focusPeriod.endDate) {
+        // For focus period comparisons, calculate average over the focus period range
+        if (comparison.targetIndex !== undefined && comparison.targetIndex < aggregatedShadowsData.length) {
+          const shadowData = aggregatedShadowsData[comparison.targetIndex];
+          const shadowDataWithValues = shadowData.data.map(d => ({
+            date: d.date,
+            value: d.numerator / d.denominator
+          }));
+          const focusShadowData = shadowDataWithValues.filter(p =>
+            p.date >= focusPeriod.startDate! && p.date <= focusPeriod.endDate!
+          );
+          if (focusShadowData.length > 0) {
+            targetValue = focusShadowData.reduce((sum, p) => sum + p.value, 0) / focusShadowData.length;
+          }
+          targetLabel = shadowData.shadow.label;
+        } else if (averageShadows && aggregatedShadowsData.length > 1) {
+          const averagedShadowData = calculateShadowAverage(aggregatedShadowsData);
+          const focusShadowData = averagedShadowData.filter(p =>
+            p.date >= focusPeriod.startDate! && p.date <= focusPeriod.endDate!
+          );
+          if (focusShadowData.length > 0) {
+            targetValue = focusShadowData.reduce((sum, p) => sum + p.mean, 0) / focusShadowData.length;
+          }
+          targetLabel = `avg of ${shadows.filter(s => s.enabled).length} periods`;
+        } else if (aggregatedShadowsData.length > 0) {
+          const shadowData = aggregatedShadowsData[0];
+          const shadowDataWithValues = shadowData.data.map(d => ({
+            date: d.date,
+            value: d.numerator / d.denominator
+          }));
+          const focusShadowData = shadowDataWithValues.filter(p =>
+            p.date >= focusPeriod.startDate! && p.date <= focusPeriod.endDate!
+          );
+          if (focusShadowData.length > 0) {
+            targetValue = focusShadowData.reduce((sum, p) => sum + p.value, 0) / focusShadowData.length;
+          }
+          targetLabel = shadowData.shadow.label;
+        }
+      } else {
+        // For selection comparisons, find value at specific date
+        if (comparison.targetIndex !== undefined && comparison.targetIndex < aggregatedShadowsData.length) {
+          // Use specific shadow
+          const shadowData = aggregatedShadowsData[comparison.targetIndex];
+          const shadowDataWithValues = shadowData.data.map(d => ({
+            date: d.date,
+            value: d.numerator / d.denominator
+          }));
+          const shadowPoint = shadowDataWithValues.find(p => {
+            const diff = Math.abs(p.date.getTime() - dateTime);
+            return diff < 24 * 60 * 60 * 1000;
+          });
+          targetValue = shadowPoint?.value;
+          targetLabel = shadowData.shadow.label;
+        } else if (averageShadows && aggregatedShadowsData.length > 1) {
+          // Use average of all shadows
+          const averagedShadowData = calculateShadowAverage(aggregatedShadowsData);
+          const shadowPoint = averagedShadowData.find(p => {
+            const diff = Math.abs(p.date.getTime() - dateTime);
+            return diff < 24 * 60 * 60 * 1000;
+          });
+          targetValue = shadowPoint?.mean;
+          targetLabel = `avg of ${shadows.filter(s => s.enabled).length} periods`;
+        } else if (aggregatedShadowsData.length > 0) {
+          // Use first shadow
+          const shadowData = aggregatedShadowsData[0];
+          const shadowDataWithValues = shadowData.data.map(d => ({
+            date: d.date,
+            value: d.numerator / d.denominator
+          }));
+          const shadowPoint = shadowDataWithValues.find(p => {
+            const diff = Math.abs(p.date.getTime() - dateTime);
+            return diff < 24 * 60 * 60 * 1000;
+          });
+          targetValue = shadowPoint?.value;
+          targetLabel = shadowData.shadow.label;
+        }
       }
       break;
     }
@@ -458,18 +558,29 @@ function calculateComparison(
         value: d.numerator / d.denominator
       }));
 
-      if (goalData.goal.type === 'continuous' && goalDataWithValues.length === 2) {
-        const startDate = goalDataWithValues[0].date;
-        const endDate = goalDataWithValues[1].date;
-        if (currentDate >= startDate && currentDate <= endDate) {
-          targetValue = goalDataWithValues[0].value;
+      if (isFocusPeriodComparison && focusPeriod?.enabled && focusPeriod.startDate && focusPeriod.endDate) {
+        // For focus period comparisons, calculate average over the focus period range
+        const focusGoalData = goalDataWithValues.filter(p =>
+          p.date >= focusPeriod.startDate! && p.date <= focusPeriod.endDate!
+        );
+        if (focusGoalData.length > 0) {
+          targetValue = focusGoalData.reduce((sum, p) => sum + p.value, 0) / focusGoalData.length;
         }
       } else {
-        const goalPoint = goalDataWithValues.find(p => {
-          const diff = Math.abs(p.date.getTime() - dateTime);
-          return diff < 24 * 60 * 60 * 1000;
-        });
-        targetValue = goalPoint?.value;
+        // For selection comparisons, find value at specific date
+        if (goalData.goal.type === 'continuous' && goalDataWithValues.length === 2) {
+          const startDate = goalDataWithValues[0].date;
+          const endDate = goalDataWithValues[1].date;
+          if (currentDate >= startDate && currentDate <= endDate) {
+            targetValue = goalDataWithValues[0].value;
+          }
+        } else {
+          const goalPoint = goalDataWithValues.find(p => {
+            const diff = Math.abs(p.date.getTime() - dateTime);
+            return diff < 24 * 60 * 60 * 1000;
+          });
+          targetValue = goalPoint?.value;
+        }
       }
 
       targetLabel = goalData.goal.label;
@@ -482,16 +593,27 @@ function calculateComparison(
       // Use forecast snapshot (only use pre-computed forecasts)
       const forecastValues = forecastSnapshot.values;
 
-      // Find forecast value at the current date
-      const forecastPoint = forecastValues.find(f => {
-        const fDate = new Date(f.date);
-        const diff = Math.abs(fDate.getTime() - dateTime);
-        return diff < 24 * 60 * 60 * 1000; // 1 day tolerance
-      });
+      if (isFocusPeriodComparison && focusPeriod?.enabled && focusPeriod.startDate && focusPeriod.endDate) {
+        // For focus period comparisons, calculate average over the focus period range
+        const focusForecastData = forecastValues.filter(f => {
+          const fDate = new Date(f.date);
+          return fDate >= focusPeriod.startDate! && fDate <= focusPeriod.endDate!;
+        });
+        if (focusForecastData.length > 0) {
+          targetValue = focusForecastData.reduce((sum, f) => sum + f.value, 0) / focusForecastData.length;
+        }
+      } else {
+        // For selection comparisons, find forecast value at the current date
+        const forecastPoint = forecastValues.find(f => {
+          const fDate = new Date(f.date);
+          const diff = Math.abs(fDate.getTime() - dateTime);
+          return diff < 24 * 60 * 60 * 1000; // 1 day tolerance
+        });
 
-      if (!forecastPoint) return null;
+        if (!forecastPoint) return null;
+        targetValue = forecastPoint.value;
+      }
 
-      targetValue = forecastPoint.value;
       targetLabel = 'Forecast';
       break;
     }
@@ -527,7 +649,8 @@ export function calculateComparisons(
   forecastSnapshot: ForecastSnapshot | undefined,
   comparisons: ComparisonConfig[] | undefined,
   selectionIncludesForecast?: boolean,
-  focusIncludesForecast?: boolean
+  focusIncludesForecast?: boolean,
+  focusPeriod?: FocusPeriod
 ): Map<string, ComparisonResult> {
   const results = new Map<string, ComparisonResult>();
 
@@ -578,7 +701,8 @@ export function calculateComparisons(
       displayData,
       aggregationConfig,
       normalizedDate,
-      series.data
+      series.data,
+      focusPeriod
     );
 
     if (result) {

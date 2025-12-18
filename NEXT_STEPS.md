@@ -18,11 +18,11 @@
 - ✅ Series Meta-board viewer
 
 ## Multi-Metric
-- Add Group Goal Setting
-- Add Group Forecasting
+- ✅ Add Group Goal Setting
+- ✅ Add Group Forecasting
 - ✅ Improve dynamic labeling system
 - ✅ Add scaling to conditional color formatting
-- Add Annotations
+- ✅ Add Annotations
 - Add Comments
 - Add Metric metadata section
 
@@ -32,6 +32,3 @@
   - Each chart represents data for a single dimension value
   - Maintain all existing features (smoothing, shadows, goals, forecast) per chart
   - NOTE: Start with requirements and planning phase
-
-## Future Features
-- Annotation (section 2.5)

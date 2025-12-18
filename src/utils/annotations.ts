@@ -1,25 +1,19 @@
 import type { Annotation, AnnotationData } from '../types/annotation';
 
 /**
- * Default annotation colors - pale purple spectrum to distinguish from goals and shadows
+ * Default annotation color - violet-200 to distinguish from goals and shadows
  */
-const DEFAULT_ANNOTATION_COLORS = [
-  '#c4b5fd', // violet-300
-  '#ddd6fe', // violet-200
-  '#d8b4fe', // purple-300
-  '#e9d5ff', // purple-200
-  '#a78bfa', // violet-400
-];
+const DEFAULT_ANNOTATION_COLOR = '#ddd6fe'; // violet-200
 
 /**
  * Get color for an annotation
- * Uses custom color if specified, otherwise cycles through default colors
+ * Uses custom color if specified, otherwise uses violet-200
  */
 export function getAnnotationColor(annotation: Annotation, index: number): string {
   if (annotation.color) {
     return annotation.color;
   }
-  return DEFAULT_ANNOTATION_COLORS[index % DEFAULT_ANNOTATION_COLORS.length];
+  return DEFAULT_ANNOTATION_COLOR;
 }
 
 /**
