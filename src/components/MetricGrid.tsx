@@ -1341,6 +1341,9 @@ export function MetricGrid({
                 onForecastInclusionChange(globalSettings.selectionIncludesForecast || false, includesForecast);
               }
             }}
+            focusPeriod={comparisonModalPeriodType === 'focus' ? globalSettings.focusPeriod : undefined}
+            onFocusPeriodChange={comparisonModalPeriodType === 'focus' ? onFocusPeriodChange : undefined}
+            dataExtent={dataExtent}
           />
           <button
             onClick={() => {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ComparisonConfig, ComparisonType, ComparisonPeriodType } from '../types/comparison';
 import type { Shadow } from '../types/shadow';
 import type { Goal } from '../types/goal';
+import type { FocusPeriod } from '../types/focusPeriod';
 import { generateShadowPeriodLabel } from '../utils/shadowLabels';
 
 interface ComparisonControlsProps {
@@ -12,6 +13,9 @@ interface ComparisonControlsProps {
   filterPeriodType?: 'selection' | 'focus';
   includesForecast?: boolean;
   onIncludesForecastChange?: (includesForecast: boolean) => void;
+  focusPeriod?: FocusPeriod;
+  onFocusPeriodChange?: (focusPeriod: FocusPeriod) => void;
+  dataExtent?: [Date, Date];
 }
 
 export function ComparisonControls({
@@ -21,7 +25,10 @@ export function ComparisonControls({
   onChange,
   filterPeriodType,
   includesForecast = false,
-  onIncludesForecastChange
+  onIncludesForecastChange,
+  focusPeriod,
+  onFocusPeriodChange,
+  dataExtent
 }: ComparisonControlsProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -31,6 +38,52 @@ export function ComparisonControls({
   const [formType, setFormType] = useState<ComparisonType>('shadow');
   const [formPeriodType, setFormPeriodType] = useState<ComparisonPeriodType>(filterPeriodType || 'selection');
   const [formTargetIndex, setFormTargetIndex] = useState<number | undefined>(undefined);
+
+  // Focus period form state
+  const calculateCurrentQuarter = (date: Date): { label: string; startDate: Date; endDate: Date } => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const quarter = Math.floor(month / 3) + 1;
+
+    const quarterStartMonth = (quarter - 1) * 3;
+    const quarterEndMonth = quarterStartMonth + 2;
+
+    const startDate = new Date(year, quarterStartMonth, 1);
+    const endDate = new Date(year, quarterEndMonth + 1, 0);
+
+    return {
+      label: `${year} Q${quarter}`,
+      startDate,
+      endDate
+    };
+  };
+
+  const [focusLabel, setFocusLabel] = useState(() => {
+    if (focusPeriod?.label) return focusPeriod.label;
+    if (dataExtent && dataExtent[1]) {
+      const quarter = calculateCurrentQuarter(dataExtent[1]);
+      return quarter.label;
+    }
+    return '';
+  });
+
+  const [focusStartDate, setFocusStartDate] = useState(() => {
+    if (focusPeriod?.startDate) return focusPeriod.startDate.toISOString().split('T')[0];
+    if (dataExtent && dataExtent[1]) {
+      const quarter = calculateCurrentQuarter(dataExtent[1]);
+      return quarter.startDate.toISOString().split('T')[0];
+    }
+    return '';
+  });
+
+  const [focusEndDate, setFocusEndDate] = useState(() => {
+    if (focusPeriod?.endDate) return focusPeriod.endDate.toISOString().split('T')[0];
+    if (dataExtent && dataExtent[1]) {
+      const quarter = calculateCurrentQuarter(dataExtent[1]);
+      return quarter.endDate.toISOString().split('T')[0];
+    }
+    return '';
+  });
 
   const resetForm = () => {
     setFormLabel('');
@@ -139,6 +192,25 @@ export function ComparisonControls({
     onChange(reordered);
   };
 
+  const handleApplyFocusPeriod = () => {
+    if (!onFocusPeriodChange) return;
+    const hasData = !!(focusStartDate && focusEndDate);
+    onFocusPeriodChange({
+      enabled: hasData,
+      label: focusLabel.trim() || undefined,
+      startDate: focusStartDate ? new Date(focusStartDate) : undefined,
+      endDate: focusEndDate ? new Date(focusEndDate) : undefined
+    });
+  };
+
+  const handleClearFocusPeriod = () => {
+    if (!onFocusPeriodChange) return;
+    onFocusPeriodChange({ enabled: false });
+    setFocusLabel('');
+    setFocusStartDate('');
+    setFocusEndDate('');
+  };
+
   // Sort comparisons by order for display
   const sortedComparisons = [...comparisons].sort((a, b) => a.order - b.order);
 
@@ -230,6 +302,71 @@ export function ComparisonControls({
 
   return (
     <div className="space-y-4">
+      {/* Focus Period Date Inputs (only show when filterPeriodType is 'focus') */}
+      {filterPeriodType === 'focus' && onFocusPeriodChange && (
+        <div className="p-3 bg-blue-50 rounded border border-blue-200">
+          <h4 className="text-sm font-semibold text-gray-900 mb-3">Focus Period Settings</h4>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Label (optional)
+              </label>
+              <input
+                type="text"
+                value={focusLabel}
+                onChange={(e) => setFocusLabel(e.target.value)}
+                placeholder="e.g., Q4 2024"
+                className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={focusStartDate}
+                onChange={(e) => setFocusStartDate(e.target.value)}
+                min={dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined}
+                max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
+                className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                End Date
+              </label>
+              <input
+                type="date"
+                value={focusEndDate}
+                onChange={(e) => setFocusEndDate(e.target.value)}
+                min={focusStartDate || (dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined)}
+                max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
+                className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={handleClearFocusPeriod}
+                className="flex-1 text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+              >
+                Clear
+              </button>
+              <button
+                onClick={handleApplyFocusPeriod}
+                disabled={!focusStartDate || !focusEndDate}
+                className="flex-1 text-xs px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Include Forecast Checkbox */}
       {onIncludesForecastChange && (
         <div className="flex items-center gap-2 p-3 bg-gray-50 rounded border border-gray-200">
