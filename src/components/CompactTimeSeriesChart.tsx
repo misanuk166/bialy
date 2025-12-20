@@ -64,7 +64,7 @@ export function CompactTimeSeriesChart({
 
     d3.select(svgRef.current).selectAll('*').remove();
 
-    const margin = { top: 5, right: 30, bottom: showXAxis ? 25 : 0, left: 40 };
+    const margin = { top: 5, right: 6, bottom: showXAxis ? 25 : 0, left: 40 };
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
 

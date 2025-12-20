@@ -18,6 +18,18 @@ interface ColorScaling {
   comparisonScales?: Map<string, { max: number; min: number }>;
 }
 
+interface ColumnWidths {
+  dragHandle: number;
+  groupIndex: number;
+  group: number;
+  metricIndex: number;
+  name: number;
+  chart: number;
+  selectionMean: number;
+  focusMean: number;
+  comparison: number;
+}
+
 interface MetricRowProps {
   metric: MetricConfig;
   globalSettings: GlobalSettings;
@@ -38,6 +50,7 @@ interface MetricRowProps {
   onMoveMetric?: (direction: 'up' | 'down') => void;
   isEditMode?: boolean;
   colorScaling?: ColorScaling;
+  columnWidths: ColumnWidths;
 }
 
 export const MetricRow = memo(function MetricRow({
@@ -57,7 +70,8 @@ export const MetricRow = memo(function MetricRow({
   isSelected,
   onSelect,
   isEditMode = false,
-  colorScaling
+  colorScaling,
+  columnWidths
 }: MetricRowProps) {
   const {
     attributes,
@@ -210,18 +224,18 @@ export const MetricRow = memo(function MetricRow({
   const focusComparisons = globalSettings.comparisons?.filter(c => c.enabled && c.periodType === 'focus') || [];
 
   const gridTemplateColumns = [
-    isEditMode ? '30px' : null,
-    '20px',  // Group index
-    '74px',  // Group name with checkbox
-    '20px',  // Metric index
-    '273px', // Metric name & description
-    `${chartWidth / 3}px`,  // Chart column 1
-    `${chartWidth / 3}px`,  // Chart column 2
-    `${chartWidth / 3}px`,  // Chart column 3
-    '100px', // Selection Mean/Range
-    ...selectionComparisons.map(() => '100px'), // Dynamic selection comparisons
-    '100px', // Focus Mean/Range
-    ...focusComparisons.map(() => '100px') // Dynamic focus comparisons
+    isEditMode ? `${columnWidths.dragHandle}px` : null,
+    `${columnWidths.groupIndex}px`,  // Group index
+    `${columnWidths.group}px`,  // Group name with checkbox
+    `${columnWidths.metricIndex}px`,  // Metric index
+    `${columnWidths.name}px`, // Metric name & description
+    `${columnWidths.chart / 3}px`,  // Chart column 1
+    `${columnWidths.chart / 3}px`,  // Chart column 2
+    `${columnWidths.chart / 3}px`,  // Chart column 3
+    `${columnWidths.selectionMean}px`, // Selection Mean/Range
+    ...selectionComparisons.map(() => `${columnWidths.comparison}px`), // Dynamic selection comparisons
+    `${columnWidths.focusMean}px`, // Focus Mean/Range
+    ...focusComparisons.map(() => `${columnWidths.comparison}px`) // Dynamic focus comparisons
   ].filter(Boolean).join(' ');
 
   return (
@@ -440,7 +454,7 @@ export const MetricRow = memo(function MetricRow({
         </div>
 
         {/* Compact Chart - spans Aggregation, Shadow, and Range columns */}
-        <div className="border-r border-gray-300 relative my-[1px] mx-[4px]" style={{ gridColumn: 'span 3', height: isChartExpanded ? '400px' : '60px' }}>
+        <div className="border-r border-gray-300 relative px-[4px]" style={{ gridColumn: 'span 3', height: isChartExpanded ? '400px' : '60px' }}>
           <CompactTimeSeriesChart
             series={metric.series}
             aggregationConfig={globalSettings.aggregation}
@@ -478,12 +492,14 @@ export const MetricRow = memo(function MetricRow({
           min={rowValues.selectionRange?.min}
           max={rowValues.selectionRange?.max}
           precision={precision}
+          className={selectionComparisons.length === 0 ? "border-r border-gray-300" : ""}
         />
 
         {/* Dynamic Selection Comparisons */}
-        {globalSettings.comparisons?.filter(c => c.enabled && c.periodType === 'selection').sort((a, b) => a.order - b.order).map(comparison => {
+        {selectionComparisons.map((comparison, index) => {
           const result = rowValues.comparisons?.get(comparison.id);
           const scaling = colorScaling?.comparisonScales?.get(comparison.id);
+          const isLast = index === selectionComparisons.length - 1;
 
           return (
             <PercentAbsCell
@@ -503,6 +519,7 @@ export const MetricRow = memo(function MetricRow({
                   result.percentDifference === scaling.min
                 )
               }
+              className={isLast ? "border-r border-gray-300" : ""}
             />
           );
         })}
@@ -516,7 +533,7 @@ export const MetricRow = memo(function MetricRow({
         />
 
         {/* Dynamic Focus Comparisons */}
-        {globalSettings.comparisons?.filter(c => c.enabled && c.periodType === 'focus').sort((a, b) => a.order - b.order).map(comparison => {
+        {focusComparisons.map(comparison => {
           const result = rowValues.comparisons?.get(comparison.id);
           const scaling = colorScaling?.comparisonScales?.get(comparison.id);
 

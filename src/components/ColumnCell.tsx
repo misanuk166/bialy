@@ -52,7 +52,7 @@ export function ColumnCell({
 }: ColumnCellProps) {
   if (isEmpty || value === undefined || value === null) {
     return (
-      <div className={`text-center text-gray-400 text-sm px-1.5 py-0.5 leading-tight ${className}`}>
+      <div className={`text-center text-gray-400 text-sm px-0.5 py-0.5 leading-tight ${className}`}>
         —
       </div>
     );
@@ -61,7 +61,7 @@ export function ColumnCell({
   const numValue = typeof value === 'number' ? value : parseFloat(value);
   if (isNaN(numValue)) {
     return (
-      <div className={`text-center text-gray-400 text-sm px-1.5 py-0.5 leading-tight ${className}`}>
+      <div className={`text-center text-gray-400 text-sm px-0.5 py-0.5 leading-tight ${className}`}>
         —
       </div>
     );
@@ -89,7 +89,7 @@ export function ColumnCell({
 
   return (
     <div
-      className={`text-right text-sm px-1.5 py-0.5 leading-tight ${isExtreme ? 'font-bold' : 'font-medium'} ${textColorClass} ${className}`}
+      className={`text-right text-sm px-0.5 py-0.5 leading-tight ${isExtreme ? 'font-bold' : 'font-medium'} ${textColorClass} ${className}`}
       style={textColorStyle ? { color: textColorStyle } : undefined}
     >
       {displayValue}
@@ -100,7 +100,7 @@ export function ColumnCell({
 export function RangeCell({ min, max, precision = 2 }: { min?: number; max?: number; precision?: number }) {
   if (min === undefined || max === undefined) {
     return (
-      <div className="text-center text-gray-400 text-sm px-1.5 py-0.5 leading-tight">
+      <div className="text-center text-gray-400 text-sm px-0.5 py-0.5 leading-tight">
         —
       </div>
     );
@@ -109,7 +109,7 @@ export function RangeCell({ min, max, precision = 2 }: { min?: number; max?: num
   const displayValue = `${min.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })} - ${max.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}`;
 
   return (
-    <div className="text-right text-xs text-gray-700 px-1.5 py-0.5 leading-tight">
+    <div className="text-right text-xs text-gray-700 px-0.5 py-0.5 leading-tight">
       {displayValue}
     </div>
   );
@@ -119,16 +119,18 @@ export function MeanRangeCell({
   mean,
   min,
   max,
-  precision = 2
+  precision = 2,
+  className = ''
 }: {
   mean?: number;
   min?: number;
   max?: number;
   precision?: number;
+  className?: string;
 }) {
   if (mean === undefined || min === undefined || max === undefined) {
     return (
-      <div className="text-center text-gray-400 px-1.5 py-0.5 leading-tight">
+      <div className={`text-center text-gray-400 px-0.5 py-0.5 leading-tight ${className}`}>
         —
       </div>
     );
@@ -142,7 +144,7 @@ export function MeanRangeCell({
   const rangeValue = `${min.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })} - ${max.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}`;
 
   return (
-    <div className="text-right px-1.5 py-0.5 leading-tight flex flex-col justify-center">
+    <div className={`text-right px-0.5 py-0.5 leading-tight flex flex-col justify-center ${className}`}>
       <div className="text-sm font-medium text-gray-900">
         {meanValue}
       </div>
@@ -163,7 +165,8 @@ export function PercentAbsCell({
   scaledColorPct,
   maxPositivePct,
   maxNegativePct,
-  isExtreme = false
+  isExtreme = false,
+  className = ''
 }: {
   percentValue?: number;
   absValue?: number;
@@ -175,10 +178,11 @@ export function PercentAbsCell({
   maxPositivePct?: number;
   maxNegativePct?: number;
   isExtreme?: boolean;
+  className?: string;
 }) {
   if (isEmpty || percentValue === undefined || absValue === undefined) {
     return (
-      <div className="text-center text-gray-400 px-1.5 py-0.5 leading-tight">
+      <div className={`text-center text-gray-400 px-0.5 py-0.5 leading-tight ${className}`}>
         —
       </div>
     );
@@ -209,7 +213,7 @@ export function PercentAbsCell({
   });
 
   return (
-    <div className="text-right px-1.5 py-0.5 leading-tight flex flex-col justify-center">
+    <div className={`text-right px-0.5 py-0.5 leading-tight flex flex-col justify-center ${className}`}>
       <div
         className={`text-sm ${isExtreme ? 'font-bold' : 'font-medium'} ${textColorClass}`}
         style={textColorStyle ? { color: textColorStyle } : undefined}

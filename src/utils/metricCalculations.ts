@@ -9,6 +9,7 @@ import type { ComparisonConfig, ComparisonResult } from '../types/comparison';
 import { applyAggregation, normalizeSelectionDate } from './aggregation';
 import { generateShadowsData, calculateShadowAverage } from './shadows';
 import { generateGoalsData } from './goals';
+import { startOfWeek, startOfMonth, startOfQuarter, startOfYear, endOfWeek, endOfMonth, endOfQuarter, endOfYear } from 'date-fns';
 
 // Helper function to determine decimal precision (currently unused)
 // function getDecimalPrecision(num: number): number {
@@ -26,7 +27,9 @@ export function calculateMetricRowValues(
   goals?: Goal[],
   focusPeriod?: FocusPeriod,
   forecastConfig?: ForecastConfig,
-  forecastSnapshot?: ForecastSnapshot
+  forecastSnapshot?: ForecastSnapshot,
+  selectionIncludesForecast?: boolean,
+  focusIncludesForecast?: boolean
 ): MetricRowValues {
   // Prepare data (needed for both selection and focus period calculations)
   const dataWithValues = series.data.map(d => ({
@@ -122,8 +125,8 @@ export function calculateMetricRowValues(
   let isForecastPoint = false;
   let forecastPointIndex = -1;
 
-  // If not found in display data, check forecast data
-  if (!currentPoint && forecastData.length > 0) {
+  // If not found in display data, check forecast data (only if selectionIncludesForecast is true)
+  if (!currentPoint && forecastData.length > 0 && selectionIncludesForecast) {
     forecastPointIndex = forecastData.findIndex(p => {
       const diff = Math.abs(p.date.getTime() - dateTime);
       return diff < 24 * 60 * 60 * 1000; // 1 day tolerance
@@ -152,22 +155,23 @@ export function calculateMetricRowValues(
     let periodEnd: Date = new Date(aggregatedPointDate);
 
     if (aggregationConfig.mode === 'groupBy') {
-      periodStart = new Date(aggregatedPointDate);
-      periodEnd = new Date(aggregatedPointDate);
-
+      // Use the same date-fns functions as aggregation.ts for consistency
       switch (aggregationConfig.groupByPeriod) {
         case 'week':
-          periodStart.setDate(periodStart.getDate() - 6);
+          periodStart = startOfWeek(aggregatedPointDate, { weekStartsOn: 0 }); // Sunday
+          periodEnd = endOfWeek(aggregatedPointDate, { weekStartsOn: 0 });
           break;
         case 'month':
-          periodStart.setMonth(periodStart.getMonth(), 1);
+          periodStart = startOfMonth(aggregatedPointDate);
+          periodEnd = endOfMonth(aggregatedPointDate);
           break;
         case 'quarter':
-          const quarter = Math.floor(periodStart.getMonth() / 3);
-          periodStart.setMonth(quarter * 3, 1);
+          periodStart = startOfQuarter(aggregatedPointDate);
+          periodEnd = endOfQuarter(aggregatedPointDate);
           break;
         case 'year':
-          periodStart.setMonth(0, 1);
+          periodStart = startOfYear(aggregatedPointDate);
+          periodEnd = endOfYear(aggregatedPointDate);
           break;
       }
     } else {
@@ -211,24 +215,23 @@ export function calculateMetricRowValues(
     let periodEnd: Date = new Date(aggregatedPointDate);
 
     if (aggregationConfig.mode === 'groupBy') {
-      // For group-by, the aggregated point represents a period
-      // Use the normalized date as the period end and calculate start based on grouping
-      periodStart = new Date(aggregatedPointDate);
-      periodEnd = new Date(aggregatedPointDate);
-
+      // Use the same date-fns functions as aggregation.ts for consistency
       switch (aggregationConfig.groupByPeriod) {
         case 'week':
-          periodStart.setDate(periodStart.getDate() - 6);
+          periodStart = startOfWeek(aggregatedPointDate, { weekStartsOn: 0 }); // Sunday
+          periodEnd = endOfWeek(aggregatedPointDate, { weekStartsOn: 0 });
           break;
         case 'month':
-          periodStart.setMonth(periodStart.getMonth(), 1);
+          periodStart = startOfMonth(aggregatedPointDate);
+          periodEnd = endOfMonth(aggregatedPointDate);
           break;
         case 'quarter':
-          const quarter = Math.floor(periodStart.getMonth() / 3);
-          periodStart.setMonth(quarter * 3, 1);
+          periodStart = startOfQuarter(aggregatedPointDate);
+          periodEnd = endOfQuarter(aggregatedPointDate);
           break;
         case 'year':
-          periodStart.setMonth(0, 1);
+          periodStart = startOfYear(aggregatedPointDate);
+          periodEnd = endOfYear(aggregatedPointDate);
           break;
       }
     } else {
@@ -239,13 +242,18 @@ export function calculateMetricRowValues(
     }
 
     // Find all raw data points within this period
-    const periodData = dataWithValues.filter(d =>
+    const periodRawData = series.data.filter(d =>
       d.date >= periodStart && d.date <= periodEnd
     );
 
-    if (periodData.length > 0) {
-      const values = periodData.map(d => d.value);
-      selectionValue = values.reduce((sum, v) => sum + v, 0) / values.length;
+    if (periodRawData.length > 0) {
+      // Use weighted average (sum numerators / sum denominators) for consistency with aggregation
+      const totalNumerator = periodRawData.reduce((sum, d) => sum + d.numerator, 0);
+      const totalDenominator = periodRawData.reduce((sum, d) => sum + d.denominator, 0);
+      selectionValue = totalDenominator > 0 ? totalNumerator / totalDenominator : currentPoint.value;
+
+      // Calculate range from individual values
+      const values = periodRawData.map(d => d.numerator / d.denominator);
       selectionRange = {
         min: Math.min(...values),
         max: Math.max(...values)

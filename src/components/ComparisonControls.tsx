@@ -10,6 +10,8 @@ interface ComparisonControlsProps {
   goals?: Goal[];
   onChange: (comparisons: ComparisonConfig[]) => void;
   filterPeriodType?: 'selection' | 'focus';
+  includesForecast?: boolean;
+  onIncludesForecastChange?: (includesForecast: boolean) => void;
 }
 
 export function ComparisonControls({
@@ -17,7 +19,9 @@ export function ComparisonControls({
   shadows,
   goals,
   onChange,
-  filterPeriodType
+  filterPeriodType,
+  includesForecast = false,
+  onIncludesForecastChange
 }: ComparisonControlsProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -226,6 +230,25 @@ export function ComparisonControls({
 
   return (
     <div className="space-y-4">
+      {/* Include Forecast Checkbox */}
+      {onIncludesForecastChange && (
+        <div className="flex items-center gap-2 p-3 bg-gray-50 rounded border border-gray-200">
+          <input
+            type="checkbox"
+            id="includesForecast"
+            checked={includesForecast}
+            onChange={(e) => onIncludesForecastChange(e.target.checked)}
+            className="flex-shrink-0"
+          />
+          <label htmlFor="includesForecast" className="text-sm text-gray-700 cursor-pointer">
+            <span className="font-medium">Include Forecast in {filterPeriodType === 'selection' ? 'Selection' : 'Focus Period'}</span>
+            <p className="text-xs text-gray-600 mt-0.5">
+              When enabled, uses forecast data to extend the primary series (does not affect comparison targets)
+            </p>
+          </label>
+        </div>
+      )}
+
       {/* Comparison Lists */}
       {(!filterPeriodType || filterPeriodType === 'selection') && renderComparisonList(selectionComparisons, 'Selection')}
       {(!filterPeriodType || filterPeriodType === 'focus') && renderComparisonList(focusComparisons, 'Focus Period')}

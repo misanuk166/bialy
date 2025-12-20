@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { MetricRow } from './MetricRow';
+import { ColumnResizeHandle } from './ColumnResizeHandle';
 import {
   DndContext,
   closestCenter,
@@ -141,6 +142,19 @@ export function MetricGrid({
   const [isEditingGroupSet, setIsEditingGroupSet] = useState(false);
   const [groupSetInputValue, setGroupSetInputValue] = useState('');
 
+  // Column widths for resizable columns
+  const [columnWidths, setColumnWidths] = useState({
+    dragHandle: 30,
+    groupIndex: 20,
+    group: 74,
+    metricIndex: 20,
+    name: 273,
+    chart: 390,
+    selectionMean: 100,
+    focusMean: 100,
+    comparison: 100
+  });
+
   const selectionPeriodEditButtonRef = useRef<HTMLButtonElement>(null);
   const focusPeriodEditButtonRef = useRef<HTMLButtonElement>(null);
   const aggregationEditButtonRef = useRef<HTMLButtonElement>(null);
@@ -155,8 +169,6 @@ export function MetricGrid({
   const rangePopupRef = useRef<HTMLDivElement>(null);
   const comparisonPopupRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const chartWidth = 390;
 
   // Throttled hover handler to improve performance
   const handleHover = useCallback((date: Date | null) => {
@@ -279,7 +291,9 @@ export function MetricGrid({
         metric.goals,
         globalSettings.focusPeriod,
         metric.forecast,
-        metric.forecastSnapshot
+        metric.forecastSnapshot,
+        globalSettings.selectionIncludesForecast,
+        globalSettings.focusIncludesForecast
       );
 
       // Calculate dynamic comparisons
@@ -539,6 +553,13 @@ export function MetricGrid({
     }
   };
 
+  const handleColumnResize = useCallback((columnKey: string, newWidth: number) => {
+    setColumnWidths(prev => ({
+      ...prev,
+      [columnKey]: newWidth
+    }));
+  }, []);
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -730,31 +751,31 @@ export function MetricGrid({
   const focusComparisons = globalSettings.comparisons?.filter(c => c.enabled && c.periodType === 'focus') || [];
 
   const groupHeaderGridTemplate = [
-    isEditMode ? '30px' : null,
-    '20px',  // Group index
-    '74px',  // Group name
-    '20px',  // Metric index
-    '273px', // Metric name
-    `${chartWidth}px`, // Chart
-    `100px`, // Selection Mean/Range
-    ...selectionComparisons.map(() => '100px'), // Selection comparisons
-    `100px`, // Focus Mean/Range
-    ...focusComparisons.map(() => '100px') // Focus comparisons
+    isEditMode ? `${columnWidths.dragHandle}px` : null,
+    `${columnWidths.groupIndex}px`,  // Group index
+    `${columnWidths.group}px`,  // Group name
+    `${columnWidths.metricIndex}px`,  // Metric index
+    `${columnWidths.name}px`, // Metric name
+    `${columnWidths.chart}px`, // Chart
+    `${columnWidths.selectionMean}px`, // Selection Mean/Range
+    ...selectionComparisons.map(() => `${columnWidths.comparison}px`), // Selection comparisons
+    `${columnWidths.focusMean}px`, // Focus Mean/Range
+    ...focusComparisons.map(() => `${columnWidths.comparison}px`) // Focus comparisons
   ].filter(Boolean).join(' ');
 
   const columnHeaderGridTemplate = [
-    isEditMode ? '30px' : null,
-    '20px',  // Group index
-    '74px',  // Group name
-    '20px',  // Metric index
-    '273px', // Metric name
-    `${chartWidth / 3}px`, // Chart column 1 (Aggregation)
-    `${chartWidth / 3}px`, // Chart column 2 (Shadow)
-    `${chartWidth / 3}px`, // Chart column 3 (Annotations)
-    `100px`, // Selection Mean/Range
-    ...selectionComparisons.map(() => '100px'), // Selection comparisons
-    `100px`, // Focus Mean/Range
-    ...focusComparisons.map(() => '100px') // Focus comparisons
+    isEditMode ? `${columnWidths.dragHandle}px` : null,
+    `${columnWidths.groupIndex}px`,  // Group index
+    `${columnWidths.group}px`,  // Group name
+    `${columnWidths.metricIndex}px`,  // Metric index
+    `${columnWidths.name}px`, // Metric name
+    `${columnWidths.chart / 3}px`, // Chart column 1 (Aggregation)
+    `${columnWidths.chart / 3}px`, // Chart column 2 (Shadow)
+    `${columnWidths.chart / 3}px`, // Chart column 3 (Annotations)
+    `${columnWidths.selectionMean}px`, // Selection Mean/Range
+    ...selectionComparisons.map(() => `${columnWidths.comparison}px`), // Selection comparisons
+    `${columnWidths.focusMean}px`, // Focus Mean/Range
+    ...focusComparisons.map(() => `${columnWidths.comparison}px`) // Focus comparisons
   ].filter(Boolean).join(' ');
 
   return (
@@ -768,7 +789,7 @@ export function MetricGrid({
             minWidth: 'fit-content'
           }}>
           {/* Metrics label - Spans Drag Handle (if visible), Grp Idx, Group, Mtr Idx, and Name columns */}
-          <div className="px-1.5 text-sm font-bold text-gray-800 border-r border-gray-300 flex items-center justify-between" style={{ gridColumn: isEditMode ? 'span 5' : 'span 4' }}>
+          <div className="px-1.5 text-sm font-bold text-gray-800 border-r border-gray-300 flex items-center justify-between relative" style={{ gridColumn: isEditMode ? 'span 5' : 'span 4' }}>
             <div className="flex items-center gap-2">
               <span>Metrics</span>
               <button
@@ -868,9 +889,15 @@ export function MetricGrid({
                 )}
               </div>
             )}
+            <ColumnResizeHandle
+              columnKey="name"
+              onResize={handleColumnResize}
+              currentWidth={columnWidths.name}
+              minWidth={100}
+            />
           </div>
           {/* Range with Edit button */}
-          <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300 flex items-center justify-center gap-1">
+          <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300 flex items-center justify-center gap-1 relative">
             <span>{getRangeLabel}</span>
             <button
               ref={rangeEditButtonRef}
@@ -880,57 +907,59 @@ export function MetricGrid({
             >
               Edit
             </button>
+            <ColumnResizeHandle
+              columnKey="chart"
+              onResize={handleColumnResize}
+              currentWidth={columnWidths.chart}
+              minWidth={200}
+            />
           </div>
           {/* Selection Group */}
-          <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300 flex items-center justify-center gap-2" style={{ gridColumn: `span ${1 + selectionComparisons.length}` }}>
+          <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300 flex items-center justify-center gap-2 relative" style={{ gridColumn: `span ${1 + selectionComparisons.length}` }}>
             <span>
               {getSelectionLabel} {displaySelectionDate ? displaySelectionDate.toLocaleDateString() : '—'}
             </span>
-            <button
-              ref={selectionPeriodEditButtonRef}
-              onClick={() => setShowSelectionPeriodModal(true)}
-              className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-              title="Edit selection period"
-            >
-              Edit
-            </button>
             <button
               ref={comparisonEditButtonRef}
               onClick={() => {
                 setComparisonModalPeriodType('selection');
                 setShowComparisonModal(true);
               }}
-              className="text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded px-1"
+              className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
               title="Manage comparisons"
             >
-              +
+              Edit
             </button>
+            <ColumnResizeHandle
+              columnKey="selectionMean"
+              onResize={handleColumnResize}
+              currentWidth={columnWidths.selectionMean}
+              minWidth={80}
+            />
           </div>
           {/* Focus Period Group */}
-          <div className="px-1.5 text-sm font-bold text-gray-800 text-center flex items-center justify-center gap-2" style={{ gridColumn: `span ${1 + focusComparisons.length}` }}>
+          <div className="px-1.5 text-sm font-bold text-gray-800 text-center flex items-center justify-center gap-2 relative" style={{ gridColumn: `span ${1 + focusComparisons.length}` }}>
             <span>
               {globalSettings.focusPeriod?.enabled && globalSettings.focusPeriod.label
                 ? globalSettings.focusPeriod.label
                 : 'Focus Period'}
             </span>
             <button
-              ref={focusPeriodEditButtonRef}
-              onClick={() => setShowFocusPeriodModal(true)}
-              className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-              title="Edit focus period"
-            >
-              Edit
-            </button>
-            <button
               onClick={() => {
                 setComparisonModalPeriodType('focus');
                 setShowComparisonModal(true);
               }}
-              className="text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded px-1"
+              className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
               title="Manage comparisons"
             >
-              +
+              Edit
             </button>
+            <ColumnResizeHandle
+              columnKey="focusMean"
+              onResize={handleColumnResize}
+              currentWidth={columnWidths.focusMean}
+              minWidth={80}
+            />
           </div>
         </div>
 
@@ -946,7 +975,7 @@ export function MetricGrid({
           {columnDefinitions.slice(0, 3).map((col) => (
             <div
               key={col.key}
-              className={`px-1.5 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''} flex items-center justify-center gap-2`}
+              className={`px-1.5 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''} flex items-center justify-center gap-2 relative`}
               onClick={() => col.sortable && handleColumnHeaderClick(col.key)}
             >
               {col.key === 'group' && isEditMode && (
@@ -970,10 +999,18 @@ export function MetricGrid({
               {sortColumn === col.key && (
                 <span className="ml-1">{sortDirection === 'desc' ? '↓' : '↑'}</span>
               )}
+              {col.key === 'group' && (
+                <ColumnResizeHandle
+                  columnKey="group"
+                  onResize={handleColumnResize}
+                  currentWidth={columnWidths.group}
+                  minWidth={50}
+                />
+              )}
             </div>
           ))}
           {/* Metric management buttons */}
-          <div className="px-2 border-r border-gray-300 flex items-center gap-1">
+          <div className="px-2 border-r border-gray-300 flex items-center gap-1 relative">
             <button
               onClick={onAddMetric}
               className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -988,6 +1025,12 @@ export function MetricGrid({
             >
               Clear All
             </button>
+            <ColumnResizeHandle
+              columnKey="name"
+              onResize={handleColumnResize}
+              currentWidth={columnWidths.name}
+              minWidth={100}
+            />
           </div>
 
           {/* Chart Column Sub-headers - these 3 columns share the chart area width equally */}
@@ -1029,7 +1072,7 @@ export function MetricGrid({
           </div>
 
           {/* Annotations with Edit button */}
-          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 flex items-center justify-center gap-1">
+          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 flex items-center justify-center gap-1 relative">
             <span>Annotations</span>
             <button
               ref={annotationEditButtonRef}
@@ -1039,6 +1082,12 @@ export function MetricGrid({
             >
               Edit
             </button>
+            <ColumnResizeHandle
+              columnKey="chart"
+              onResize={handleColumnResize}
+              currentWidth={columnWidths.chart}
+              minWidth={200}
+            />
           </div>
 
           {/* Dynamic column headers (Selection and Focus) */}
@@ -1047,15 +1096,35 @@ export function MetricGrid({
             const selectionCompCount = selectionComparisons.length + 1; // +1 for Mean/Range
             const shouldHaveBorder = index === selectionCompCount - 1;
 
+            // Determine which resize handle to show
+            const isSelectionMean = col.key === 'selectionValue';
+            const isFocusMean = col.key === 'focusMean';
+
             return (
               <div
                 key={col.key}
-                className={`px-1.5 text-xs font-semibold text-gray-700 text-right whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''} ${shouldHaveBorder ? 'border-r border-gray-300' : ''}`}
+                className={`px-1.5 text-xs font-semibold text-gray-700 text-right whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:bg-gray-100' : ''} ${shouldHaveBorder ? 'border-r border-gray-300' : ''} relative`}
                 onClick={() => col.sortable && handleColumnHeaderClick(col.key)}
               >
                 {col.label}
                 {sortColumn === col.key && (
                   <span className="ml-1">{sortDirection === 'desc' ? '↓' : '↑'}</span>
+                )}
+                {isSelectionMean && (
+                  <ColumnResizeHandle
+                    columnKey="selectionMean"
+                    onResize={handleColumnResize}
+                    currentWidth={columnWidths.selectionMean}
+                    minWidth={80}
+                  />
+                )}
+                {isFocusMean && (
+                  <ColumnResizeHandle
+                    columnKey="focusMean"
+                    onResize={handleColumnResize}
+                    currentWidth={columnWidths.focusMean}
+                    minWidth={80}
+                  />
                 )}
               </div>
             );
@@ -1085,7 +1154,7 @@ export function MetricGrid({
                 selectionDate={selectionDate || undefined}
                 currentHoverDate={currentHoverDate || undefined}
                 xDomain={xDomain}
-                chartWidth={chartWidth}
+                chartWidth={columnWidths.chart}
                 onMetricUpdate={onMetricUpdate}
                 onExpand={() => onMetricExpand(metric.id)}
                 onRemove={() => onMetricRemove(metric.id)}
@@ -1097,6 +1166,7 @@ export function MetricGrid({
                 onMoveMetric={(direction) => handleMoveMetric(metric.id, direction)}
                 isEditMode={isEditMode}
                 colorScaling={colorScaling}
+                columnWidths={columnWidths}
               />
             ))}
           </div>
@@ -1257,6 +1327,20 @@ export function MetricGrid({
             goals={metrics.flatMap(m => m.goals || [])}
             onChange={onComparisonsChange}
             filterPeriodType={comparisonModalPeriodType || undefined}
+            includesForecast={
+              comparisonModalPeriodType === 'selection'
+                ? globalSettings.selectionIncludesForecast
+                : comparisonModalPeriodType === 'focus'
+                ? globalSettings.focusIncludesForecast
+                : false
+            }
+            onIncludesForecastChange={(includesForecast) => {
+              if (comparisonModalPeriodType === 'selection') {
+                onForecastInclusionChange(includesForecast, globalSettings.focusIncludesForecast || false);
+              } else if (comparisonModalPeriodType === 'focus') {
+                onForecastInclusionChange(globalSettings.selectionIncludesForecast || false, includesForecast);
+              }
+            }}
           />
           <button
             onClick={() => {
