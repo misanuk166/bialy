@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { CSVUpload } from '../components/CSVUpload';
 import { MetricGrid } from '../components/MetricGrid';
 import { SingleMetricView } from '../components/SingleMetricView';
+import { DashboardSelector } from '../components/DashboardSelector';
 import { loadSyntheticMetrics } from '../utils/generateSyntheticData';
 import { saveAppState, loadAppState } from '../utils/localStorage';
+import { fetchDashboard, saveDashboardData } from '../services/dashboardService';
 import { useAuth } from '../contexts/AuthContext';
 import type { Series } from '../types/series';
 import type { MetricConfig, GlobalSettings, ViewMode } from '../types/appState';
@@ -16,6 +18,7 @@ import { DEFAULT_SELECTION_COMPARISONS, DEFAULT_FOCUS_COMPARISONS, type Comparis
 
 export function DashboardPage() {
   const { user, signOut } = useAuth();
+  const [currentDashboardId, setCurrentDashboardId] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<MetricConfig[]>([]);
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({
     aggregation: {
@@ -46,23 +49,50 @@ export function DashboardPage() {
   const [description, setDescription] = useState('Multi-metric time series data visualization and analysis');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [loadingDashboard, setLoadingDashboard] = useState(false);
 
-  // Load app state from localStorage on mount
+  // Load dashboard data when currentDashboardId changes
   useEffect(() => {
-    const savedState = loadAppState();
-    if (savedState) {
-      console.log('Loaded app state from localStorage');
-      if (savedState.metrics) setMetrics(savedState.metrics);
-      if (savedState.globalSettings) setGlobalSettings(savedState.globalSettings);
-      if (savedState.viewMode) setViewMode(savedState.viewMode);
-      if (savedState.expandedMetricId) setExpandedMetricId(savedState.expandedMetricId);
+    if (!currentDashboardId) return;
+
+    const loadDashboard = async () => {
+      try {
+        setLoadingDashboard(true);
+        const dashboard = await fetchDashboard(currentDashboardId);
+
+        if (dashboard) {
+          setMetrics(dashboard.metrics);
+          setGlobalSettings(dashboard.global_settings);
+        }
+      } catch (error) {
+        console.error('Failed to load dashboard:', error);
+      } finally {
+        setLoadingDashboard(false);
+      }
+    };
+
+    loadDashboard();
+  }, [currentDashboardId]);
+
+  // Fallback: Load app state from localStorage on mount (for backward compatibility)
+  useEffect(() => {
+    // Only load from localStorage if no dashboard is selected
+    if (!currentDashboardId) {
+      const savedState = loadAppState();
+      if (savedState) {
+        console.log('Loaded app state from localStorage (fallback)');
+        if (savedState.metrics) setMetrics(savedState.metrics);
+        if (savedState.globalSettings) setGlobalSettings(savedState.globalSettings);
+        if (savedState.viewMode) setViewMode(savedState.viewMode);
+        if (savedState.expandedMetricId) setExpandedMetricId(savedState.expandedMetricId);
+      }
     }
-  }, []);
+  }, [currentDashboardId]);
 
-  // Save app state to localStorage whenever it changes
+  // Save app state to localStorage whenever it changes (fallback for backward compatibility)
   useEffect(() => {
-    // Only save if we have metrics (don't save empty initial state)
-    if (metrics.length > 0) {
+    // Only save to localStorage if no dashboard is selected
+    if (!currentDashboardId && metrics.length > 0) {
       saveAppState({
         metrics,
         globalSettings,
@@ -70,7 +100,24 @@ export function DashboardPage() {
         expandedMetricId: expandedMetricId ?? undefined
       });
     }
-  }, [metrics, globalSettings, viewMode, expandedMetricId]);
+  }, [metrics, globalSettings, viewMode, expandedMetricId, currentDashboardId]);
+
+  // Save dashboard data to database when it changes (debounced)
+  useEffect(() => {
+    if (!currentDashboardId || metrics.length === 0) return;
+
+    const timeoutId = setTimeout(() => {
+      saveDashboardData(currentDashboardId, metrics, globalSettings)
+        .then(() => {
+          console.log('Dashboard data saved');
+        })
+        .catch((error) => {
+          console.error('Failed to save dashboard data:', error);
+        });
+    }, 1000); // Debounce for 1 second
+
+    return () => clearTimeout(timeoutId);
+  }, [currentDashboardId, metrics, globalSettings]);
 
   const handleSeriesLoaded = (series: Series) => {
     setMetrics(prevMetrics => {
@@ -186,54 +233,64 @@ export function DashboardPage() {
       <div className="mx-auto px-1" style={{ maxWidth: '2000px' }}>
         {/* Header with user info */}
         <div className="flex justify-between items-start mb-4">
-          <header>
-            {isEditingTitle ? (
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={() => setIsEditingTitle(false)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === 'Escape') {
-                    setIsEditingTitle(false);
-                  }
-                }}
-                autoFocus
-                className="text-4xl font-bold text-gray-900 border-b-2 border-blue-500 bg-transparent outline-none"
+          <div>
+            <header>
+              {isEditingTitle ? (
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onBlur={() => setIsEditingTitle(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === 'Escape') {
+                      setIsEditingTitle(false);
+                    }
+                  }}
+                  autoFocus
+                  className="text-4xl font-bold text-gray-900 border-b-2 border-blue-500 bg-transparent outline-none"
+                />
+              ) : (
+                <h1
+                  className="text-4xl font-bold text-gray-900 cursor-pointer hover:bg-gray-100 inline-block px-2 rounded"
+                  onClick={() => setIsEditingTitle(true)}
+                  title="Click to edit title"
+                >
+                  {title}
+                </h1>
+              )}
+              {isEditingDescription ? (
+                <input
+                  type="text"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  onBlur={() => setIsEditingDescription(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === 'Escape') {
+                      setIsEditingDescription(false);
+                    }
+                  }}
+                  autoFocus
+                  className="text-gray-600 mt-2 border-b-2 border-blue-500 bg-transparent outline-none w-full"
+                />
+              ) : (
+                <p
+                  className="text-gray-600 mt-2 cursor-pointer hover:bg-gray-100 inline-block px-2 rounded"
+                  onClick={() => setIsEditingDescription(true)}
+                  title="Click to edit description"
+                >
+                  {description}
+                </p>
+              )}
+            </header>
+
+            {/* Dashboard Selector */}
+            <div className="mt-4">
+              <DashboardSelector
+                currentDashboardId={currentDashboardId}
+                onSelectDashboard={setCurrentDashboardId}
               />
-            ) : (
-              <h1
-                className="text-4xl font-bold text-gray-900 cursor-pointer hover:bg-gray-100 inline-block px-2 rounded"
-                onClick={() => setIsEditingTitle(true)}
-                title="Click to edit title"
-              >
-                {title}
-              </h1>
-            )}
-            {isEditingDescription ? (
-              <input
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                onBlur={() => setIsEditingDescription(false)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === 'Escape') {
-                    setIsEditingDescription(false);
-                  }
-                }}
-                autoFocus
-                className="text-gray-600 mt-2 border-b-2 border-blue-500 bg-transparent outline-none w-full"
-              />
-            ) : (
-              <p
-                className="text-gray-600 mt-2 cursor-pointer hover:bg-gray-100 inline-block px-2 rounded"
-                onClick={() => setIsEditingDescription(true)}
-                title="Click to edit description"
-              >
-                {description}
-              </p>
-            )}
-          </header>
+            </div>
+          </div>
 
           {/* User Menu */}
           <div className="flex items-center gap-4">
