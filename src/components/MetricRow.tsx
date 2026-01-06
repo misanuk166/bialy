@@ -1,6 +1,6 @@
 import { useState, memo, useEffect } from 'react';
 import { CompactTimeSeriesChart } from './CompactTimeSeriesChart';
-import { ColumnCell, RangeCell, MeanRangeCell, PercentAbsCell } from './ColumnCell';
+import { MeanRangeCell, PercentAbsCell } from './ColumnCell';
 import { GoalControls } from './GoalControls';
 import { ForecastControls } from './ForecastControls';
 import type { MetricConfig, GlobalSettings, MetricRowValues } from '../types/appState';

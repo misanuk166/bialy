@@ -106,16 +106,6 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
     }
   };
 
-  const getDateRangeLabel = () => {
-    if (range.preset !== 'custom') {
-      return range.preset;
-    }
-    if (range.startDate && range.endDate) {
-      return `${range.startDate.toLocaleDateString()} - ${range.endDate.toLocaleDateString()}`;
-    }
-    return 'Custom Range';
-  };
-
   return (
     <div className="space-y-3">
       {/* Preset Selection */}

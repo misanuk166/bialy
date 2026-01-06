@@ -24,7 +24,6 @@ import { RangeControls, type DateRange } from './RangeControls';
 import { ComparisonControls } from './ComparisonControls';
 import { AnnotationControls } from './AnnotationControls';
 import { ForecastControls } from './ForecastControls';
-import { GoalControls } from './GoalControls';
 import type { MetricConfig, GlobalSettings, ColumnKey } from '../types/appState';
 import type { FocusPeriod } from '../types/focusPeriod';
 import type { AggregationConfig } from '../utils/aggregation';
@@ -292,8 +291,7 @@ export function MetricGrid({
         globalSettings.focusPeriod,
         metric.forecast,
         metric.forecastSnapshot,
-        globalSettings.selectionIncludesForecast,
-        globalSettings.focusIncludesForecast
+        globalSettings.selectionIncludesForecast
       );
 
       // Calculate dynamic comparisons
@@ -486,7 +484,7 @@ export function MetricGrid({
   const getSelectionLabel = useMemo(() => {
     const agg = globalSettings.aggregation;
 
-    if (!agg.enabled) {
+    if (!agg || !agg.enabled) {
       return 'Selection:';
     }
 

@@ -370,9 +370,6 @@ export function TimeSeriesChart({
       }));
     }
 
-    // Separate aggregated historical from aggregated forecast
-    const lastHistoricalDate = series.data[series.data.length - 1].date;
-
     // Determine the actual forecast start date
     const forecastStartDate = forecastSnapshot && forecastSnapshot.values.length > 0
       ? new Date(forecastSnapshot.values[0].date)
@@ -2014,7 +2011,7 @@ export function TimeSeriesChart({
     // Add annotation interactive elements on top of overlay
     if (annotationsEnabled) {
       const allAnnotations = mergeAnnotations(annotations, metricAnnotations);
-      const annotationData = generateAnnotationData(allAnnotations, currentDomain);
+      const annotationData = generateAnnotationData(allAnnotations, currentDomain || undefined);
 
       // Add interactive elements for event annotations
       annotationData

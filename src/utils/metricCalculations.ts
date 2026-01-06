@@ -28,8 +28,7 @@ export function calculateMetricRowValues(
   focusPeriod?: FocusPeriod,
   forecastConfig?: ForecastConfig,
   forecastSnapshot?: ForecastSnapshot,
-  selectionIncludesForecast?: boolean,
-  focusIncludesForecast?: boolean
+  selectionIncludesForecast?: boolean
 ): MetricRowValues {
   // Prepare data (needed for both selection and focus period calculations)
   const dataWithValues = series.data.map(d => ({
@@ -443,7 +442,7 @@ function calculateComparison(
   goals: Goal[] | undefined,
   forecastConfig: ForecastConfig | undefined,
   forecastSnapshot: ForecastSnapshot | undefined,
-  displayData: Array<{ date: Date; value: number }>,
+  _displayData: Array<{ date: Date; value: number }>,
   aggregationConfig: AggregationConfig | undefined,
   currentDate: Date,
   seriesData: any,

@@ -9,7 +9,7 @@ const DEFAULT_ANNOTATION_COLOR = '#ddd6fe'; // violet-200
  * Get color for an annotation
  * Uses custom color if specified, otherwise uses violet-200
  */
-export function getAnnotationColor(annotation: Annotation, index: number): string {
+export function getAnnotationColor(annotation: Annotation): string {
   if (annotation.color) {
     return annotation.color;
   }
@@ -142,9 +142,9 @@ export function generateAnnotationData(
     );
   }
 
-  return filteredAnnotations.map((annotation, index) => ({
+  return filteredAnnotations.map((annotation) => ({
     annotation,
-    color: getAnnotationColor(annotation, index),
+    color: getAnnotationColor(annotation),
     displayLabel: annotation.label,
     visible: true,
   }));

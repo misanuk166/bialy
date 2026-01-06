@@ -574,16 +574,11 @@ export function CompactTimeSeriesChart({
 
       if (closestPoint) {
         const x = xScale(closestPoint.date);
-        const y = yScale(closestPoint.value);
 
         hoverLine
           .attr('x1', x)
           .attr('x2', x)
           .style('opacity', 1);
-
-        // Check if we're in the forecast period
-        const lastDataDate = displayData[displayData.length - 1]?.date;
-        const isForecastPeriod = showXAxis && forecastData.length > 0 && lastDataDate && hoveredDate > lastDataDate;
 
         // Always find and show the closest actual data point at hover position
         if (displayData.length > 0) {
@@ -915,16 +910,11 @@ export function CompactTimeSeriesChart({
 
       if (closestPoint) {
         const x = xScale(closestPoint.date);
-        const y = yScale(closestPoint.value);
 
         hoverLine
           .attr('x1', x)
           .attr('x2', x)
           .style('opacity', 1);
-
-        // Check if we're in the forecast period
-        const lastDataDate = displayData[displayData.length - 1]?.date;
-        const isForecastPeriod = showXAxis && forecastData.length > 0 && lastDataDate && currentHoverDate > lastDataDate;
 
         // Always find and show the closest actual data point at hover position
         if (displayData.length > 0) {
@@ -1077,5 +1067,5 @@ export function CompactTimeSeriesChart({
 
   }, [series, aggregationConfig, shadows, averageShadows, forecastConfig, focusPeriod, goals, xDomain, width, height, showXAxis, selectionDate, currentHoverDate, onHover, onClick, onZoom]);
 
-  return <svg ref={svgRef} className="w-full" />;
+  return <svg ref={svgRef} className="w-full" style={{ overflow: 'visible' }} />;
 }
