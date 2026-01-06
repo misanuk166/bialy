@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase';
 import Papa from 'papaparse';
 import type { Series } from '../types/series';
 
-const STORAGE_BUCKET = 'metric-data';
+const STORAGE_BUCKET = 'csv-files';
 
 /**
  * Upload a CSV file to Supabase Storage
