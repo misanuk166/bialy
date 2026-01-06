@@ -1,8 +1,8 @@
-# SECURITY INCIDENT - OAuth Credentials Exposed
+# SECURITY INCIDENT - OAuth Credentials Exposed (TEST APP)
 
 **Date**: January 6, 2026
-**Severity**: HIGH
-**Status**: IMMEDIATE ACTION REQUIRED
+**Severity**: LOW (test app only, not production)
+**Status**: MITIGATED - Credentials removed from public repo, continuing to use privately
 
 ---
 
@@ -18,11 +18,15 @@ GitGuardian detected this exposure on **January 6, 2026 at 00:24:57 UTC**.
 
 ---
 
-## ⚠️ IMMEDIATE ACTIONS REQUIRED
+## 📝 Resolution for Test App
 
-### 1. Rotate OAuth Credentials (CRITICAL - DO THIS FIRST)
+**Decision**: Since this is a test/development app with no real users or sensitive data, we're keeping the existing credentials but ensuring they're not publicly exposed.
 
-You **MUST** create new OAuth credentials immediately:
+## ⚠️ OPTIONAL ACTIONS (For Production Apps Only)
+
+### 1. Rotate OAuth Credentials (SKIP FOR TEST APPS)
+
+If this were a production app, you would create new OAuth credentials:
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Navigate to **APIs & Services > Credentials**
