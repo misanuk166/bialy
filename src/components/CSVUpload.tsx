@@ -1,34 +1,57 @@
 import React, { useState, useRef } from 'react';
 import { parseCSVToTimeSeries, createSeries } from '../utils/csvParser';
+import { uploadCSVFile } from '../services/storageService';
+import { useAuth } from '../contexts/AuthContext';
 import type { Series, CSVValidationResult } from '../types/series';
 
 interface CSVUploadProps {
-  onSeriesLoaded: (series: Series) => void;
+  onSeriesLoaded: (series: Series, filePath?: string) => void;
 }
 
 export function CSVUpload({ onSeriesLoaded }: CSVUploadProps) {
+  const { user } = useAuth();
   const [isDragging, setIsDragging] = useState(false);
   const [validation, setValidation] = useState<CSVValidationResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
     setIsProcessing(true);
     setValidation(null);
+    setUploadProgress('');
 
     try {
+      // Step 1: Parse and validate CSV
+      setUploadProgress('Parsing CSV...');
       const text = await file.text();
       const { data, validation: result } = await parseCSVToTimeSeries(text);
 
       setValidation(result);
 
       if (result.valid && data.length > 0) {
+        // Step 2: Create series object
         const series = createSeries(data, {
           name: file.name.replace('.csv', ''),
           numeratorLabel: 'value',
           denominatorLabel: '1'
         });
-        onSeriesLoaded(series);
+
+        // Step 3: Upload file to Supabase Storage (if user is authenticated)
+        let filePath: string | undefined;
+        if (user) {
+          try {
+            setUploadProgress('Uploading to storage...');
+            filePath = await uploadCSVFile(file, user.id);
+            setUploadProgress('Upload complete!');
+          } catch (uploadError) {
+            console.warn('Failed to upload file to storage, continuing without storage:', uploadError);
+            // Continue without storage - file will work locally
+          }
+        }
+
+        // Step 4: Return series and file path
+        onSeriesLoaded(series, filePath);
       }
     } catch (error) {
       setValidation({
@@ -40,6 +63,7 @@ export function CSVUpload({ onSeriesLoaded }: CSVUploadProps) {
       });
     } finally {
       setIsProcessing(false);
+      setTimeout(() => setUploadProgress(''), 2000); // Clear progress message after 2s
     }
   };
 
@@ -122,7 +146,9 @@ export function CSVUpload({ onSeriesLoaded }: CSVUploadProps) {
           </div>
 
           {isProcessing && (
-            <div className="text-blue-600 font-medium">Processing...</div>
+            <div className="text-blue-600 font-medium">
+              {uploadProgress || 'Processing...'}
+            </div>
           )}
         </div>
       </div>

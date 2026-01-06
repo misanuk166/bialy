@@ -119,11 +119,14 @@ export function DashboardPage() {
     return () => clearTimeout(timeoutId);
   }, [currentDashboardId, metrics, globalSettings]);
 
-  const handleSeriesLoaded = (series: Series) => {
+  const handleSeriesLoaded = (series: Series, filePath?: string) => {
     setMetrics(prevMetrics => {
       const newMetric: MetricConfig = {
         id: series.id,
-        series,
+        series: {
+          ...series,
+          filePath // Store file path with series for later retrieval
+        } as any,
         order: prevMetrics.length,
         metricIndex: prevMetrics.length,
         goals: [],

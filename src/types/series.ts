@@ -20,6 +20,7 @@ export interface Series {
   id: string;
   data: TimeSeriesPoint[];
   metadata: SeriesMetadata;
+  filePath?: string; // Optional path to CSV file in Supabase Storage
 }
 
 /**

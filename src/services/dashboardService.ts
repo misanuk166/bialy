@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { downloadCSVFile } from './storageService';
 import type {
   Dashboard,
   DashboardWithData,
@@ -6,6 +7,7 @@ import type {
   UpdateDashboardInput
 } from '../types/dashboard';
 import type { MetricConfig, GlobalSettings } from '../types/appState';
+import type { Series } from '../types/series';
 
 /**
  * Fetch all dashboards accessible to the current user
@@ -73,8 +75,20 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
     (metrics || []).map(async (metric) => {
       const metricConfigRecords = configs?.filter(c => c.metric_id === metric.id) || [];
 
-      // Load series data from CSV file
-      const series = await loadSeriesFromFile(metric.data_file_path);
+      // Load series data from CSV file in storage
+      let series: Series;
+      if (metric.data_file_path) {
+        try {
+          series = await downloadCSVFile(metric.data_file_path);
+          series.filePath = metric.data_file_path; // Store path for reference
+        } catch (error) {
+          console.error('Failed to load series from storage:', error);
+          series = createPlaceholderSeries(metric.name, metric.unit);
+        }
+      } else {
+        // Fallback for metrics without file paths (backward compatibility)
+        series = createPlaceholderSeries(metric.name, metric.unit);
+      }
 
       // Extract configurations by type
       const globalSettings = metricConfigRecords.find(c => c.config_type === 'global_settings')?.config_data as GlobalSettings | undefined;
@@ -215,9 +229,9 @@ export async function saveDashboardData(
     if (metrics.length > 0) {
       const metricRecords = metrics.map((metric, index) => ({
         dashboard_id: dashboardId,
-        name: metric.series.name,
-        unit: metric.series.unit || '',
-        data_file_path: '', // TODO: Implement file upload in Phase 5
+        name: metric.series.metadata.name,
+        unit: metric.series.metadata.numeratorLabel || '',
+        data_file_path: metric.series.filePath || '', // Store file path from storage
         order_index: index
       }));
 
@@ -314,17 +328,18 @@ export async function saveDashboardData(
 }
 
 /**
- * Helper function to load series data from CSV file in storage
- * TODO: Implement actual CSV loading from Supabase storage
+ * Create a placeholder series when file cannot be loaded
  */
-async function loadSeriesFromFile(filePath: string): Promise<any> {
-  // Placeholder - will implement in Phase 5 when we add storage integration
-  // For now, return a minimal series object
+function createPlaceholderSeries(name: string, unit: string): Series {
   return {
     id: crypto.randomUUID(),
-    name: 'Placeholder Metric',
     data: [],
-    unit: '',
-    yDomain: [0, 100]
+    metadata: {
+      name: name || 'Placeholder Metric',
+      description: 'No data available',
+      uploadDate: new Date(),
+      numeratorLabel: unit || 'value',
+      denominatorLabel: '1'
+    }
   };
 }
