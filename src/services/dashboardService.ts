@@ -91,7 +91,6 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
       }
 
       // Extract configurations by type
-      const globalSettings = metricConfigRecords.find(c => c.config_type === 'global_settings')?.config_data as GlobalSettings | undefined;
       const goals = metricConfigRecords.find(c => c.config_type === 'goals')?.config_data as any[] | undefined;
       const forecast = metricConfigRecords.find(c => c.config_type === 'forecast')?.config_data;
       const forecastSnapshot = metricConfigRecords.find(c => c.config_type === 'forecast_snapshot')?.config_data;

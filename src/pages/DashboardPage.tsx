@@ -49,7 +49,6 @@ export function DashboardPage() {
   const [description, setDescription] = useState('Multi-metric time series data visualization and analysis');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const [loadingDashboard, setLoadingDashboard] = useState(false);
 
   // Load dashboard data when currentDashboardId changes
   useEffect(() => {
@@ -57,7 +56,6 @@ export function DashboardPage() {
 
     const loadDashboard = async () => {
       try {
-        setLoadingDashboard(true);
         const dashboard = await fetchDashboard(currentDashboardId);
 
         if (dashboard) {
@@ -66,8 +64,6 @@ export function DashboardPage() {
         }
       } catch (error) {
         console.error('Failed to load dashboard:', error);
-      } finally {
-        setLoadingDashboard(false);
       }
     };
 
