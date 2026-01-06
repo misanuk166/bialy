@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import type { Dashboard } from '../types/dashboard';
-import { fetchDashboards, createDashboard, updateDashboard, deleteDashboard } from '../services/dashboardService';
+import { fetchMyDashboards, fetchSharedDashboards, createDashboard, updateDashboard, deleteDashboard } from '../services/dashboardService';
 
 interface DashboardSelectorProps {
   currentDashboardId: string | null;
   onSelectDashboard: (dashboardId: string) => void;
+  onShareDashboard?: (dashboard: Dashboard) => void;
+  onDashboardUpdate?: (dashboard: Dashboard) => void;
 }
 
-export function DashboardSelector({ currentDashboardId, onSelectDashboard }: DashboardSelectorProps) {
-  const [dashboards, setDashboards] = useState<Dashboard[]>([]);
+export function DashboardSelector({ currentDashboardId, onSelectDashboard, onShareDashboard, onDashboardUpdate }: DashboardSelectorProps) {
+  const [myDashboards, setMyDashboards] = useState<Dashboard[]>([]);
+  const [sharedDashboards, setSharedDashboards] = useState<Dashboard[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
@@ -16,6 +19,9 @@ export function DashboardSelector({ currentDashboardId, onSelectDashboard }: Das
   const [selectedDashboard, setSelectedDashboard] = useState<Dashboard | null>(null);
   const [newDashboardName, setNewDashboardName] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  // Combined list of all dashboards
+  const allDashboards = [...myDashboards, ...sharedDashboards];
 
   useEffect(() => {
     loadDashboards();
@@ -25,12 +31,17 @@ export function DashboardSelector({ currentDashboardId, onSelectDashboard }: Das
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchDashboards();
-      setDashboards(data);
+      const [myData, sharedData] = await Promise.all([
+        fetchMyDashboards(),
+        fetchSharedDashboards()
+      ]);
+      setMyDashboards(myData);
+      setSharedDashboards(sharedData);
 
       // If no current dashboard but we have dashboards, select the first one
-      if (!currentDashboardId && data.length > 0) {
-        onSelectDashboard(data[0].id);
+      const allData = [...myData, ...sharedData];
+      if (!currentDashboardId && allData.length > 0) {
+        onSelectDashboard(allData[0].id);
       }
     } catch (err) {
       setError('Failed to load dashboards');
@@ -39,6 +50,14 @@ export function DashboardSelector({ currentDashboardId, onSelectDashboard }: Das
       setLoading(false);
     }
   };
+
+  // Update dashboard in list when changed externally (e.g., from share modal)
+  useEffect(() => {
+    if (onDashboardUpdate) {
+      // This component can't directly expose handleDashboardUpdate,
+      // so parent must pass updated dashboard via onDashboardUpdate callback
+    }
+  }, [onDashboardUpdate]);
 
   const handleCreateDashboard = async () => {
     if (!newDashboardName.trim()) {
@@ -49,7 +68,7 @@ export function DashboardSelector({ currentDashboardId, onSelectDashboard }: Das
     try {
       setError(null);
       const dashboard = await createDashboard({ name: newDashboardName.trim() });
-      setDashboards([dashboard, ...dashboards]);
+      setMyDashboards([dashboard, ...myDashboards]);
       setShowCreateModal(false);
       setNewDashboardName('');
       onSelectDashboard(dashboard.id);
@@ -68,7 +87,9 @@ export function DashboardSelector({ currentDashboardId, onSelectDashboard }: Das
     try {
       setError(null);
       const updated = await updateDashboard(selectedDashboard.id, { name: newDashboardName.trim() });
-      setDashboards(dashboards.map(d => d.id === updated.id ? updated : d));
+      // Update in whichever list it belongs to
+      setMyDashboards(myDashboards.map(d => d.id === updated.id ? updated : d));
+      setSharedDashboards(sharedDashboards.map(d => d.id === updated.id ? updated : d));
       setShowRenameModal(false);
       setNewDashboardName('');
       setSelectedDashboard(null);
@@ -84,14 +105,17 @@ export function DashboardSelector({ currentDashboardId, onSelectDashboard }: Das
     try {
       setError(null);
       await deleteDashboard(selectedDashboard.id);
-      const remainingDashboards = dashboards.filter(d => d.id !== selectedDashboard.id);
-      setDashboards(remainingDashboards);
+      const remainingMyDashboards = myDashboards.filter(d => d.id !== selectedDashboard.id);
+      const remainingSharedDashboards = sharedDashboards.filter(d => d.id !== selectedDashboard.id);
+      setMyDashboards(remainingMyDashboards);
+      setSharedDashboards(remainingSharedDashboards);
       setShowDeleteConfirm(false);
       setSelectedDashboard(null);
 
       // If we deleted the current dashboard, switch to the first available one
-      if (currentDashboardId === selectedDashboard.id && remainingDashboards.length > 0) {
-        onSelectDashboard(remainingDashboards[0].id);
+      const allRemaining = [...remainingMyDashboards, ...remainingSharedDashboards];
+      if (currentDashboardId === selectedDashboard.id && allRemaining.length > 0) {
+        onSelectDashboard(allRemaining[0].id);
       }
     } catch (err) {
       setError('Failed to delete dashboard');
@@ -118,7 +142,7 @@ export function DashboardSelector({ currentDashboardId, onSelectDashboard }: Das
     );
   }
 
-  const currentDashboard = dashboards.find(d => d.id === currentDashboardId);
+  const currentDashboard = allDashboards.find(d => d.id === currentDashboardId);
 
   return (
     <div className="relative">
@@ -129,14 +153,27 @@ export function DashboardSelector({ currentDashboardId, onSelectDashboard }: Das
           onChange={(e) => onSelectDashboard(e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          {dashboards.length === 0 && (
+          {allDashboards.length === 0 && (
             <option value="">No dashboards</option>
           )}
-          {dashboards.map((dashboard) => (
-            <option key={dashboard.id} value={dashboard.id}>
-              {dashboard.name}
-            </option>
-          ))}
+          {myDashboards.length > 0 && (
+            <optgroup label="My Dashboards">
+              {myDashboards.map((dashboard) => (
+                <option key={dashboard.id} value={dashboard.id}>
+                  {dashboard.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          {sharedDashboards.length > 0 && (
+            <optgroup label="Shared with Me">
+              {sharedDashboards.map((dashboard) => (
+                <option key={dashboard.id} value={dashboard.id}>
+                  {dashboard.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
         </select>
 
         {/* Action Buttons */}
@@ -150,21 +187,37 @@ export function DashboardSelector({ currentDashboardId, onSelectDashboard }: Das
 
         {currentDashboard && (
           <>
-            <button
-              onClick={() => openRenameModal(currentDashboard)}
-              className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-              title="Rename dashboard"
-            >
-              Rename
-            </button>
-            <button
-              onClick={() => openDeleteConfirm(currentDashboard)}
-              className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              title="Delete dashboard"
-              disabled={dashboards.length <= 1}
-            >
-              Delete
-            </button>
+            {/* Share button - only for owned dashboards */}
+            {onShareDashboard && myDashboards.find(d => d.id === currentDashboard.id) && (
+              <button
+                onClick={() => onShareDashboard(currentDashboard)}
+                className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                title="Share dashboard"
+              >
+                Share
+              </button>
+            )}
+            {/* Rename button - only for owned dashboards */}
+            {myDashboards.find(d => d.id === currentDashboard.id) && (
+              <button
+                onClick={() => openRenameModal(currentDashboard)}
+                className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                title="Rename dashboard"
+              >
+                Rename
+              </button>
+            )}
+            {/* Delete button - only for owned dashboards */}
+            {myDashboards.find(d => d.id === currentDashboard.id) && (
+              <button
+                onClick={() => openDeleteConfirm(currentDashboard)}
+                className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                title="Delete dashboard"
+                disabled={allDashboards.length <= 1}
+              >
+                Delete
+              </button>
+            )}
           </>
         )}
       </div>

@@ -3,10 +3,12 @@ import { CSVUpload } from '../components/CSVUpload';
 import { MetricGrid } from '../components/MetricGrid';
 import { SingleMetricView } from '../components/SingleMetricView';
 import { DashboardSelector } from '../components/DashboardSelector';
+import { ShareDashboardModal } from '../components/ShareDashboardModal';
 import { loadSyntheticMetrics } from '../utils/generateSyntheticData';
 import { saveAppState, loadAppState } from '../utils/localStorage';
 import { fetchDashboard, saveDashboardData } from '../services/dashboardService';
 import { useAuth } from '../contexts/AuthContext';
+import type { Dashboard } from '../types/dashboard';
 import type { Series } from '../types/series';
 import type { MetricConfig, GlobalSettings, ViewMode } from '../types/appState';
 import type { AggregationConfig } from '../utils/aggregation';
@@ -19,6 +21,8 @@ import { DEFAULT_SELECTION_COMPARISONS, DEFAULT_FOCUS_COMPARISONS, type Comparis
 export function DashboardPage() {
   const { user, signOut } = useAuth();
   const [currentDashboardId, setCurrentDashboardId] = useState<string | null>(null);
+  const [currentDashboard, setCurrentDashboard] = useState<Dashboard | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [metrics, setMetrics] = useState<MetricConfig[]>([]);
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({
     aggregation: {
@@ -59,6 +63,7 @@ export function DashboardPage() {
         const dashboard = await fetchDashboard(currentDashboardId);
 
         if (dashboard) {
+          setCurrentDashboard(dashboard);
           setMetrics(dashboard.metrics);
           setGlobalSettings(dashboard.global_settings);
         }
@@ -211,6 +216,15 @@ export function DashboardPage() {
     }
   };
 
+  const handleShareDashboard = (dashboard: Dashboard) => {
+    setCurrentDashboard(dashboard);
+    setShowShareModal(true);
+  };
+
+  const handleDashboardUpdate = (updated: Dashboard) => {
+    setCurrentDashboard(updated);
+  };
+
   // Get data extent for focus period controls (primary series data only)
   const dataExtent = metrics.length > 0 ? (() => {
     const allDates: Date[] = [];
@@ -226,6 +240,10 @@ export function DashboardPage() {
   })() : undefined;
 
   const expandedMetric = expandedMetricId ? metrics.find(m => m.id === expandedMetricId) : null;
+
+  // Check if current user is the owner of the current dashboard
+  const isOwner = !currentDashboard || (user?.id === currentDashboard.owner_id);
+  const readOnly = !isOwner;
 
   return (
     <div className="min-h-screen bg-white py-1">
@@ -287,9 +305,20 @@ export function DashboardPage() {
               <DashboardSelector
                 currentDashboardId={currentDashboardId}
                 onSelectDashboard={setCurrentDashboardId}
+                onShareDashboard={handleShareDashboard}
               />
             </div>
           </div>
+
+          {/* Share Modal */}
+          {showShareModal && currentDashboard && (
+            <ShareDashboardModal
+              dashboard={currentDashboard}
+              onClose={() => setShowShareModal(false)}
+              onUpdate={handleDashboardUpdate}
+            />
+          )}
+        </div>
 
           {/* User Menu */}
           <div className="flex items-center gap-4">
@@ -341,11 +370,21 @@ export function DashboardPage() {
               </div>
             ) : (
               <>
+                {/* Read-only indicator */}
+                {readOnly && (
+                  <div className="mb-4 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-800">
+                      <strong>Read-Only Mode:</strong> You are viewing this dashboard. Only the owner can make changes.
+                    </p>
+                  </div>
+                )}
+
                 {/* Metric Grid */}
                 <MetricGrid
                   metrics={metrics}
                   globalSettings={globalSettings}
                   dataExtent={dataExtent}
+                  readOnly={readOnly}
                   onMetricsReorder={setMetrics}
                   onMetricUpdate={handleMetricUpdate}
                   onMetricRemove={handleMetricRemove}

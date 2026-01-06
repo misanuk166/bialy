@@ -49,6 +49,7 @@ interface MetricRowProps {
   onMoveGroup?: (direction: 'up' | 'down') => void;
   onMoveMetric?: (direction: 'up' | 'down') => void;
   isEditMode?: boolean;
+  readOnly?: boolean;
   colorScaling?: ColorScaling;
   columnWidths: ColumnWidths;
 }
@@ -70,6 +71,7 @@ export const MetricRow = memo(function MetricRow({
   isSelected,
   onSelect,
   isEditMode = false,
+  readOnly = false,
   colorScaling,
   columnWidths
 }: MetricRowProps) {
@@ -364,16 +366,18 @@ export const MetricRow = memo(function MetricRow({
                     <span>⤢</span>
                     <span>View Details</span>
                   </button>
-                  <button
-                    onClick={() => {
-                      onRemove();
-                      setShowActionMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center gap-2 border-t border-gray-200"
-                  >
-                    <span>×</span>
-                    <span>Remove</span>
-                  </button>
+                  {!readOnly && (
+                    <button
+                      onClick={() => {
+                        onRemove();
+                        setShowActionMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center gap-2 border-t border-gray-200"
+                    >
+                      <span>×</span>
+                      <span>Remove</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>

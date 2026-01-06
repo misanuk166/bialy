@@ -27,6 +27,56 @@ export async function fetchDashboards(): Promise<Dashboard[]> {
 }
 
 /**
+ * Fetch dashboards owned by the current user
+ */
+export async function fetchMyDashboards(): Promise<Dashboard[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('dashboards')
+    .select('*')
+    .eq('owner_id', user.id)
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching my dashboards:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+/**
+ * Fetch dashboards shared with the current user (not owned by them)
+ * Note: RLS policies handle filtering by permission level (public or domain-shared)
+ */
+export async function fetchSharedDashboards(): Promise<Dashboard[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('dashboards')
+    .select('*')
+    .neq('owner_id', user.id) // Not owned by current user
+    .in('permission_level', ['domain', 'public']) // Only shared dashboards
+    .order('updated_at', { ascending: false});
+
+  if (error) {
+    console.error('Error fetching shared dashboards:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+/**
  * Fetch a specific dashboard with all its data (metrics and settings)
  */
 export async function fetchDashboard(dashboardId: string): Promise<DashboardWithData | null> {

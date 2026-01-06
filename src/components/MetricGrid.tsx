@@ -41,6 +41,7 @@ interface MetricGridProps {
   metrics: MetricConfig[];
   globalSettings: GlobalSettings;
   dataExtent?: [Date, Date];
+  readOnly?: boolean;
   onMetricsReorder?: (metrics: MetricConfig[]) => void;
   onMetricUpdate: (metric: MetricConfig) => void;
   onMetricRemove: (metricId: string) => void;
@@ -103,6 +104,7 @@ export function MetricGrid({
   metrics,
   globalSettings,
   dataExtent,
+  readOnly = false,
   onMetricsReorder,
   onMetricUpdate,
   onMetricRemove,
@@ -790,48 +792,53 @@ export function MetricGrid({
           <div className="px-1.5 text-sm font-bold text-gray-800 border-r border-gray-300 flex items-center justify-between relative" style={{ gridColumn: isEditMode ? 'span 5' : 'span 4' }}>
             <div className="flex items-center gap-2">
               <span>Metrics</span>
-              <button
-                onClick={() => {
-                  setIsEditMode(!isEditMode);
-                  if (isEditMode) {
-                    setSelectedMetricIds(new Set()); // Clear selection on exit
-                  }
-                }}
-                className={`px-2 py-0.5 text-xs font-medium rounded border transition-colors ${isEditMode
-                  ? 'text-white bg-blue-600 border-blue-600 hover:bg-blue-700'
-                  : 'text-gray-600 bg-gray-100 border-gray-300 hover:bg-gray-200'
-                  }`}
-              >
-                {isEditMode ? 'Done' : 'Edit'}
-              </button>
-              <button
-                onClick={() => {
-                  // Calculate default forecast config
-                  const today = new Date();
-                  const currentQuarter = Math.floor(today.getMonth() / 3);
-                  const quarterStartDate = new Date(today.getFullYear(), currentQuarter * 3, 1);
-                  const endOfQuarterMonth = (currentQuarter + 1) * 3 - 1;
-                  const endOfQuarter = new Date(today.getFullYear(), endOfQuarterMonth + 1, 0);
-                  const diffTime = endOfQuarter.getTime() - quarterStartDate.getTime();
-                  const daysToEOQ = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              {!readOnly && (
+                <button
+                  onClick={() => {
+                    setIsEditMode(!isEditMode);
+                    if (isEditMode) {
+                      setSelectedMetricIds(new Set()); // Clear selection on exit
+                    }
+                  }}
+                  className={`px-2 py-0.5 text-xs font-medium rounded border transition-colors ${isEditMode
+                    ? 'text-white bg-blue-600 border-blue-600 hover:bg-blue-700'
+                    : 'text-gray-600 bg-gray-100 border-gray-300 hover:bg-gray-200'
+                    }`}
+                >
+                  {isEditMode ? 'Done' : 'Edit'}
+                </button>
+              )}
+              {!readOnly && (
+                <button
+                  onClick={() => {
+                    // Calculate default forecast config
+                    const today = new Date();
+                    const currentQuarter = Math.floor(today.getMonth() / 3);
+                    const quarterStartDate = new Date(today.getFullYear(), currentQuarter * 3, 1);
+                    const endOfQuarterMonth = (currentQuarter + 1) * 3 - 1;
+                    const endOfQuarter = new Date(today.getFullYear(), endOfQuarterMonth + 1, 0);
+                    const diffTime = endOfQuarter.getTime() - quarterStartDate.getTime();
+                    const daysToEOQ = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-                  setForecastAllConfig({
-                    enabled: true,
-                    startDate: quarterStartDate,
-                    horizon: daysToEOQ,
-                    seasonal: 'none',
-                    showConfidenceIntervals: true,
-                    confidenceLevel: 95,
-                    type: 'auto'
-                  });
-                  setShowForecastAllModal(true);
-                }}
-                className="px-2 py-0.5 text-xs font-medium rounded border text-gray-600 bg-gray-100 border-gray-300 hover:bg-gray-200"
-                title="Apply forecast to all metrics"
-              >
-                Forecast All
-              </button>
-              <button
+                    setForecastAllConfig({
+                      enabled: true,
+                      startDate: quarterStartDate,
+                      horizon: daysToEOQ,
+                      seasonal: 'none',
+                      showConfidenceIntervals: true,
+                      confidenceLevel: 95,
+                      type: 'auto'
+                    });
+                    setShowForecastAllModal(true);
+                  }}
+                  className="px-2 py-0.5 text-xs font-medium rounded border text-gray-600 bg-gray-100 border-gray-300 hover:bg-gray-200"
+                  title="Apply forecast to all metrics"
+                >
+                  Forecast All
+                </button>
+              )}
+              {!readOnly && (
+                <button
                 onClick={() => {
                   // Calculate default start date (first day of current quarter based on max date)
                   let maxDate = new Date();
@@ -851,6 +858,7 @@ export function MetricGrid({
               >
                 Set Goals for All
               </button>
+              )}
             </div>
             {selectedMetricIds.size > 0 && (
               <div className="flex items-center gap-2">
@@ -897,14 +905,16 @@ export function MetricGrid({
           {/* Range with Edit button */}
           <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300 flex items-center justify-center gap-1 relative">
             <span>{getRangeLabel}</span>
-            <button
-              ref={rangeEditButtonRef}
-              onClick={() => setShowRangeModal(true)}
-              className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-              title="Edit range"
-            >
-              Edit
-            </button>
+            {!readOnly && (
+              <button
+                ref={rangeEditButtonRef}
+                onClick={() => setShowRangeModal(true)}
+                className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
+                title="Edit range"
+              >
+                Edit
+              </button>
+            )}
             <ColumnResizeHandle
               columnKey="chart"
               onResize={handleColumnResize}
@@ -917,17 +927,19 @@ export function MetricGrid({
             <span>
               {getSelectionLabel} {displaySelectionDate ? displaySelectionDate.toLocaleDateString() : '—'}
             </span>
-            <button
-              ref={comparisonEditButtonRef}
-              onClick={() => {
-                setComparisonModalPeriodType('selection');
-                setShowComparisonModal(true);
-              }}
-              className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-              title="Manage comparisons"
-            >
-              Edit
-            </button>
+            {!readOnly && (
+              <button
+                ref={comparisonEditButtonRef}
+                onClick={() => {
+                  setComparisonModalPeriodType('selection');
+                  setShowComparisonModal(true);
+                }}
+                className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
+                title="Manage comparisons"
+              >
+                Edit
+              </button>
+            )}
             <ColumnResizeHandle
               columnKey="selectionMean"
               onResize={handleColumnResize}
@@ -942,16 +954,18 @@ export function MetricGrid({
                 ? globalSettings.focusPeriod.label
                 : 'Focus Period'}
             </span>
-            <button
-              onClick={() => {
-                setComparisonModalPeriodType('focus');
-                setShowComparisonModal(true);
-              }}
-              className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-              title="Manage comparisons"
-            >
-              Edit
-            </button>
+            {!readOnly && (
+              <button
+                onClick={() => {
+                  setComparisonModalPeriodType('focus');
+                  setShowComparisonModal(true);
+                }}
+                className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
+                title="Manage comparisons"
+              >
+                Edit
+              </button>
+            )}
             <ColumnResizeHandle
               columnKey="focusMean"
               onResize={handleColumnResize}
@@ -1008,21 +1022,22 @@ export function MetricGrid({
             </div>
           ))}
           {/* Metric management buttons */}
-          <div className="px-2 border-r border-gray-300 flex items-center gap-1 relative">
-            <button
-              onClick={onAddMetric}
-              className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-              title="Add Metric"
-            >
-              + Add
-            </button>
-            <button
-              onClick={onClearAllMetrics}
-              className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-              title="Clear All Metrics"
-            >
-              Clear All
-            </button>
+          {!readOnly && (
+            <div className="px-2 border-r border-gray-300 flex items-center gap-1 relative">
+              <button
+                onClick={onAddMetric}
+                className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                title="Add Metric"
+              >
+                + Add
+              </button>
+              <button
+                onClick={onClearAllMetrics}
+                className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                title="Clear All Metrics"
+              >
+                Clear All
+              </button>
             <ColumnResizeHandle
               columnKey="name"
               onResize={handleColumnResize}
@@ -1030,56 +1045,63 @@ export function MetricGrid({
               minWidth={100}
             />
           </div>
+          )}
 
           {/* Chart Column Sub-headers - these 3 columns share the chart area width equally */}
           {/* Aggregation with Edit button */}
           <div className="px-1.5 text-xs font-semibold text-gray-700 text-center flex items-center justify-center gap-1">
             <span>Aggregation</span>
-            <button
-              ref={aggregationEditButtonRef}
-              onClick={() => {
-                // Auto-select "group by" and "week" when opening aggregation modal
-                onAggregationChange({
-                  ...globalSettings.aggregation,
-                  enabled: true,
-                  mode: 'groupBy',
-                  period: 7,
-                  unit: 'days',
-                  groupByPeriod: 'week'
-                });
-                setShowAggregationModal(true);
-              }}
-              className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-              title="Edit aggregation"
-            >
-              Edit
-            </button>
+            {!readOnly && (
+              <button
+                ref={aggregationEditButtonRef}
+                onClick={() => {
+                  // Auto-select "group by" and "week" when opening aggregation modal
+                  onAggregationChange({
+                    ...globalSettings.aggregation,
+                    enabled: true,
+                    mode: 'groupBy',
+                    period: 7,
+                    unit: 'days',
+                    groupByPeriod: 'week'
+                  });
+                  setShowAggregationModal(true);
+                }}
+                className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
+                title="Edit aggregation"
+              >
+                Edit
+              </button>
+            )}
           </div>
 
           {/* Shadow with Edit button */}
           <div className="px-1.5 text-xs font-semibold text-gray-700 text-center flex items-center justify-center gap-1">
             <span>Shadow</span>
-            <button
-              ref={shadowEditButtonRef}
-              onClick={() => setShowShadowModal(true)}
-              className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-              title="Edit shadow"
-            >
-              Edit
-            </button>
+            {!readOnly && (
+              <button
+                ref={shadowEditButtonRef}
+                onClick={() => setShowShadowModal(true)}
+                className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
+                title="Edit shadow"
+              >
+                Edit
+              </button>
+            )}
           </div>
 
           {/* Annotations with Edit button */}
           <div className="px-1.5 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 flex items-center justify-center gap-1 relative">
             <span>Annotations</span>
-            <button
-              ref={annotationEditButtonRef}
-              onClick={() => setShowAnnotationModal(true)}
-              className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-              title="Edit annotations"
-            >
-              Edit
-            </button>
+            {!readOnly && (
+              <button
+                ref={annotationEditButtonRef}
+                onClick={() => setShowAnnotationModal(true)}
+                className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
+                title="Edit annotations"
+              >
+                Edit
+              </button>
+            )}
             <ColumnResizeHandle
               columnKey="chart"
               onResize={handleColumnResize}
@@ -1133,22 +1155,14 @@ export function MetricGrid({
 
       {/* Metric Rows */}
       <div className="w-full overflow-x-auto">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={sortedMetrics.map(m => m.metric.id)} // Assuming sortedMetrics is an array of { metric, values }
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="divide-y divide-gray-200 border-b border-gray-200">
-            {sortedMetrics.map(({ metric, values }) => ( // Changed back to destructuring to match original data structure
+        {readOnly ? (
+          <div className="divide-y divide-gray-200 border-b border-gray-200">
+            {sortedMetrics.map(({ metric, values }) => (
               <MetricRow
                 key={metric.id}
                 metric={metric}
                 globalSettings={globalSettings}
-                rowValues={values} // Changed back to 'values' as per original structure
+                rowValues={values}
                 selectionDate={selectionDate || undefined}
                 currentHoverDate={currentHoverDate || undefined}
                 xDomain={xDomain}
@@ -1163,13 +1177,52 @@ export function MetricGrid({
                 onMoveGroup={(direction) => handleMoveGroup(metric.groupIndex, direction)}
                 onMoveMetric={(direction) => handleMoveMetric(metric.id, direction)}
                 isEditMode={isEditMode}
+                readOnly={readOnly}
                 colorScaling={colorScaling}
                 columnWidths={columnWidths}
               />
             ))}
           </div>
-        </SortableContext>
-      </DndContext>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={sortedMetrics.map(m => m.metric.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="divide-y divide-gray-200 border-b border-gray-200">
+              {sortedMetrics.map(({ metric, values }) => (
+                <MetricRow
+                  key={metric.id}
+                  metric={metric}
+                  globalSettings={globalSettings}
+                  rowValues={values}
+                  selectionDate={selectionDate || undefined}
+                  currentHoverDate={currentHoverDate || undefined}
+                  xDomain={xDomain}
+                  chartWidth={columnWidths.chart}
+                  onMetricUpdate={onMetricUpdate}
+                  onExpand={() => onMetricExpand(metric.id)}
+                  onRemove={() => onMetricRemove(metric.id)}
+                  onHover={handleHover}
+                  onSelectionChange={setSelectionDate}
+                  isSelected={selectedMetricIds.has(metric.id)}
+                  onSelect={(selected) => handleSelectMetric(metric.id, selected)}
+                  onMoveGroup={(direction) => handleMoveGroup(metric.groupIndex, direction)}
+                  onMoveMetric={(direction) => handleMoveMetric(metric.id, direction)}
+                  isEditMode={isEditMode}
+                  readOnly={readOnly}
+                  colorScaling={colorScaling}
+                  columnWidths={columnWidths}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+        )}
       </div>
 
       {/* Selection Period Popup */}
