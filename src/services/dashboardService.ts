@@ -187,6 +187,14 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
     annotationsEnabled: false
   };
 
+  // Deserialize focus period dates (they're stored as strings in JSON)
+  if (globalSettings.focusPeriod?.startDate) {
+    globalSettings.focusPeriod.startDate = new Date(globalSettings.focusPeriod.startDate);
+  }
+  if (globalSettings.focusPeriod?.endDate) {
+    globalSettings.focusPeriod.endDate = new Date(globalSettings.focusPeriod.endDate);
+  }
+
   return {
     ...dashboard,
     metrics: metricConfigs,
