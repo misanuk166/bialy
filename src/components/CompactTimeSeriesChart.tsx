@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react';
-import * as d3 from 'd3';
+import { select, pointer } from 'd3-selection';
+import { scaleTime, scaleLinear } from 'd3-scale';
+import { axisBottom, axisLeft } from 'd3-axis';
+import { line as d3Line, area as d3Area, curveLinear } from 'd3-shape';
+import { min, max, bisector } from 'd3-array';
 import type { Series } from '../types/series';
 import type { AggregationConfig } from '../utils/aggregation';
 import type { ForecastConfig, ForecastSnapshot } from '../types/forecast';
@@ -62,13 +66,13 @@ export function CompactTimeSeriesChart({
   useEffect(() => {
     if (!svgRef.current || !series.data.length) return;
 
-    d3.select(svgRef.current).selectAll('*').remove();
+    select(svgRef.current).selectAll('*').remove();
 
     const margin = { top: 5, right: 6, bottom: showXAxis ? 25 : 0, left: 40 };
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
 
-    const svg = d3.select(svgRef.current)
+    const svg = select(svgRef.current)
       .attr('width', width)
       .attr('height', height);
 
@@ -145,7 +149,7 @@ export function CompactTimeSeriesChart({
     }
 
     // Create scales
-    const xScale = d3.scaleTime()
+    const xScale = scaleTime()
       .domain(xDomain)
       .range([0, innerWidth]);
 
@@ -169,13 +173,13 @@ export function CompactTimeSeriesChart({
     }
 
     // Calculate min/max with 20% padding
-    const minValue = d3.min(allValues) as number;
-    const maxValue = d3.max(allValues) as number;
+    const minValue = min(allValues) as number;
+    const maxValue = max(allValues) as number;
     const range = maxValue - minValue;
     const yMin = minValue - (range * 0.2);
     const yMax = maxValue + (range * 0.2);
 
-    const yScale = d3.scaleLinear()
+    const yScale = scaleLinear()
       .domain([yMin, yMax])
       .range([innerHeight, 0]);
 
@@ -294,7 +298,7 @@ export function CompactTimeSeriesChart({
 
     // Draw confidence interval
     if (confidenceIntervals && forecastData.length > 0) {
-      const areaGenerator = d3.area<{ date: Date; upper: number; lower: number }>()
+      const areaGenerator = d3Area<{ date: Date; upper: number; lower: number }>()
         .x(d => xScale(d.date))
         .y0(d => yScale(d.lower))
         .y1(d => yScale(d.upper));
@@ -313,33 +317,33 @@ export function CompactTimeSeriesChart({
     }
 
     // Create line generator
-    const line = d3.line<{ date: Date; value: number }>()
+    const line = d3Line<{ date: Date; value: number }>()
       .x(d => xScale(d.date))
       .y(d => yScale(d.value))
-      .curve(d3.curveLinear);
+      .curve(curveLinear);
 
     // Draw shadows or averaged shadow (drawn first so they appear behind main line)
     if (averageShadows && averagedShadowData.length > 0) {
       // Draw shaded area for standard deviation
-      const area = d3.area<typeof averagedShadowData[0]>()
+      const areaGenerator = d3Area<typeof averagedShadowData[0]>()
         .x(d => xScale(d.date))
         .y0(d => yScale(Math.max(0, d.mean - d.stdDev)))
         .y1(d => yScale(d.mean + d.stdDev))
         .defined(d => d.mean != null && d.stdDev != null && !isNaN(d.mean) && isFinite(d.mean) && !isNaN(d.stdDev) && isFinite(d.stdDev))
-        .curve(d3.curveLinear);
+        .curve(curveLinear);
 
       g.append('path')
         .datum(averagedShadowData)
         .attr('fill', '#9ca3af')
         .attr('opacity', 0.3)
-        .attr('d', area);
+        .attr('d', areaGenerator);
 
       // Draw mean line
-      const meanLine = d3.line<typeof averagedShadowData[0]>()
+      const meanLine = d3Line<typeof averagedShadowData[0]>()
         .x(d => xScale(d.date))
         .y(d => yScale(d.mean))
         .defined(d => d.mean != null && !isNaN(d.mean) && isFinite(d.mean))
-        .curve(d3.curveLinear);
+        .curve(curveLinear);
 
       g.append('path')
         .datum(averagedShadowData)
@@ -398,11 +402,11 @@ export function CompactTimeSeriesChart({
           .filter(d => d.date >= xDomain[0] && d.date <= xDomain[1] && !isNaN(d.value) && isFinite(d.value));
 
         if (goalValues.length > 0) {
-          const goalLine = d3.line<{ date: Date; value: number }>()
+          const goalLine = d3Line<{ date: Date; value: number }>()
             .x(d => xScale(d.date))
             .y(d => yScale(d.value))
             .defined(d => !isNaN(d.value) && isFinite(d.value))
-            .curve(d3.curveLinear);
+            .curve(curveLinear);
 
           g.append('path')
             .datum(goalValues)
@@ -430,7 +434,7 @@ export function CompactTimeSeriesChart({
     }
 
     // Y-axis (minimal)
-    const yAxis = d3.axisLeft(yScale).ticks(3).tickSize(3);
+    const yAxis = axisLeft(yScale).ticks(3).tickSize(3);
     g.append('g')
       .attr('class', 'y-axis')
       .style('font-size', '9px')
@@ -438,7 +442,7 @@ export function CompactTimeSeriesChart({
 
     // X-axis (only when showXAxis is true)
     if (showXAxis) {
-      const xAxis = d3.axisBottom(xScale).ticks(6).tickSize(3);
+      const xAxis = axisBottom(xScale).ticks(6).tickSize(3);
       g.append('g')
         .attr('class', 'x-axis')
         .attr('transform', `translate(0,${innerHeight})`)
@@ -558,14 +562,14 @@ export function CompactTimeSeriesChart({
 
     // Handle hover
     overlay.on('mousemove', function(event) {
-      const [mouseX] = d3.pointer(event);
+      const [mouseX] = pointer(event);
       const hoveredDate = xScale.invert(mouseX);
 
       // Combine display data and forecast data for hover detection
       const allHoverableData = [...displayData, ...forecastData];
 
       // Find closest data point (including forecast)
-      const bisect = d3.bisector((d: any) => d.date).left;
+      const bisect = bisector((d: any) => d.date).left;
       const index = bisect(allHoverableData, hoveredDate);
       const d0 = allHoverableData[index - 1];
       const d1 = allHoverableData[index];
@@ -582,7 +586,7 @@ export function CompactTimeSeriesChart({
 
         // Always find and show the closest actual data point at hover position
         if (displayData.length > 0) {
-          const dataBisect = d3.bisector((d: any) => d.date).left;
+          const dataBisect = bisector((d: any) => d.date).left;
           const dataIndex = dataBisect(displayData, hoveredDate);
           const d0 = displayData[dataIndex - 1];
           const d1 = displayData[dataIndex];
@@ -619,7 +623,7 @@ export function CompactTimeSeriesChart({
           const goalsData = generateGoalsData(series.data, goals);
           const firstGoalData = goalsData[0];
           if (firstGoalData) {
-            const goalBisect = d3.bisector((d: any) => d.date).left;
+            const goalBisect = bisector((d: any) => d.date).left;
             const goalIndex = goalBisect(firstGoalData.data, closestPoint.date);
             const g0 = firstGoalData.data[goalIndex - 1];
             const g1 = firstGoalData.data[goalIndex];
@@ -666,7 +670,7 @@ export function CompactTimeSeriesChart({
           let shadowExists = false;
 
           if (averageShadows && averagedShadowData.length > 0) {
-            const shadowBisect = d3.bisector((d: any) => d.date).left;
+            const shadowBisect = bisector((d: any) => d.date).left;
             const shadowIndex = shadowBisect(averagedShadowData, closestPoint.date);
             const s0 = averagedShadowData[shadowIndex - 1];
             const s1 = averagedShadowData[shadowIndex];
@@ -684,7 +688,7 @@ export function CompactTimeSeriesChart({
             }
           } else if (shadowsDataWithValues.length > 0) {
             const firstShadow = shadowsDataWithValues[0];
-            const shadowBisect = d3.bisector((d: any) => d.date).left;
+            const shadowBisect = bisector((d: any) => d.date).left;
             const shadowIndex = shadowBisect(firstShadow.data, closestPoint.date);
             const s0 = firstShadow.data[shadowIndex - 1];
             const s1 = firstShadow.data[shadowIndex];
@@ -786,14 +790,14 @@ export function CompactTimeSeriesChart({
 
     // Handle click to update selection
     overlay.on('click', function(event) {
-      const [mouseX] = d3.pointer(event);
+      const [mouseX] = pointer(event);
       const clickedDate = xScale.invert(mouseX);
 
       // Combine display data and forecast data for selection
       const allSelectableData = [...displayData, ...forecastData];
 
       // Find closest data point (including forecast)
-      const bisect = d3.bisector((d: any) => d.date).left;
+      const bisect = bisector((d: any) => d.date).left;
       const index = bisect(allSelectableData, clickedDate);
       const d0 = allSelectableData[index - 1];
       const d1 = allSelectableData[index];
@@ -901,7 +905,7 @@ export function CompactTimeSeriesChart({
       // Combine display data and forecast data for hover
       const allHoverableData = [...displayData, ...forecastData];
 
-      const bisect = d3.bisector((d: any) => d.date).left;
+      const bisect = bisector((d: any) => d.date).left;
       const index = bisect(allHoverableData, currentHoverDate);
       const d0 = allHoverableData[index - 1];
       const d1 = allHoverableData[index];
@@ -918,7 +922,7 @@ export function CompactTimeSeriesChart({
 
         // Always find and show the closest actual data point at hover position
         if (displayData.length > 0) {
-          const dataBisect = d3.bisector((d: any) => d.date).left;
+          const dataBisect = bisector((d: any) => d.date).left;
           const dataIndex = dataBisect(displayData, currentHoverDate);
           const d0 = displayData[dataIndex - 1];
           const d1 = displayData[dataIndex];
@@ -945,7 +949,7 @@ export function CompactTimeSeriesChart({
             const goalsData = generateGoalsData(series.data, goals);
             const firstGoalData = goalsData[0];
             if (firstGoalData) {
-              const goalBisect = d3.bisector((d: any) => d.date).left;
+              const goalBisect = bisector((d: any) => d.date).left;
               const goalIndex = goalBisect(firstGoalData.data, closestPoint.date);
               const g0 = firstGoalData.data[goalIndex - 1];
               const g1 = firstGoalData.data[goalIndex];
@@ -978,7 +982,7 @@ export function CompactTimeSeriesChart({
             let shadowExists = false;
 
             if (averageShadows && averagedShadowData.length > 0) {
-              const shadowBisect = d3.bisector((d: any) => d.date).left;
+              const shadowBisect = bisector((d: any) => d.date).left;
               const shadowIndex = shadowBisect(averagedShadowData, closestPoint.date);
               const s0 = averagedShadowData[shadowIndex - 1];
               const s1 = averagedShadowData[shadowIndex];
@@ -995,7 +999,7 @@ export function CompactTimeSeriesChart({
               }
             } else if (shadowsDataWithValues.length > 0) {
               const firstShadow = shadowsDataWithValues[0];
-              const shadowBisect = d3.bisector((d: any) => d.date).left;
+              const shadowBisect = bisector((d: any) => d.date).left;
               const shadowIndex = shadowBisect(firstShadow.data, closestPoint.date);
               const s0 = firstShadow.data[shadowIndex - 1];
               const s1 = firstShadow.data[shadowIndex];

@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import * as d3 from 'd3';
+import { select, pointer } from 'd3-selection';
+import { scaleTime, scaleLinear } from 'd3-scale';
+import { axisBottom, axisLeft } from 'd3-axis';
+import { line as d3Line, area as d3Area, curveLinear } from 'd3-shape';
+import { extent, min, max, bisector } from 'd3-array';
+import { brush as d3Brush } from 'd3-brush';
 import type { Series, TimeSeriesPoint } from '../types/series';
 import type { AggregationConfig } from '../utils/aggregation';
 import type { Shadow } from '../types/shadow';
@@ -299,7 +304,7 @@ export function TimeSeriesChart({
     if (!svgRef.current || !series.data.length) return;
 
     // Clear previous content
-    d3.select(svgRef.current).selectAll('*').remove();
+    select(svgRef.current).selectAll('*').remove();
 
     // Set up margins
     const margin = { top: 40, right: 20, bottom: 50, left: 60 };
@@ -307,8 +312,7 @@ export function TimeSeriesChart({
     const innerHeight = height - margin.top - margin.bottom;
 
     // Create SVG
-    const svg = d3
-      .select(svgRef.current)
+    const svg = select(svgRef.current)
       .attr('width', chartWidth)
       .attr('height', height);
 
@@ -572,12 +576,12 @@ export function TimeSeriesChart({
 
     // Get full extent and use current domain if zoomed
     // Include goal dates and forecast dates in the extent calculation
-    let fullExtent = d3.extent(dataWithValues, d => d.date) as [Date, Date];
+    let fullExtent = extent(dataWithValues, d => d.date) as [Date, Date];
 
     // Extend the extent if goals go beyond the data range
     goalsData.forEach(goalData => {
       if (goalData.data.length > 0) {
-        const goalExtent = d3.extent(goalData.data, d => d.date) as [Date, Date];
+        const goalExtent = extent(goalData.data, d => d.date) as [Date, Date];
         if (goalExtent[0] < fullExtent[0]) fullExtent[0] = goalExtent[0];
         if (goalExtent[1] > fullExtent[1]) fullExtent[1] = goalExtent[1];
       }
@@ -585,7 +589,7 @@ export function TimeSeriesChart({
 
     // Extend the extent if forecast goes beyond the data range
     if (forecastResult && forecastResult.forecast.length > 0) {
-      const forecastExtent = d3.extent(forecastResult.forecast, d => d.date) as [Date, Date];
+      const forecastExtent = extent(forecastResult.forecast, d => d.date) as [Date, Date];
       if (forecastExtent[1] > fullExtent[1]) fullExtent[1] = forecastExtent[1];
     }
 
@@ -604,8 +608,7 @@ export function TimeSeriesChart({
       initialDomain = fullExtent;
     }
 
-    const xScale = d3
-      .scaleTime()
+    const xScale = scaleTime()
       .domain(initialDomain)
       .range([0, innerWidth]);
 
@@ -649,8 +652,8 @@ export function TimeSeriesChart({
       }
 
       // Calculate min/max with 20% padding
-      const minValue = d3.min(allValues) as number;
-      const maxValue = d3.max(allValues) as number;
+      const minValue = min(allValues) as number;
+      const maxValue = max(allValues) as number;
       const range = maxValue - minValue;
       const yMin = minValue - (range * 0.2);
       const yMax = maxValue + (range * 0.2);
@@ -658,23 +661,21 @@ export function TimeSeriesChart({
       yDomain = [yMin, yMax];
     }
 
-    const yScale = d3
-      .scaleLinear()
+    const yScale = scaleLinear()
       .domain(yDomain)
       .range([innerHeight, 0]);
 
     // Create line generator
-    const line = d3
-      .line<{ date: Date; value: number | null }>()
+    const line = d3Line<{ date: Date; value: number | null }>()
       .x(d => xScale(d.date))
       .y(d => yScale(d.value as number))
       .defined(d => d.value != null && !isNaN(d.value) && isFinite(d.value))
-      .curve(d3.curveLinear);
+      .curve(curveLinear);
 
     // Draw axes with custom formatting
     // Custom x-axis formatter that shows year when it changes
     let previousYear: number | null = null;
-    const xAxis = d3.axisBottom(xScale).tickFormat((domainValue) => {
+    const xAxis = axisBottom(xScale).tickFormat((domainValue) => {
       const date = domainValue as Date;
       const currentYear = date.getFullYear();
       const shouldShowYear = previousYear === null || currentYear !== previousYear;
@@ -687,7 +688,7 @@ export function TimeSeriesChart({
       return shouldShowYear ? `${month} ${day}, ${currentYear}` : `${month} ${day}`;
     });
 
-    const yAxis = d3.axisLeft(yScale);
+    const yAxis = axisLeft(yScale);
 
     g.append('g')
       .attr('class', 'x-axis')
@@ -847,13 +848,13 @@ export function TimeSeriesChart({
     // Draw shadows or averaged shadow (drawn first so they appear behind main line)
     if (averageShadows && averagedShadowData.length > 0) {
       // Draw shaded area for standard deviation
-      const area = d3
-        .area<typeof averagedShadowData[0]>()
+      const area =
+        d3Area<typeof averagedShadowData[0]>()
         .x(d => xScale(d.date))
         .y0(d => yScale(Math.max(0, d.mean - d.stdDev)))
         .y1(d => yScale(d.mean + d.stdDev))
         .defined(d => d.mean != null && d.stdDev != null && !isNaN(d.mean) && isFinite(d.mean) && !isNaN(d.stdDev) && isFinite(d.stdDev))
-        .curve(d3.curveLinear);
+        .curve(curveLinear);
 
       chartGroup.append('path')
         .datum(averagedShadowData)
@@ -863,12 +864,12 @@ export function TimeSeriesChart({
         .attr('d', area);
 
       // Draw mean line (half the width of main series line)
-      const meanLine = d3
-        .line<typeof averagedShadowData[0]>()
+      const meanLine =
+        d3Line<typeof averagedShadowData[0]>()
         .x(d => xScale(d.date))
         .y(d => yScale(d.mean))
         .defined(d => d.mean != null && !isNaN(d.mean) && isFinite(d.mean))
-        .curve(d3.curveLinear);
+        .curve(curveLinear);
 
       chartGroup.append('path')
         .datum(averagedShadowData)
@@ -914,12 +915,12 @@ export function TimeSeriesChart({
 
       if (goalValues.length > 0) {
         // Create line generator for goals
-        const goalLine = d3
-          .line<{ date: Date; value: number }>()
+        const goalLine =
+          d3Line<{ date: Date; value: number }>()
           .x(d => xScale(d.date))
           .y(d => yScale(d.value))
           .defined(d => !isNaN(d.value) && isFinite(d.value))
-          .curve(d3.curveLinear);
+          .curve(curveLinear);
 
         chartGroup.append('path')
           .datum(goalValues)
@@ -1026,7 +1027,7 @@ export function TimeSeriesChart({
 
       // Draw confidence intervals first (as filled area)
       if (forecastResult.confidenceIntervals) {
-        const areaGenerator = d3.area<{ date: Date; upper: number; lower: number }>()
+        const areaGenerator = d3Area<{ date: Date; upper: number; lower: number }>()
           .x(d => xScale(d.date))
           .y0(d => yScale(d.lower))
           .y1(d => yScale(d.upper));
@@ -1048,11 +1049,11 @@ export function TimeSeriesChart({
       }
 
       // Create a line generator specifically for forecast (without null handling)
-      const forecastLine = d3
-        .line<{ date: Date; value: number }>()
+      const forecastLine =
+        d3Line<{ date: Date; value: number }>()
         .x(d => xScale(d.date))
         .y(d => yScale(d.value))
-        .curve(d3.curveLinear);
+        .curve(curveLinear);
 
       // Connect last data point to first forecast point with a thin line
       const lastDataPoint = displayData[displayData.length - 1];
@@ -1240,11 +1241,11 @@ export function TimeSeriesChart({
       .style('cursor', 'crosshair');
 
     // Bisector for finding closest data point (including gaps)
-    const bisect = d3.bisector<{ date: Date; value: number | null }, Date>(d => d.date).left;
+    const bisect = bisector<{ date: Date; value: number | null }, Date>(d => d.date).left;
 
     // Mouse move handler
     overlay.on('mousemove', function(event) {
-      const [mouseX] = d3.pointer(event);
+      const [mouseX] = pointer(event);
       const hoveredDate = xScale.invert(mouseX);
 
       // Always show the vertical line at mouse position
@@ -1259,7 +1260,7 @@ export function TimeSeriesChart({
 
       if (isForecastPeriod && forecastResult) {
         // Find closest forecast point
-        const forecastBisect = d3.bisector<{ date: Date; value: number }, Date>(d => d.date).left;
+        const forecastBisect = bisector<{ date: Date; value: number }, Date>(d => d.date).left;
         const forecastIndex = forecastBisect(forecastResult.forecast, hoveredDate, 1);
         const f0 = forecastResult.forecast[forecastIndex - 1];
         const f1 = forecastResult.forecast[forecastIndex];
@@ -1671,7 +1672,7 @@ export function TimeSeriesChart({
     });
 
     // Add brush for click-drag zoom selection (2D)
-    const brush = d3.brush()
+    const brush = d3Brush()
       .extent([[0, 0], [innerWidth, innerHeight]])
       .filter(function(event) {
         // Don't allow brush when shift key is held
@@ -1738,7 +1739,7 @@ export function TimeSeriesChart({
       const yDomainRange = startYDomain[1] - startYDomain[0];
 
       // Get the full y extent for clamping
-      const fullYExtent = [0, d3.max(dataWithValues, d => d.value) as number * 1.1];
+      const fullYExtent = [0, max(dataWithValues, d => d.value) as number * 1.1];
 
       function onMouseMove(e: MouseEvent) {
         // Stop panning if alt key is released or mouse button released
@@ -1824,8 +1825,8 @@ export function TimeSeriesChart({
       const allValues: number[] = dataWithValues
         .filter(d => d.value != null && !isNaN(d.value) && isFinite(d.value))
         .map(d => d.value);
-      const minValue = d3.min(allValues) as number;
-      const maxValue = d3.max(allValues) as number;
+      const minValue = min(allValues) as number;
+      const maxValue = max(allValues) as number;
       const range = maxValue - minValue;
       const yMin = minValue - (range * 0.2);
       const yMax = maxValue + (range * 0.2);
@@ -1839,7 +1840,7 @@ export function TimeSeriesChart({
       event.preventDefault();
 
       // Get mouse position relative to the chart
-      const [mouseX, mouseY] = d3.pointer(event);
+      const [mouseX, mouseY] = pointer(event);
 
       // Adjust mouseX and mouseY to be relative to the chart area
       const chartMouseX = mouseX - margin.left;
@@ -1885,7 +1886,7 @@ export function TimeSeriesChart({
       const newYBottom = mouseValue - yBottomDistance * zoomFactor;
 
       // Clamp Y domain to data extent
-      const fullYExtent = [0, d3.max(dataWithValues, d => d.value) as number * 1.1];
+      const fullYExtent = [0, max(dataWithValues, d => d.value) as number * 1.1];
       const clampedYBottom = Math.max(fullYExtent[0], newYBottom);
       const clampedYTop = Math.min(fullYExtent[1], newYTop);
       const newYDomain = [clampedYBottom, clampedYTop] as [number, number];
@@ -1922,12 +1923,12 @@ export function TimeSeriesChart({
       // Update goals
       g.selectAll('[class^="goal-line-"]')
         .attr('d', (d: any) => {
-          const goalLine = d3
-            .line<{ date: Date; value: number }>()
+          const goalLine =
+            d3Line<{ date: Date; value: number }>()
             .x(d => xScale(d.date))
             .y(d => yScale(d.value))
             .defined(d => !isNaN(d.value) && isFinite(d.value))
-            .curve(d3.curveLinear);
+            .curve(curveLinear);
           return goalLine(d);
         });
 
@@ -1961,20 +1962,20 @@ export function TimeSeriesChart({
 
       // Update averaged shadow if present
       if (averageShadows && averagedShadowData.length > 0) {
-        const area = d3
-          .area<typeof averagedShadowData[0]>()
+        const area =
+          d3Area<typeof averagedShadowData[0]>()
           .x(d => xScale(d.date))
           .y0(d => yScale(Math.max(0, d.mean - d.stdDev)))
           .y1(d => yScale(d.mean + d.stdDev))
           .defined(d => d.mean != null && d.stdDev != null && !isNaN(d.mean) && isFinite(d.mean) && !isNaN(d.stdDev) && isFinite(d.stdDev))
-          .curve(d3.curveLinear);
+          .curve(curveLinear);
 
-        const meanLine = d3
-          .line<typeof averagedShadowData[0]>()
+        const meanLine =
+          d3Line<typeof averagedShadowData[0]>()
           .x(d => xScale(d.date))
           .y(d => yScale(d.mean))
           .defined(d => d.mean != null && !isNaN(d.mean) && isFinite(d.mean))
-          .curve(d3.curveLinear);
+          .curve(curveLinear);
 
         g.select('.shadow-std-area')
           .attr('d', area as any);

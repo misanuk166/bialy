@@ -310,16 +310,6 @@ export function DashboardPage() {
             </div>
           </div>
 
-          {/* Share Modal */}
-          {showShareModal && currentDashboard && (
-            <ShareDashboardModal
-              dashboard={currentDashboard}
-              onClose={() => setShowShareModal(false)}
-              onUpdate={handleDashboardUpdate}
-            />
-          )}
-        </div>
-
           {/* User Menu */}
           <div className="flex items-center gap-4">
             <div className="text-right">
@@ -341,6 +331,15 @@ export function DashboardPage() {
             </button>
           </div>
         </div>
+
+        {/* Share Modal */}
+        {showShareModal && currentDashboard && (
+          <ShareDashboardModal
+            dashboard={currentDashboard}
+            onClose={() => setShowShareModal(false)}
+            onUpdate={handleDashboardUpdate}
+          />
+        )}
 
         {/* Single Metric Expanded View */}
         {viewMode === 'single-metric' && expandedMetric && (
