@@ -141,10 +141,11 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
       }
 
       // Extract configurations by type
-      const goals = metricConfigRecords.find(c => c.config_key === 'goals')?.config_value as any[] | undefined;
-      const forecast = metricConfigRecords.find(c => c.config_key === 'forecast')?.config_value;
-      const forecastSnapshot = metricConfigRecords.find(c => c.config_key === 'forecast_snapshot')?.config_value;
-      const annotations = metricConfigRecords.find(c => c.config_key === 'annotations')?.config_value as any[] | undefined;
+      const goals = metricConfigRecords.find(c => c.config_type === 'goal')?.config_data as any[] | undefined;
+      const forecastConfig = metricConfigRecords.find(c => c.config_type === 'forecast')?.config_data as any;
+      const forecast = forecastConfig ? { ...forecastConfig, snapshot: undefined } : undefined; // Extract forecast settings
+      const forecastSnapshot = forecastConfig?.snapshot; // Extract embedded snapshot
+      const annotations = metricConfigRecords.find(c => c.config_type === 'annotation')?.config_data as any[] | undefined;
 
       return {
         id: metric.id,
@@ -161,9 +162,9 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
     })
   );
 
-  // Extract global settings from the first metric's config, or use defaults
-  const globalSettingsRecord = configs?.find(c => c.config_key === 'global_settings');
-  const globalSettings: GlobalSettings = globalSettingsRecord?.config_value as GlobalSettings || {
+  // Extract global settings from aggregation config, or use defaults
+  const globalSettingsRecord = configs?.find(c => c.config_type === 'aggregation');
+  const globalSettings: GlobalSettings = globalSettingsRecord?.config_data as GlobalSettings || {
     aggregation: {
       enabled: true,
       mode: 'groupBy',
@@ -301,49 +302,43 @@ export async function saveDashboardData(
         insertedMetrics.forEach((dbMetric, index) => {
           const metric = metrics[index];
 
-          // Add goals configuration
+          // Add goals configuration (singular 'goal' per CHECK constraint)
           if (metric.goals && metric.goals.length > 0) {
             configRecords.push({
               metric_id: dbMetric.id,
-              config_key: 'goals',
-              config_value: metric.goals
+              config_type: 'goal',
+              config_data: metric.goals
             });
           }
 
-          // Add forecast configuration
+          // Add forecast configuration (includes snapshot data)
           if (metric.forecast) {
             configRecords.push({
               metric_id: dbMetric.id,
-              config_key: 'forecast',
-              config_value: metric.forecast
+              config_type: 'forecast',
+              config_data: {
+                ...metric.forecast,
+                snapshot: metric.forecastSnapshot // Include snapshot in forecast config
+              }
             });
           }
 
-          // Add forecast snapshot
-          if (metric.forecastSnapshot) {
-            configRecords.push({
-              metric_id: dbMetric.id,
-              config_key: 'forecast_snapshot',
-              config_value: metric.forecastSnapshot
-            });
-          }
-
-          // Add annotations
+          // Add annotations (singular 'annotation' per CHECK constraint)
           if (metric.annotations && metric.annotations.length > 0) {
             configRecords.push({
               metric_id: dbMetric.id,
-              config_key: 'annotations',
-              config_value: metric.annotations
+              config_type: 'annotation',
+              config_data: metric.annotations
             });
           }
         });
 
-        // Add global settings (stored with first metric for now)
+        // Add global settings (stored as 'aggregation' type per CHECK constraint)
         if (insertedMetrics.length > 0) {
           configRecords.push({
             metric_id: insertedMetrics[0].id,
-            config_key: 'global_settings',
-            config_value: globalSettings
+            config_type: 'aggregation',
+            config_data: globalSettings
           });
         }
 
