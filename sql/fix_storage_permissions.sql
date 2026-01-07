@@ -7,10 +7,15 @@
 -- NOTE: RLS is already enabled by default on storage.objects in Supabase
 -- ============================================================================
 
--- Step 1: Drop existing storage policies (if any)
+-- Step 1: Drop ALL existing storage policies for csv-files bucket
+-- This includes old policies with {public} role that may be interfering
 DROP POLICY IF EXISTS "Users can upload to own folder" ON storage.objects;
 DROP POLICY IF EXISTS "Users can download own files" ON storage.objects;
 DROP POLICY IF EXISTS "Users can delete own files" ON storage.objects;
+DROP POLICY IF EXISTS "Users can upload to their own folder" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own files" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update their own files" ON storage.objects;
+DROP POLICY IF EXISTS "Users can read files from accessible dashboards" ON storage.objects;
 DROP POLICY IF EXISTS "Give users access to own folder" ON storage.objects;
 DROP POLICY IF EXISTS "Public Access" ON storage.objects;
 
