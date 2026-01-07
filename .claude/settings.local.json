@@ -34,7 +34,9 @@
       "Read(///**)",
       "Bash(git checkout:*)",
       "Bash(git stash:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(gh api:*)",
+      "Bash(node check-storage.js)"
     ],
     "deny": [],
     "ask": []
