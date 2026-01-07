@@ -7,6 +7,7 @@ import { ShareDashboardModal } from '../components/ShareDashboardModal';
 import { loadSyntheticMetrics } from '../utils/generateSyntheticData';
 import { saveAppState, loadAppState } from '../utils/localStorage';
 import { fetchDashboard, saveDashboardData } from '../services/dashboardService';
+import { saveSeriesAsCSV } from '../services/storageService';
 import { useAuth } from '../contexts/AuthContext';
 import type { Dashboard } from '../types/dashboard';
 import type { Series } from '../types/series';
@@ -208,6 +209,38 @@ export function DashboardPage() {
     setMetrics([]);
   };
 
+  const handleLoadSyntheticMetrics = async () => {
+    if (!user) {
+      console.error('User not authenticated');
+      return;
+    }
+
+    try {
+      // Load synthetic metrics
+      loadSyntheticMetrics(async (series: Series) => {
+        try {
+          // Save the series data to Supabase Storage as CSV
+          const filePath = await saveSeriesAsCSV(series, user.id);
+
+          // Add filePath to series so it gets saved in database
+          const seriesWithPath = {
+            ...series,
+            filePath
+          } as Series;
+
+          // Pass to the normal handler
+          handleSeriesLoaded(seriesWithPath, filePath);
+        } catch (error) {
+          console.error('Failed to save synthetic metric:', error);
+          // Still add the metric even if storage fails (will be in-memory only)
+          handleSeriesLoaded(series);
+        }
+      });
+    } catch (error) {
+      console.error('Failed to load synthetic metrics:', error);
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -360,7 +393,7 @@ export function DashboardPage() {
                 <div className="text-center">
                   <p className="text-gray-600 mb-2">or</p>
                   <button
-                    onClick={() => loadSyntheticMetrics(handleSeriesLoaded)}
+                    onClick={handleLoadSyntheticMetrics}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     Load 10 Synthetic Metrics (2.5 years of data)
@@ -420,7 +453,7 @@ export function DashboardPage() {
                         <p className="text-gray-600 mb-2">or</p>
                         <button
                           onClick={() => {
-                            loadSyntheticMetrics(handleSeriesLoaded);
+                            handleLoadSyntheticMetrics();
                             setShowAddMetricModal(false);
                           }}
                           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

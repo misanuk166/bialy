@@ -101,6 +101,56 @@ export async function deleteCSVFile(filePath: string): Promise<void> {
 }
 
 /**
+ * Save a Series object as a CSV file in Supabase Storage
+ * Used for synthetic metrics or programmatically generated data
+ * Returns the file path in storage
+ */
+export async function saveSeriesAsCSV(series: Series, userId: string): Promise<string> {
+  try {
+    // Convert series data to CSV format
+    const csvData = series.data.map(point => ({
+      date: point.date.toISOString().split('T')[0], // Format as YYYY-MM-DD
+      numerator: point.numerator,
+      denominator: point.denominator
+    }));
+
+    // Generate CSV string using PapaParse
+    const csv = Papa.unparse(csvData, {
+      columns: ['date', 'numerator', 'denominator'],
+      header: true
+    });
+
+    // Create a Blob from the CSV string
+    const blob = new Blob([csv], { type: 'text/csv' });
+
+    // Generate unique file path
+    const timestamp = Date.now();
+    const safeName = series.metadata.name.replace(/[^a-zA-Z0-9-]/g, '_');
+    const fileName = `${safeName}-${timestamp}.csv`;
+    const filePath = `${userId}/${fileName}`;
+
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(filePath, blob, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: 'text/csv'
+      });
+
+    if (error) {
+      console.error('Error saving series as CSV:', error);
+      throw error;
+    }
+
+    return data.path;
+  } catch (error) {
+    console.error('Failed to save series as CSV:', error);
+    throw error;
+  }
+}
+
+/**
  * Get public URL for a CSV file (for debugging)
  */
 export function getPublicURL(filePath: string): string {
