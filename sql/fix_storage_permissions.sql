@@ -4,18 +4,17 @@
 -- Run this in Supabase SQL Editor to fix 400 errors when downloading CSV files
 -- https://supabase.com/dashboard/project/mcnzdiflwnzyenhhyqqo/sql/new
 -- ============================================================================
+-- NOTE: RLS is already enabled by default on storage.objects in Supabase
+-- ============================================================================
 
--- Step 1: Ensure RLS is enabled on storage.objects table
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
-
--- Step 2: Drop existing storage policies (if any)
+-- Step 1: Drop existing storage policies (if any)
 DROP POLICY IF EXISTS "Users can upload to own folder" ON storage.objects;
 DROP POLICY IF EXISTS "Users can download own files" ON storage.objects;
 DROP POLICY IF EXISTS "Users can delete own files" ON storage.objects;
 DROP POLICY IF EXISTS "Give users access to own folder" ON storage.objects;
 DROP POLICY IF EXISTS "Public Access" ON storage.objects;
 
--- Step 3: Create storage policies for csv-files bucket
+-- Step 2: Create storage policies for csv-files bucket
 -- These policies allow users to manage files in their own user ID folder
 
 -- Upload: Users can upload to their own folder (userId/*)
@@ -45,7 +44,7 @@ USING (
   AND (storage.foldername(name))[1] = auth.uid()::text
 );
 
--- Step 4: Verify RLS is enabled
+-- Step 3: Verify RLS is enabled (should be true by default)
 SELECT
   schemaname,
   tablename,
@@ -56,7 +55,7 @@ WHERE schemaname = 'storage'
 
 -- Expected: rls_enabled = true
 
--- Step 5: Verify policies were created
+-- Step 4: Verify policies were created
 SELECT
   policyname,
   cmd,
@@ -73,7 +72,7 @@ ORDER BY policyname;
 -- - Users can download own files (SELECT)
 -- - Users can delete own files (DELETE)
 
--- Step 6: Check csv-files bucket configuration
+-- Step 5: Check csv-files bucket configuration
 SELECT
   id,
   name,
@@ -85,7 +84,7 @@ WHERE name = 'csv-files';
 
 -- Expected: public = false
 
--- Step 7: Count files in csv-files bucket
+-- Step 6: Count files in csv-files bucket
 SELECT
   COUNT(*) as total_files,
   bucket_id,
@@ -99,9 +98,11 @@ GROUP BY bucket_id, user_folder;
 -- ============================================================================
 -- TROUBLESHOOTING NOTES:
 -- If you still get 400 errors after running this:
--- 1. Verify the bucket name is exactly 'csv-files' (Step 6)
--- 2. Verify files exist in storage (Step 7)
--- 3. Verify your user ID matches the folder names in storage
--- 4. Check browser console for auth.uid() value
--- 5. Hard refresh the app (Cmd+Shift+R or Ctrl+Shift+R)
+-- 1. Check that RLS is enabled (Step 3 - should be true)
+-- 2. Verify 3 policies were created (Step 4)
+-- 3. Verify the bucket name is exactly 'csv-files' (Step 5)
+-- 4. Verify files exist in storage (Step 6)
+-- 5. Verify your user ID matches the folder names in storage
+-- 6. Check browser console for auth.uid() value
+-- 7. Hard refresh the app (Cmd+Shift+R or Ctrl+Shift+R)
 -- ============================================================================
