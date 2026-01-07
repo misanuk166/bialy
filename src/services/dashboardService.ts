@@ -129,14 +129,18 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
       let series: Series;
       if (metric.data_file_path) {
         try {
+          console.log(`Loading metric "${metric.name}" from ${metric.data_file_path}...`);
           series = await downloadCSVFile(metric.data_file_path);
           series.filePath = metric.data_file_path; // Store path for reference
+          console.log(`✓ Loaded "${metric.name}" - ${series.data.length} data points`);
         } catch (error) {
-          console.error('Failed to load series from storage:', error);
+          console.error(`✗ Failed to load "${metric.name}" from storage:`, error);
+          console.error('  File path:', metric.data_file_path);
           series = createPlaceholderSeries(metric.name, metric.unit);
         }
       } else {
         // Fallback for metrics without file paths (backward compatibility)
+        console.warn(`Metric "${metric.name}" has no data_file_path, using placeholder`);
         series = createPlaceholderSeries(metric.name, metric.unit);
       }
 
