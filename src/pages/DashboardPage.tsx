@@ -160,11 +160,13 @@ export function DashboardPage() {
   };
 
   const handleMetricExpand = (metricId: string) => {
+    console.log('Expanding metric:', metricId, 'Total metrics:', metrics.length);
     setExpandedMetricId(metricId);
     setViewMode('single-metric');
   };
 
   const handleCloseExpandedView = () => {
+    console.log('Closing expanded view. Metrics count:', metrics.length);
     setExpandedMetricId(null);
     setViewMode('grid');
   };
@@ -273,6 +275,14 @@ export function DashboardPage() {
   })() : undefined;
 
   const expandedMetric = expandedMetricId ? metrics.find(m => m.id === expandedMetricId) : null;
+
+  // Debug logging
+  if (expandedMetricId && !expandedMetric) {
+    console.error('Expanded metric not found! ID:', expandedMetricId, 'Available metrics:', metrics.map(m => m.id));
+  }
+  if (expandedMetric) {
+    console.log('Expanded metric found:', expandedMetric.series.metadata.name, 'Data points:', expandedMetric.series.data.length);
+  }
 
   // Check if current user is the owner of the current dashboard
   const isOwner = !currentDashboard || (user?.id === currentDashboard.owner_id);
