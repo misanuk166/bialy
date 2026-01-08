@@ -129,18 +129,43 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
       let series: Series;
       if (metric.data_file_path) {
         try {
-          console.log(`Loading metric "${metric.name}" from ${metric.data_file_path}...`);
+          console.log(`[LOAD] Loading metric "${metric.name}" from ${metric.data_file_path}`);
+
+          // 🆕 PRE-FLIGHT CHECK - Verify file exists before downloading
+          const userId = metric.data_file_path.split('/')[0];
+          const fileName = metric.data_file_path.split('/').pop();
+
+          const { data: listData, error: listError } = await supabase.storage
+            .from('csv-files')
+            .list(userId, {
+              search: fileName
+            });
+
+          if (listError || !listData?.length) {
+            console.error(`[LOAD] ✗ File does not exist: ${metric.data_file_path}`);
+            console.error('      This metric was saved but the CSV file is missing.');
+            console.error('      User will need to re-upload this data.');
+            throw new Error('CSV file not found in storage');
+          }
+
+          console.log(`[LOAD] ✓ File exists, downloading...`);
+
+          // Download and parse CSV
           series = await downloadCSVFile(metric.data_file_path);
-          series.filePath = metric.data_file_path; // Store path for reference
-          console.log(`✓ Loaded "${metric.name}" - ${series.data.length} data points`);
+          series.filePath = metric.data_file_path;
+
+          console.log(`[LOAD] ✓ Loaded "${metric.name}" - ${series.data.length} data points`);
         } catch (error) {
-          console.error(`✗ Failed to load "${metric.name}" from storage:`, error);
-          console.error('  File path:', metric.data_file_path);
+          console.error(`[LOAD] ✗ Failed to load "${metric.name}":`, error);
+          console.error(`       File path: ${metric.data_file_path}`);
+
+          // Create placeholder with clear error message
           series = createPlaceholderSeries(metric.name, metric.unit);
+          series.metadata.description = '⚠️ Data file missing - please re-upload';
         }
       } else {
         // Fallback for metrics without file paths (backward compatibility)
-        console.warn(`Metric "${metric.name}" has no data_file_path, using placeholder`);
+        console.warn(`[LOAD] Metric "${metric.name}" has no data_file_path, using placeholder`);
         series = createPlaceholderSeries(metric.name, metric.unit);
       }
 

@@ -5,16 +5,31 @@ import type { Series } from '../types/series';
 const STORAGE_BUCKET = 'csv-files';
 
 /**
+ * Result of a file upload operation
+ */
+export interface UploadResult {
+  path: string;
+  size: number;
+  verified: boolean;
+  uploadTime: number;
+}
+
+/**
  * Upload a CSV file to Supabase Storage
  * Returns the file path in storage
  */
-export async function uploadCSVFile(file: File, userId: string): Promise<string> {
+export async function uploadCSVFile(file: File, userId: string): Promise<UploadResult> {
+  const startTime = Date.now();
+
   try {
     // Generate unique file path: {userId}/{timestamp}-{filename}
     const timestamp = Date.now();
     const fileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_'); // Sanitize filename
     const filePath = `${userId}/${timestamp}-${fileName}`;
 
+    console.log(`[UPLOAD] Starting upload: ${filePath}`);
+
+    // Upload file
     const { data, error } = await supabase.storage
       .from(STORAGE_BUCKET)
       .upload(filePath, file, {
@@ -23,13 +38,49 @@ export async function uploadCSVFile(file: File, userId: string): Promise<string>
       });
 
     if (error) {
-      console.error('Error uploading file:', error);
+      console.error('[UPLOAD] Upload failed:', error);
       throw error;
     }
 
-    return data.path;
+    console.log(`[UPLOAD] Upload completed: ${data.path}`);
+
+    // 🆕 VERIFICATION STEP - Check file actually exists
+    console.log(`[VERIFY] Checking file exists: ${filePath}`);
+
+    const { data: listData, error: listError } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .list(userId, {
+        search: fileName
+      });
+
+    if (listError) {
+      console.error('[VERIFY] Verification failed:', listError);
+      // Try to clean up the potentially failed upload
+      await supabase.storage.from(STORAGE_BUCKET).remove([filePath]);
+      throw new Error(`File verification failed: ${listError.message}`);
+    }
+
+    const fileExists = listData?.some(f => f.name.includes(fileName));
+
+    if (!fileExists || listData.length === 0) {
+      console.error('[VERIFY] File not found after upload');
+      throw new Error('File upload verification failed - file does not exist in storage');
+    }
+
+    const fileSize = listData[0].metadata?.size ?? file.size;
+    const uploadTime = Date.now() - startTime;
+
+    console.log(`[VERIFY] ✓ File verified - ${fileSize} bytes in ${uploadTime}ms`);
+
+    return {
+      path: data.path,
+      size: fileSize,
+      verified: true,
+      uploadTime
+    };
   } catch (error) {
-    console.error('Failed to upload CSV file:', error);
+    const uploadTime = Date.now() - startTime;
+    console.error(`[UPLOAD] Failed after ${uploadTime}ms:`, error);
     throw error;
   }
 }
@@ -105,7 +156,9 @@ export async function deleteCSVFile(filePath: string): Promise<void> {
  * Used for synthetic metrics or programmatically generated data
  * Returns the file path in storage
  */
-export async function saveSeriesAsCSV(series: Series, userId: string): Promise<string> {
+export async function saveSeriesAsCSV(series: Series, userId: string): Promise<UploadResult> {
+  const startTime = Date.now();
+
   try {
     // Convert series data to CSV format
     const csvData = series.data.map(point => ({
@@ -129,6 +182,8 @@ export async function saveSeriesAsCSV(series: Series, userId: string): Promise<s
     const fileName = `${safeName}-${timestamp}.csv`;
     const filePath = `${userId}/${fileName}`;
 
+    console.log(`[SAVE] Saving series as CSV: ${filePath}`);
+
     // Upload to Supabase Storage
     const { data, error } = await supabase.storage
       .from(STORAGE_BUCKET)
@@ -139,13 +194,41 @@ export async function saveSeriesAsCSV(series: Series, userId: string): Promise<s
       });
 
     if (error) {
-      console.error('Error saving series as CSV:', error);
+      console.error('[SAVE] Save failed:', error);
       throw error;
     }
 
-    return data.path;
+    console.log(`[SAVE] Save completed: ${data.path}`);
+
+    // 🆕 VERIFICATION STEP
+    console.log(`[VERIFY] Checking file exists: ${filePath}`);
+
+    const { data: listData, error: listError } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .list(userId, {
+        search: fileName
+      });
+
+    if (listError || !listData?.length) {
+      console.error('[VERIFY] Verification failed:', listError);
+      await supabase.storage.from(STORAGE_BUCKET).remove([filePath]);
+      throw new Error('File verification failed after save');
+    }
+
+    const fileSize = listData[0].metadata?.size ?? blob.size;
+    const uploadTime = Date.now() - startTime;
+
+    console.log(`[VERIFY] ✓ File verified - ${fileSize} bytes in ${uploadTime}ms`);
+
+    return {
+      path: data.path,
+      size: fileSize,
+      verified: true,
+      uploadTime
+    };
   } catch (error) {
-    console.error('Failed to save series as CSV:', error);
+    const uploadTime = Date.now() - startTime;
+    console.error(`[SAVE] Failed after ${uploadTime}ms:`, error);
     throw error;
   }
 }

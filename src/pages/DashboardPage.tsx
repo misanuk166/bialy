@@ -213,33 +213,61 @@ export function DashboardPage() {
 
   const handleLoadSyntheticMetrics = async () => {
     if (!user) {
-      console.error('User not authenticated');
+      alert('You must be logged in to load synthetic metrics');
       return;
     }
 
+    const errors: Array<{ metricName: string; error: Error }> = [];
+    let successCount = 0;
+
     try {
+      console.log('[SYNTHETIC] Starting synthetic metrics load');
+
       // Load synthetic metrics
       loadSyntheticMetrics(async (series: Series) => {
         try {
+          console.log(`[SYNTHETIC] Generating metric: "${series.metadata.name}"`);
+
           // Save the series data to Supabase Storage as CSV
-          const filePath = await saveSeriesAsCSV(series, user.id);
+          const uploadResult = await saveSeriesAsCSV(series, user.id);
 
           // Add filePath to series so it gets saved in database
           const seriesWithPath = {
             ...series,
-            filePath
+            filePath: uploadResult.path
           } as Series;
 
+          console.log(`[SYNTHETIC] ✓ Saved metric - ${uploadResult.size} bytes in ${uploadResult.uploadTime}ms`);
+
           // Pass to the normal handler
-          handleSeriesLoaded(seriesWithPath, filePath);
+          handleSeriesLoaded(seriesWithPath, uploadResult.path);
+          successCount++;
         } catch (error) {
-          console.error('Failed to save synthetic metric:', error);
-          // Still add the metric even if storage fails (will be in-memory only)
-          handleSeriesLoaded(series);
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          console.error(`[SYNTHETIC] ✗ Failed to save synthetic metric:`, error);
+
+          errors.push({
+            metricName: series.metadata.name,
+            error: error instanceof Error ? error : new Error(errorMsg)
+          });
+
+          // Don't add the metric if save fails - prevents "No data available" on refresh
+          // User will see the error and can retry
         }
       });
+
+      // Give async operations time to complete
+      setTimeout(() => {
+        if (errors.length > 0) {
+          const errorList = errors.map(e => `- ${e.metricName}: ${e.error.message}`).join('\n');
+          alert(`⚠️ ${errors.length} metrics failed to upload:\n\n${errorList}\n\nCheck console for details.`);
+        } else {
+          console.log(`[SYNTHETIC] ✓ All ${successCount} metrics uploaded successfully`);
+        }
+      }, 2000);
     } catch (error) {
-      console.error('Failed to load synthetic metrics:', error);
+      console.error('[SYNTHETIC] Unexpected error:', error);
+      alert('Failed to load synthetic metrics. Check console for details.');
     }
   };
 
