@@ -275,7 +275,9 @@ function parseCSVToSeries(data: any[], filePath: string): Series {
 
   // Extract name from filename
   const fileName = filePath.split('/').pop()?.replace(/\.csv$/, '') || 'Metric';
-  const name = fileName.replace(/-|_/g, ' ').trim();
+  // Remove timestamp pattern (e.g., -1767914661186 at the end)
+  const fileNameWithoutTimestamp = fileName.replace(/-\d{13}$/, '');
+  const name = fileNameWithoutTimestamp.replace(/-|_/g, ' ').trim();
 
   // Extract labels
   const numeratorLabel = numeratorColumn?.replace(/_/g, ' ') || 'value';
@@ -317,7 +319,7 @@ function parseCSVToSeries(data: any[], filePath: string): Series {
     data: dataPoints,
     metadata: {
       name,
-      description: `Imported from ${fileName}`,
+      description: `Imported from ${fileNameWithoutTimestamp}`,
       uploadDate: new Date(),
       numeratorLabel,
       denominatorLabel
