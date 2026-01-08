@@ -42,7 +42,8 @@ export function CSVUpload({ onSeriesLoaded }: CSVUploadProps) {
         if (user) {
           try {
             setUploadProgress('Uploading to storage...');
-            filePath = await uploadCSVFile(file, user.id);
+            const uploadResult = await uploadCSVFile(file, user.id);
+            filePath = uploadResult.path;
             setUploadProgress('Upload complete!');
           } catch (uploadError) {
             console.warn('Failed to upload file to storage, continuing without storage:', uploadError);
