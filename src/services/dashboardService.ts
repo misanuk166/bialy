@@ -294,116 +294,262 @@ export async function deleteDashboard(dashboardId: string): Promise<void> {
 
 /**
  * Save dashboard data (metrics and global settings) to database
+ * Uses UPDATE for existing metrics to avoid triggering file deletion
  */
 export async function saveDashboardData(
   dashboardId: string,
   metrics: MetricConfig[],
   globalSettings: GlobalSettings
 ): Promise<void> {
+  console.log(`[SAVE] Starting dashboard save: ${dashboardId}`);
+  console.log(`[SAVE] Metrics to save: ${metrics.length}`);
+
   try {
-    // First, delete all existing metrics for this dashboard
-    const { error: deleteError } = await supabase
+    // Step 1: Fetch existing metrics from database
+    const { data: existingMetrics, error: fetchError } = await supabase
       .from('metrics')
-      .delete()
+      .select('id, data_file_path, name, unit, order_index')
       .eq('dashboard_id', dashboardId);
 
-    if (deleteError) {
-      console.error('Error deleting old metrics:', deleteError);
-      throw deleteError;
+    if (fetchError) {
+      console.error('[SAVE] Error fetching existing metrics:', fetchError);
+      throw fetchError;
     }
 
-    // Insert new metrics
-    if (metrics.length > 0) {
-      const metricRecords = metrics.map((metric, index) => ({
+    console.log(`[SAVE] Found ${existingMetrics?.length || 0} existing metrics in database`);
+
+    // Step 2: Build a map of existing metrics by file path for quick lookup
+    const existingByPath = new Map(
+      (existingMetrics || []).map(m => [m.data_file_path, m])
+    );
+
+    // Step 3: Categorize metrics into update, insert, and delete
+    const metricsToUpdate: Array<{ id: string; metric: MetricConfig; index: number }> = [];
+    const metricsToInsert: Array<{ metric: MetricConfig; index: number }> = [];
+    const currentFilePaths = new Set<string>();
+
+    metrics.forEach((metric, index) => {
+      const filePath = metric.series.filePath || '';
+      currentFilePaths.add(filePath);
+
+      const existing = existingByPath.get(filePath);
+      if (existing) {
+        // Metric exists - update it
+        metricsToUpdate.push({ id: existing.id, metric, index });
+      } else {
+        // New metric - insert it
+        metricsToInsert.push({ metric, index });
+      }
+    });
+
+    // Metrics to delete: in database but not in current list
+    const metricsToDelete = (existingMetrics || []).filter(
+      m => !currentFilePaths.has(m.data_file_path)
+    );
+
+    console.log(`[SAVE] Update: ${metricsToUpdate.length}, Insert: ${metricsToInsert.length}, Delete: ${metricsToDelete.length}`);
+
+    // Step 4: Delete removed metrics (will trigger file cleanup via trigger)
+    if (metricsToDelete.length > 0) {
+      const idsToDelete = metricsToDelete.map(m => m.id);
+      console.log(`[SAVE] Deleting ${idsToDelete.length} metrics that were removed`);
+
+      const { error: deleteError } = await supabase
+        .from('metrics')
+        .delete()
+        .in('id', idsToDelete);
+
+      if (deleteError) {
+        console.error('[SAVE] Error deleting metrics:', deleteError);
+        throw deleteError;
+      }
+    }
+
+    // Step 5: Update existing metrics (NO file deletion triggered)
+    const allMetricIds: string[] = [];
+
+    for (const { id, metric, index } of metricsToUpdate) {
+      const { error: updateError } = await supabase
+        .from('metrics')
+        .update({
+          name: metric.series.metadata.name,
+          unit: metric.series.metadata.numeratorLabel || '',
+          order_index: index
+          // NOTE: NOT updating data_file_path - it stays the same!
+        })
+        .eq('id', id);
+
+      if (updateError) {
+        console.error('[SAVE] Error updating metric:', updateError);
+        throw updateError;
+      }
+
+      allMetricIds.push(id);
+    }
+
+    console.log(`[SAVE] Updated ${metricsToUpdate.length} existing metrics`);
+
+    // Step 6: Insert new metrics
+    if (metricsToInsert.length > 0) {
+      const metricRecords = metricsToInsert.map(({ metric, index }) => ({
         dashboard_id: dashboardId,
         name: metric.series.metadata.name,
         unit: metric.series.metadata.numeratorLabel || '',
-        data_file_path: metric.series.filePath || '', // Store file path from storage
+        data_file_path: metric.series.filePath || '',
         order_index: index
       }));
 
       const { data: insertedMetrics, error: insertError } = await supabase
         .from('metrics')
         .insert(metricRecords)
-        .select();
+        .select('id');
 
       if (insertError) {
-        console.error('Error inserting metrics:', insertError);
+        console.error('[SAVE] Error inserting metrics:', insertError);
         throw insertError;
       }
 
-      // Insert metric configurations
       if (insertedMetrics) {
-        const configRecords: any[] = [];
+        allMetricIds.push(...insertedMetrics.map(m => m.id));
+      }
 
-        insertedMetrics.forEach((dbMetric, index) => {
-          const metric = metrics[index];
+      console.log(`[SAVE] Inserted ${metricsToInsert.length} new metrics`);
+    }
 
-          // Add goals configuration (singular 'goal' per CHECK constraint)
-          if (metric.goals && metric.goals.length > 0) {
-            configRecords.push({
-              metric_id: dbMetric.id,
-              config_type: 'goal',
-              config_data: metric.goals
-            });
-          }
+    // Step 7: Delete ALL old configurations and re-create them
+    // (simpler than trying to diff configurations)
+    if (allMetricIds.length > 0) {
+      const { error: deleteConfigError } = await supabase
+        .from('metric_configurations')
+        .delete()
+        .in('metric_id', allMetricIds);
 
-          // Add forecast configuration (includes snapshot data)
-          if (metric.forecast) {
-            configRecords.push({
-              metric_id: dbMetric.id,
-              config_type: 'forecast',
-              config_data: {
-                ...metric.forecast,
-                snapshot: metric.forecastSnapshot // Include snapshot in forecast config
-              }
-            });
-          }
-
-          // Add annotations (singular 'annotation' per CHECK constraint)
-          if (metric.annotations && metric.annotations.length > 0) {
-            configRecords.push({
-              metric_id: dbMetric.id,
-              config_type: 'annotation',
-              config_data: metric.annotations
-            });
-          }
-        });
-
-        // Add global settings (stored as 'aggregation' type per CHECK constraint)
-        if (insertedMetrics.length > 0) {
-          configRecords.push({
-            metric_id: insertedMetrics[0].id,
-            config_type: 'aggregation',
-            config_data: globalSettings
-          });
-        }
-
-        if (configRecords.length > 0) {
-          const { error: configError } = await supabase
-            .from('metric_configurations')
-            .insert(configRecords);
-
-          if (configError) {
-            console.error('Error inserting metric configurations:', configError);
-            throw configError;
-          }
-        }
+      if (deleteConfigError) {
+        console.error('[SAVE] Error deleting old configurations:', deleteConfigError);
+        throw deleteConfigError;
       }
     }
 
-    // Update dashboard's updated_at timestamp
+    // Step 8: Insert new configurations
+    if (allMetricIds.length > 0) {
+      const configRecords: any[] = [];
+
+      // Match metrics back to their database IDs
+      const updatedMetricsMap = new Map(
+        metricsToUpdate.map(({ id, metric }) => [metric.series.filePath, { id, metric }])
+      );
+
+      // For inserted metrics, we need to fetch them to get IDs
+      const insertedPaths = metricsToInsert.map(({ metric }) => metric.series.filePath);
+      let insertedMetricsData: any[] = [];
+
+      if (insertedPaths.length > 0) {
+        const { data, error } = await supabase
+          .from('metrics')
+          .select('id, data_file_path')
+          .in('data_file_path', insertedPaths)
+          .eq('dashboard_id', dashboardId);
+
+        if (error) {
+          console.error('[SAVE] Error fetching inserted metric IDs:', error);
+        } else {
+          insertedMetricsData = data || [];
+        }
+      }
+
+      const insertedMetricsMap = new Map(
+        insertedMetricsData.map(m => [m.data_file_path, m])
+      );
+
+      // Build configurations for all metrics
+      metrics.forEach(metric => {
+        const filePath = metric.series.filePath || '';
+        let metricId: string | undefined;
+
+        // Find the metric ID from either updated or inserted metrics
+        const updated = updatedMetricsMap.get(filePath);
+        if (updated) {
+          metricId = updated.id;
+        } else {
+          const inserted = insertedMetricsMap.get(filePath);
+          if (inserted) {
+            metricId = inserted.id;
+          }
+        }
+
+        if (!metricId) {
+          console.warn(`[SAVE] Could not find metric ID for file path: ${filePath}`);
+          return;
+        }
+
+        // Add goals configuration
+        if (metric.goals && metric.goals.length > 0) {
+          configRecords.push({
+            metric_id: metricId,
+            config_type: 'goal',
+            config_data: metric.goals
+          });
+        }
+
+        // Add forecast configuration
+        if (metric.forecast) {
+          configRecords.push({
+            metric_id: metricId,
+            config_type: 'forecast',
+            config_data: {
+              ...metric.forecast,
+              snapshot: metric.forecastSnapshot
+            }
+          });
+        }
+
+        // Add annotations
+        if (metric.annotations && metric.annotations.length > 0) {
+          configRecords.push({
+            metric_id: metricId,
+            config_type: 'annotation',
+            config_data: metric.annotations
+          });
+        }
+      });
+
+      // Add global settings (stored on first metric)
+      if (allMetricIds.length > 0) {
+        configRecords.push({
+          metric_id: allMetricIds[0],
+          config_type: 'aggregation',
+          config_data: globalSettings
+        });
+      }
+
+      if (configRecords.length > 0) {
+        const { error: configError } = await supabase
+          .from('metric_configurations')
+          .insert(configRecords);
+
+        if (configError) {
+          console.error('[SAVE] Error inserting configurations:', configError);
+          throw configError;
+        }
+
+        console.log(`[SAVE] Inserted ${configRecords.length} configurations`);
+      }
+    }
+
+    // Step 9: Update dashboard timestamp
     const { error: updateError } = await supabase
       .from('dashboards')
       .update({ updated_at: new Date().toISOString() })
       .eq('id', dashboardId);
 
     if (updateError) {
-      console.error('Error updating dashboard timestamp:', updateError);
+      console.error('[SAVE] Error updating dashboard timestamp:', updateError);
       throw updateError;
     }
+
+    console.log('[SAVE] ✓ Dashboard save complete');
   } catch (error) {
-    console.error('Error saving dashboard data:', error);
+    console.error('[SAVE] ✗ Dashboard save failed:', error);
     throw error;
   }
 }
