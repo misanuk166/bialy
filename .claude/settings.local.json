@@ -36,7 +36,8 @@
       "Bash(git stash:*)",
       "Bash(npx tsc:*)",
       "Bash(gh api:*)",
-      "Bash(node check-storage.js)"
+      "Bash(node check-storage.js)",
+      "Bash(timeout 30 npm run dev:*)"
     ],
     "deny": [],
     "ask": []

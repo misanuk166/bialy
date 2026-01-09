@@ -44,9 +44,10 @@ export async function uploadCSVFile(file: File, userId: string): Promise<UploadR
 
     console.log(`[UPLOAD] Upload completed: ${data.path}`);
 
-    // 🆕 VERIFICATION STEP - Check file actually exists
+    // 🆕 VERIFICATION STEP - Actually try to download the file to confirm it exists
     console.log(`[VERIFY] Checking file exists: ${filePath}`);
 
+    // First check: List operation
     const { data: listData, error: listError } = await supabase.storage
       .from(STORAGE_BUCKET)
       .list(userId, {
@@ -54,23 +55,42 @@ export async function uploadCSVFile(file: File, userId: string): Promise<UploadR
       });
 
     if (listError) {
-      console.error('[VERIFY] Verification failed:', listError);
-      // Try to clean up the potentially failed upload
+      console.error('[VERIFY] List operation failed:', listError);
       await supabase.storage.from(STORAGE_BUCKET).remove([filePath]);
       throw new Error(`File verification failed: ${listError.message}`);
     }
 
-    const fileExists = listData?.some(f => f.name.includes(fileName));
-
-    if (!fileExists || listData.length === 0) {
-      console.error('[VERIFY] File not found after upload');
-      throw new Error('File upload verification failed - file does not exist in storage');
+    if (!listData || listData.length === 0) {
+      console.error('[VERIFY] File not found in list');
+      throw new Error('File upload verification failed - file not found in list');
     }
 
-    const fileSize = listData[0].metadata?.size ?? file.size;
+    console.log(`[VERIFY] List check passed - found ${listData.length} files`);
+
+    // Second check: Try to actually access the file URL
+    const { data: urlData } = supabase.storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(filePath);
+
+    console.log(`[VERIFY] File URL: ${urlData.publicUrl}`);
+
+    // Third check: Try to download to confirm actual access
+    const { data: downloadData, error: downloadError } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .download(filePath);
+
+    if (downloadError) {
+      console.error('[VERIFY] Download verification failed:', downloadError);
+      console.error('[VERIFY] This means file was listed but cannot be accessed');
+      console.error('[VERIFY] Likely cause: RLS policies or bucket permissions');
+      await supabase.storage.from(STORAGE_BUCKET).remove([filePath]);
+      throw new Error(`File upload verification failed - cannot download: ${downloadError.message}`);
+    }
+
+    const fileSize = downloadData?.size ?? file.size;
     const uploadTime = Date.now() - startTime;
 
-    console.log(`[VERIFY] ✓ File verified - ${fileSize} bytes in ${uploadTime}ms`);
+    console.log(`[VERIFY] ✓ File verified (list + download) - ${fileSize} bytes in ${uploadTime}ms`);
 
     return {
       path: data.path,
@@ -200,9 +220,10 @@ export async function saveSeriesAsCSV(series: Series, userId: string): Promise<U
 
     console.log(`[SAVE] Save completed: ${data.path}`);
 
-    // 🆕 VERIFICATION STEP
+    // 🆕 VERIFICATION STEP - Actually try to download the file
     console.log(`[VERIFY] Checking file exists: ${filePath}`);
 
+    // First check: List operation
     const { data: listData, error: listError } = await supabase.storage
       .from(STORAGE_BUCKET)
       .list(userId, {
@@ -210,15 +231,30 @@ export async function saveSeriesAsCSV(series: Series, userId: string): Promise<U
       });
 
     if (listError || !listData?.length) {
-      console.error('[VERIFY] Verification failed:', listError);
+      console.error('[VERIFY] List operation failed:', listError);
       await supabase.storage.from(STORAGE_BUCKET).remove([filePath]);
-      throw new Error('File verification failed after save');
+      throw new Error('File verification failed after save - list failed');
     }
 
-    const fileSize = listData[0].metadata?.size ?? blob.size;
+    console.log(`[VERIFY] List check passed - found ${listData.length} files`);
+
+    // Second check: Try to download to confirm actual access
+    const { data: downloadData, error: downloadError } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .download(filePath);
+
+    if (downloadError) {
+      console.error('[VERIFY] Download verification failed:', downloadError);
+      console.error('[VERIFY] This means file was listed but cannot be accessed');
+      console.error('[VERIFY] Likely cause: RLS policies or bucket permissions');
+      await supabase.storage.from(STORAGE_BUCKET).remove([filePath]);
+      throw new Error(`File verification failed - cannot download: ${downloadError.message}`);
+    }
+
+    const fileSize = downloadData?.size ?? blob.size;
     const uploadTime = Date.now() - startTime;
 
-    console.log(`[VERIFY] ✓ File verified - ${fileSize} bytes in ${uploadTime}ms`);
+    console.log(`[VERIFY] ✓ File verified (list + download) - ${fileSize} bytes in ${uploadTime}ms`);
 
     return {
       path: data.path,
