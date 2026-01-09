@@ -246,15 +246,6 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
     }));
   }
 
-  // Deserialize comparison dates
-  if (globalSettings.comparisons) {
-    globalSettings.comparisons = globalSettings.comparisons.map(comparison => ({
-      ...comparison,
-      startDate: comparison.startDate ? new Date(comparison.startDate) : undefined,
-      endDate: comparison.endDate ? new Date(comparison.endDate) : undefined
-    }));
-  }
-
   return {
     ...dashboard,
     metrics: metricConfigs,
