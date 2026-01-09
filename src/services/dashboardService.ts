@@ -174,7 +174,15 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
       const forecastConfig = metricConfigRecords.find(c => c.config_type === 'forecast')?.config_data as any;
       const forecast = forecastConfig ? { ...forecastConfig, snapshot: undefined } : undefined; // Extract forecast settings
       const forecastSnapshot = forecastConfig?.snapshot; // Extract embedded snapshot
-      const annotations = metricConfigRecords.find(c => c.config_type === 'annotation')?.config_data as any[] | undefined;
+      const annotationsRaw = metricConfigRecords.find(c => c.config_type === 'annotation')?.config_data as any[] | undefined;
+
+      // Deserialize annotation dates
+      const annotations = annotationsRaw?.map(annotation => ({
+        ...annotation,
+        date: annotation.date ? new Date(annotation.date) : undefined,
+        startDate: annotation.startDate ? new Date(annotation.startDate) : undefined,
+        endDate: annotation.endDate ? new Date(annotation.endDate) : undefined
+      })) || [];
 
       return {
         id: metric.id,
@@ -184,7 +192,7 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
         goalsEnabled: false,
         forecast: forecast || { enabled: false, horizon: 90, seasonal: 'none', showConfidenceIntervals: true, confidenceLevel: 95 },
         forecastSnapshot,
-        annotations: annotations || [],
+        annotations,
         annotationsEnabled: false,
         metricIndex: metric.order_index
       };
@@ -218,6 +226,33 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
   }
   if (globalSettings.focusPeriod?.endDate) {
     globalSettings.focusPeriod.endDate = new Date(globalSettings.focusPeriod.endDate);
+  }
+
+  // Deserialize dateRange dates (for custom date ranges)
+  if (globalSettings.dateRange?.startDate) {
+    globalSettings.dateRange.startDate = new Date(globalSettings.dateRange.startDate);
+  }
+  if (globalSettings.dateRange?.endDate) {
+    globalSettings.dateRange.endDate = new Date(globalSettings.dateRange.endDate);
+  }
+
+  // Deserialize annotation dates
+  if (globalSettings.annotations) {
+    globalSettings.annotations = globalSettings.annotations.map(annotation => ({
+      ...annotation,
+      date: annotation.date ? new Date(annotation.date) : undefined,
+      startDate: annotation.startDate ? new Date(annotation.startDate) : undefined,
+      endDate: annotation.endDate ? new Date(annotation.endDate) : undefined
+    }));
+  }
+
+  // Deserialize comparison dates
+  if (globalSettings.comparisons) {
+    globalSettings.comparisons = globalSettings.comparisons.map(comparison => ({
+      ...comparison,
+      startDate: comparison.startDate ? new Date(comparison.startDate) : undefined,
+      endDate: comparison.endDate ? new Date(comparison.endDate) : undefined
+    }));
   }
 
   return {
