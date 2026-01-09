@@ -5,7 +5,7 @@ import { SingleMetricView } from '../components/SingleMetricView';
 import { DashboardSelector } from '../components/DashboardSelector';
 import { ShareDashboardModal } from '../components/ShareDashboardModal';
 import { loadSyntheticMetrics } from '../utils/generateSyntheticData';
-import { saveAppState, loadAppState } from '../utils/localStorage';
+// ❌ REMOVED localStorage imports - now using database persistence exclusively
 import { fetchDashboard, saveDashboardData } from '../services/dashboardService';
 import { saveSeriesAsCSV } from '../services/storageService';
 import { useAuth } from '../contexts/AuthContext';
@@ -76,33 +76,8 @@ export function DashboardPage() {
     loadDashboard();
   }, [currentDashboardId]);
 
-  // Fallback: Load app state from localStorage on mount (for backward compatibility)
-  useEffect(() => {
-    // Only load from localStorage if no dashboard is selected
-    if (!currentDashboardId) {
-      const savedState = loadAppState();
-      if (savedState) {
-        console.log('Loaded app state from localStorage (fallback)');
-        if (savedState.metrics) setMetrics(savedState.metrics);
-        if (savedState.globalSettings) setGlobalSettings(savedState.globalSettings);
-        if (savedState.viewMode) setViewMode(savedState.viewMode);
-        if (savedState.expandedMetricId) setExpandedMetricId(savedState.expandedMetricId);
-      }
-    }
-  }, [currentDashboardId]);
-
-  // Save app state to localStorage whenever it changes (fallback for backward compatibility)
-  useEffect(() => {
-    // Only save to localStorage if no dashboard is selected
-    if (!currentDashboardId && metrics.length > 0) {
-      saveAppState({
-        metrics,
-        globalSettings,
-        viewMode,
-        expandedMetricId: expandedMetricId ?? undefined
-      });
-    }
-  }, [metrics, globalSettings, viewMode, expandedMetricId, currentDashboardId]);
+  // ❌ REMOVED localStorage fallback - was loading stale data with broken file paths
+  // Now using database persistence exclusively via fetchDashboard() above
 
   // Save dashboard data to database when it changes (debounced)
   useEffect(() => {
