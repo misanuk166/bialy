@@ -97,6 +97,11 @@ export function DashboardPage() {
   }, [currentDashboardId, metrics, globalSettings]);
 
   const handleSeriesLoaded = (series: Series, filePath?: string) => {
+    console.log('[HANDLER] handleSeriesLoaded called');
+    console.log('[HANDLER] Series name:', series.metadata.name);
+    console.log('[HANDLER] FilePath parameter:', filePath || '(undefined)');
+    console.log('[HANDLER] Series.filePath before:', series.filePath || '(undefined)');
+
     setMetrics(prevMetrics => {
       const newMetric: MetricConfig = {
         id: series.id,
@@ -116,6 +121,9 @@ export function DashboardPage() {
           confidenceLevel: 95
         }
       };
+
+      console.log('[HANDLER] Created newMetric.series.filePath:', newMetric.series.filePath || '(undefined)');
+
       return [...prevMetrics, newMetric];
     });
   };

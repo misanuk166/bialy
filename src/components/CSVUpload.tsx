@@ -41,17 +41,23 @@ export function CSVUpload({ onSeriesLoaded }: CSVUploadProps) {
         let filePath: string | undefined;
         if (user) {
           try {
+            console.log('[CSV UPLOAD] Starting upload for:', file.name);
             setUploadProgress('Uploading to storage...');
             const uploadResult = await uploadCSVFile(file, user.id);
             filePath = uploadResult.path;
+            console.log('[CSV UPLOAD] Upload successful, path:', filePath);
             setUploadProgress('Upload complete!');
           } catch (uploadError) {
+            console.error('[CSV UPLOAD] Upload failed:', uploadError);
             console.warn('Failed to upload file to storage, continuing without storage:', uploadError);
             // Continue without storage - file will work locally
           }
+        } else {
+          console.warn('[CSV UPLOAD] No user logged in, skipping upload');
         }
 
         // Step 4: Return series and file path
+        console.log('[CSV UPLOAD] Calling onSeriesLoaded with filePath:', filePath || '(undefined)');
         onSeriesLoaded(series, filePath);
       }
     } catch (error) {
