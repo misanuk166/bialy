@@ -246,6 +246,11 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
     }));
   }
 
+  // Deserialize selectionDate (the locked selection for calculations)
+  if (globalSettings.selectionDate) {
+    globalSettings.selectionDate = new Date(globalSettings.selectionDate as any);
+  }
+
   return {
     ...dashboard,
     metrics: metricConfigs,

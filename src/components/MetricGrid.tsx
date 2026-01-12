@@ -53,6 +53,7 @@ interface MetricGridProps {
   onComparisonsChange: (comparisons: ComparisonConfig[]) => void;
   onForecastInclusionChange: (selectionIncludes: boolean, focusIncludes: boolean) => void;
   onAnnotationsChange: (annotations: Annotation[], annotationsEnabled: boolean) => void;
+  onSelectionDateChange: (date: Date | null) => void;
   onAddMetric: () => void;
   onClearAllMetrics: () => void;
 }
@@ -116,10 +117,12 @@ export function MetricGrid({
   onComparisonsChange,
   onForecastInclusionChange,
   onAnnotationsChange,
+  onSelectionDateChange,
   onAddMetric,
   onClearAllMetrics
 }: MetricGridProps) {
-  const [selectionDate, setSelectionDate] = useState<Date | null>(null); // Locked selection for calculations
+  // 🔧 FIX: Use selectionDate from globalSettings (per-dashboard) instead of local component state
+  const selectionDate = globalSettings.selectionDate || null;
   const [currentHoverDate, setCurrentHoverDate] = useState<Date | null>(null); // For chart hover only
   const [sortColumn, setSortColumn] = useState<ColumnKey | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -246,7 +249,7 @@ export function MetricGrid({
       // Set initial selection to most recent date in the filtered range (locked)
       if (!selectionDate) {
         const mostRecentDate = filteredRange ? filteredRange[1] : maxDate;
-        setSelectionDate(mostRecentDate);
+        onSelectionDateChange(mostRecentDate);
       }
     }
   }, [metrics, selectionDate, globalSettings.dateRange]);
@@ -1171,7 +1174,7 @@ export function MetricGrid({
                 onExpand={() => onMetricExpand(metric.id)}
                 onRemove={() => onMetricRemove(metric.id)}
                 onHover={handleHover}
-                onSelectionChange={setSelectionDate}
+                onSelectionChange={onSelectionDateChange}
                 isSelected={selectedMetricIds.has(metric.id)}
                 onSelect={(selected) => handleSelectMetric(metric.id, selected)}
                 onMoveGroup={(direction) => handleMoveGroup(metric.groupIndex, direction)}
@@ -1208,7 +1211,7 @@ export function MetricGrid({
                   onExpand={() => onMetricExpand(metric.id)}
                   onRemove={() => onMetricRemove(metric.id)}
                   onHover={handleHover}
-                  onSelectionChange={setSelectionDate}
+                  onSelectionChange={onSelectionDateChange}
                   isSelected={selectedMetricIds.has(metric.id)}
                   onSelect={(selected) => handleSelectMetric(metric.id, selected)}
                   onMoveGroup={(direction) => handleMoveGroup(metric.groupIndex, direction)}
@@ -1231,7 +1234,7 @@ export function MetricGrid({
           selectionDate={selectionDate}
           includesForecast={globalSettings.selectionIncludesForecast}
           dataExtent={dataExtent}
-          onSelectionDateChange={setSelectionDate}
+          onSelectionDateChange={onSelectionDateChange}
           onIncludesForecastChange={(includesForecast) => {
             onForecastInclusionChange(includesForecast, globalSettings.focusIncludesForecast || false);
           }}

@@ -22,6 +22,7 @@ export interface GlobalSettings {
   focusIncludesForecast?: boolean;
   annotations?: Annotation[]; // Global annotations displayed on all metrics
   annotationsEnabled?: boolean; // Master toggle for all annotations
+  selectionDate?: Date; // Locked selection date for calculations (dashed line in charts)
 }
 
 /**

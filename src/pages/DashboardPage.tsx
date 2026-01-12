@@ -188,6 +188,10 @@ export function DashboardPage() {
     setGlobalSettings(prev => ({ ...prev, dateRange }));
   };
 
+  const handleSelectionDateChange = (selectionDate: Date | null) => {
+    setGlobalSettings(prev => ({ ...prev, selectionDate: selectionDate || undefined }));
+  };
+
   const handleComparisonsChange = (comparisons: ComparisonConfig[]) => {
     setGlobalSettings(prev => ({ ...prev, comparisons }));
   };
@@ -460,6 +464,7 @@ export function DashboardPage() {
                   onShadowsChange={handleShadowsChange}
                   onFocusPeriodChange={handleFocusPeriodChange}
                   onDateRangeChange={handleDateRangeChange}
+                  onSelectionDateChange={handleSelectionDateChange}
                   onComparisonsChange={handleComparisonsChange}
                   onForecastInclusionChange={handleForecastInclusionChange}
                   onAnnotationsChange={handleAnnotationsChange}
