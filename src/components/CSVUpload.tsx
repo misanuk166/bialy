@@ -41,11 +41,9 @@ export function CSVUpload({ onSeriesLoaded }: CSVUploadProps) {
         let filePath: string | undefined;
         if (user) {
           try {
-            console.log('[CSV UPLOAD] Starting upload for:', file.name);
             setUploadProgress('Uploading to storage...');
             const uploadResult = await uploadCSVFile(file, user.id);
             filePath = uploadResult.path;
-            console.log('[CSV UPLOAD] Upload successful, path:', filePath);
             setUploadProgress('Upload complete!');
           } catch (uploadError) {
             console.error('[CSV UPLOAD] Upload failed:', uploadError);
@@ -57,7 +55,6 @@ export function CSVUpload({ onSeriesLoaded }: CSVUploadProps) {
         }
 
         // Step 4: Return series and file path
-        console.log('[CSV UPLOAD] Calling onSeriesLoaded with filePath:', filePath || '(undefined)');
         onSeriesLoaded(series, filePath);
       }
     } catch (error) {

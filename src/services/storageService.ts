@@ -27,10 +27,8 @@ export async function uploadCSVFile(file: File, userId: string): Promise<UploadR
     const fileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_'); // Sanitize filename
     const filePath = `${userId}/${timestamp}-${fileName}`;
 
-    console.log(`[UPLOAD] Starting upload: ${filePath}`);
-
     // Upload file
-    const { data, error } = await supabase.storage
+    const { data, error} = await supabase.storage
       .from(STORAGE_BUCKET)
       .upload(filePath, file, {
         cacheControl: '3600',
@@ -45,7 +43,6 @@ export async function uploadCSVFile(file: File, userId: string): Promise<UploadR
     console.log(`[UPLOAD] Upload completed: ${data.path}`);
 
     // 🆕 VERIFICATION STEP - Try to download the file to confirm it exists and is accessible
-    console.log(`[VERIFY] Verifying file exists: ${filePath}`);
 
     // Skip LIST check (can fail due to RLS/timing) and go straight to download
     // If download works, the file definitely exists and is accessible
@@ -177,8 +174,6 @@ export async function saveSeriesAsCSV(series: Series, userId: string): Promise<U
     const fileName = `${safeName}-${timestamp}.csv`;
     const filePath = `${userId}/${fileName}`;
 
-    console.log(`[SAVE] Saving series as CSV: ${filePath}`);
-
     // Upload to Supabase Storage
     const { data, error } = await supabase.storage
       .from(STORAGE_BUCKET)
@@ -196,7 +191,6 @@ export async function saveSeriesAsCSV(series: Series, userId: string): Promise<U
     console.log(`[SAVE] Save completed: ${data.path}`);
 
     // 🆕 VERIFICATION STEP - Try to download the file to confirm it exists and is accessible
-    console.log(`[VERIFY] Verifying file exists: ${filePath}`);
 
     // Skip LIST check (can fail due to RLS/timing) and go straight to download
     // If download works, the file definitely exists and is accessible

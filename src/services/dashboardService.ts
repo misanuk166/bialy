@@ -335,11 +335,6 @@ export async function saveDashboardData(
   console.log(`[SAVE] Starting dashboard save: ${dashboardId}`);
   console.log(`[SAVE] Metrics to save: ${metrics.length}`);
 
-  // DEBUG: Log each metric's filePath
-  metrics.forEach((m, i) => {
-    console.log(`[SAVE] Metric ${i + 1}: "${m.series.metadata.name}" - filePath: "${m.series.filePath || '(empty)'}"`);
-  });
-
   try {
     // Step 1: Fetch existing metrics from database
     const { data: existingMetrics, error: fetchError } = await supabase
@@ -429,7 +424,6 @@ export async function saveDashboardData(
     if (metricsToInsert.length > 0) {
       const metricRecords = metricsToInsert.map(({ metric, index }) => {
         const filePath = metric.series.filePath || '';
-        console.log(`[SAVE] Inserting metric "${metric.series.metadata.name}" with filePath: "${filePath}"`);
         return {
           dashboard_id: dashboardId,
           name: metric.series.metadata.name,

@@ -111,11 +111,6 @@ export function DashboardPage() {
   }, [currentDashboardId, metrics, globalSettings, isLoadingDashboard]);
 
   const handleSeriesLoaded = (series: Series, filePath?: string) => {
-    console.log('[HANDLER] handleSeriesLoaded called');
-    console.log('[HANDLER] Series name:', series.metadata.name);
-    console.log('[HANDLER] FilePath parameter:', filePath || '(undefined)');
-    console.log('[HANDLER] Series.filePath before:', series.filePath || '(undefined)');
-
     setMetrics(prevMetrics => {
       const newMetric: MetricConfig = {
         id: series.id,
@@ -136,8 +131,6 @@ export function DashboardPage() {
         }
       };
 
-      console.log('[HANDLER] Created newMetric.series.filePath:', newMetric.series.filePath || '(undefined)');
-
       return [...prevMetrics, newMetric];
     });
   };
@@ -157,13 +150,11 @@ export function DashboardPage() {
   };
 
   const handleMetricExpand = (metricId: string) => {
-    console.log('Expanding metric:', metricId, 'Total metrics:', metrics.length);
     setExpandedMetricId(metricId);
     setViewMode('single-metric');
   };
 
   const handleCloseExpandedView = () => {
-    console.log('Closing expanded view. Metrics count:', metrics.length);
     setExpandedMetricId(null);
     setViewMode('grid');
   };
@@ -227,8 +218,6 @@ export function DashboardPage() {
       // Load synthetic metrics
       loadSyntheticMetrics(async (series: Series) => {
         try {
-          console.log(`[SYNTHETIC] Generating metric: "${series.metadata.name}"`);
-
           // Save the series data to Supabase Storage as CSV
           const uploadResult = await saveSeriesAsCSV(series, user.id);
 
@@ -237,8 +226,6 @@ export function DashboardPage() {
             ...series,
             filePath: uploadResult.path
           } as Series;
-
-          console.log(`[SYNTHETIC] ✓ Saved metric - ${uploadResult.size} bytes in ${uploadResult.uploadTime}ms`);
 
           // Pass to the normal handler
           handleSeriesLoaded(seriesWithPath, uploadResult.path);
@@ -304,14 +291,6 @@ export function DashboardPage() {
   })() : undefined;
 
   const expandedMetric = expandedMetricId ? metrics.find(m => m.id === expandedMetricId) : null;
-
-  // Debug logging
-  if (expandedMetricId && !expandedMetric) {
-    console.error('Expanded metric not found! ID:', expandedMetricId, 'Available metrics:', metrics.map(m => m.id));
-  }
-  if (expandedMetric) {
-    console.log('Expanded metric found:', expandedMetric.series.metadata.name, 'Data points:', expandedMetric.series.data.length);
-  }
 
   // Check if current user is the owner of the current dashboard
   const isOwner = !currentDashboard || (user?.id === currentDashboard.owner_id);
