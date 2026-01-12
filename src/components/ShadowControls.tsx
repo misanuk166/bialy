@@ -31,6 +31,7 @@ export function ShadowControls({
     onChange(newShadows);
   };
 
+  // 🔧 FIX: Sync internal state when shadows prop changes (e.g., when switching dashboards)
   // Initialize from existing shadows or generate initial shadows
   React.useEffect(() => {
     if (shadows.length > 0) {
@@ -41,11 +42,9 @@ export function ShadowControls({
         setPeriod(firstShadow.periods);
         setUnit(firstShadow.unit);
       }
-    } else {
-      // No shadows exist, generate initial shadow with default values
-      generateShadows(period, unit, count);
     }
-  }, []); // Only run once on mount
+    // Note: Removed auto-generation on mount to prevent unwanted shadow creation when switching dashboards
+  }, [shadows]); // Sync whenever shadows prop changes
 
   const handlePeriodChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newPeriod = Math.max(1, Math.min(99, parseInt(e.target.value) || 1));

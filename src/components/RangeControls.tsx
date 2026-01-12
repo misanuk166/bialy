@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export type RangePreset = 'QTD' | 'YTD' | 'all' | 'custom';
 
@@ -21,6 +21,12 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
   const [localEndDate, setLocalEndDate] = useState(
     range.endDate ? range.endDate.toISOString().split('T')[0] : ''
   );
+
+  // 🔧 FIX: Sync internal state when range prop changes (e.g., when switching dashboards)
+  useEffect(() => {
+    setLocalStartDate(range.startDate ? range.startDate.toISOString().split('T')[0] : '');
+    setLocalEndDate(range.endDate ? range.endDate.toISOString().split('T')[0] : '');
+  }, [range.startDate, range.endDate]);
 
   const getEndOfQuarter = (date: Date): Date => {
     const quarter = Math.floor(date.getMonth() / 3);

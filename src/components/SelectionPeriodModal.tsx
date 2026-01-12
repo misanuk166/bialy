@@ -22,6 +22,11 @@ export function SelectionPeriodModal({
   const [dateValue, setDateValue] = useState(selectionDate.toISOString().split('T')[0]);
   const popupRef = useRef<HTMLDivElement>(null);
 
+  // 🔧 FIX: Sync internal state when selectionDate prop changes (e.g., when switching dashboards)
+  useEffect(() => {
+    setDateValue(selectionDate.toISOString().split('T')[0]);
+  }, [selectionDate]);
+
   // Close on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

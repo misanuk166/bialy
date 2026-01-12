@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ComparisonConfig, ComparisonType, ComparisonPeriodType } from '../types/comparison';
 import type { Shadow } from '../types/shadow';
 import type { Goal } from '../types/goal';
@@ -84,6 +84,19 @@ export function ComparisonControls({
     }
     return '';
   });
+
+  // 🔧 FIX: Sync internal state when focusPeriod prop changes (e.g., when switching dashboards)
+  useEffect(() => {
+    if (focusPeriod?.label !== undefined) {
+      setFocusLabel(focusPeriod.label || '');
+    }
+    if (focusPeriod?.startDate !== undefined) {
+      setFocusStartDate(focusPeriod.startDate ? focusPeriod.startDate.toISOString().split('T')[0] : '');
+    }
+    if (focusPeriod?.endDate !== undefined) {
+      setFocusEndDate(focusPeriod.endDate ? focusPeriod.endDate.toISOString().split('T')[0] : '');
+    }
+  }, [focusPeriod]);
 
   const resetForm = () => {
     setFormLabel('');
