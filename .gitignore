@@ -28,3 +28,8 @@ docs/SETUP_COMPLETE.md
 *.njsproj
 *.sln
 *.sw?
+
+# Test artifacts
+playwright-report/
+test-results/
+test-data/

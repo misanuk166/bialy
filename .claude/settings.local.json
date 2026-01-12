@@ -37,7 +37,15 @@
       "Bash(npx tsc:*)",
       "Bash(gh api:*)",
       "Bash(node check-storage.js)",
-      "Bash(timeout 30 npm run dev:*)"
+      "Bash(timeout 30 npm run dev:*)",
+      "WebFetch(domain:code.claude.com)",
+      "Bash(node diagnose-storage.js)",
+      "Bash(node:*)",
+      "Bash(npx playwright install:*)",
+      "Bash(npx playwright test:*)",
+      "Bash(claude plugin install code-simplifier)",
+      "WebFetch(domain:github.com)",
+      "Bash(npm run test:*)"
     ],
     "deny": [],
     "ask": []
