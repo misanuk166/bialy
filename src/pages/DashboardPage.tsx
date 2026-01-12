@@ -54,6 +54,7 @@ export function DashboardPage() {
   const [description, setDescription] = useState('Multi-metric time series data visualization and analysis');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
 
   // Load dashboard data when currentDashboardId changes
   useEffect(() => {
@@ -61,15 +62,21 @@ export function DashboardPage() {
 
     const loadDashboard = async () => {
       try {
+        console.log('[DASHBOARD] Starting to load dashboard:', currentDashboardId);
+        setIsLoadingDashboard(true);
+
         const dashboard = await fetchDashboard(currentDashboardId);
 
         if (dashboard) {
           setCurrentDashboard(dashboard);
           setMetrics(dashboard.metrics);
           setGlobalSettings(dashboard.global_settings);
+          console.log('[DASHBOARD] Loaded dashboard with', dashboard.metrics.length, 'metrics');
         }
       } catch (error) {
         console.error('Failed to load dashboard:', error);
+      } finally {
+        setIsLoadingDashboard(false);
       }
     };
 
@@ -83,6 +90,13 @@ export function DashboardPage() {
   useEffect(() => {
     if (!currentDashboardId || metrics.length === 0) return;
 
+    // CRITICAL: Don't save while loading a dashboard
+    // This prevents saving stale metrics from the previous dashboard
+    if (isLoadingDashboard) {
+      console.log('[DASHBOARD] Skipping save - dashboard is loading');
+      return;
+    }
+
     const timeoutId = setTimeout(() => {
       saveDashboardData(currentDashboardId, metrics, globalSettings)
         .then(() => {
@@ -94,7 +108,7 @@ export function DashboardPage() {
     }, 1000); // Debounce for 1 second
 
     return () => clearTimeout(timeoutId);
-  }, [currentDashboardId, metrics, globalSettings]);
+  }, [currentDashboardId, metrics, globalSettings, isLoadingDashboard]);
 
   const handleSeriesLoaded = (series: Series, filePath?: string) => {
     console.log('[HANDLER] handleSeriesLoaded called');
