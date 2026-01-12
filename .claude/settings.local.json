@@ -45,7 +45,9 @@
       "Bash(npx playwright test:*)",
       "Bash(claude plugin install code-simplifier)",
       "WebFetch(domain:github.com)",
-      "Bash(npm run test:*)"
+      "Bash(npm run test:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git mv:*)"
     ],
     "deny": [],
     "ask": []
