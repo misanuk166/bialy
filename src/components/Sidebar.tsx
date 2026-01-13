@@ -5,7 +5,7 @@ import type { Dashboard } from '../types/dashboard';
 
 interface SidebarProps {
   currentDashboardId: string | null;
-  onSelectDashboard: (dashboardId: string) => void;
+  onSelectDashboard: (dashboardId: string | null) => void;
   onShareDashboard: (dashboard: Dashboard) => void;
 }
 
@@ -65,7 +65,7 @@ export function Sidebar({ currentDashboardId, onSelectDashboard, onShareDashboar
     if (!user) return;
 
     const loadDashboards = async () => {
-      const data = await fetchDashboards(user.id);
+      const data = await fetchDashboards();
       setDashboards(data);
 
       // Auto-select first dashboard if none selected
@@ -82,9 +82,8 @@ export function Sidebar({ currentDashboardId, onSelectDashboard, onShareDashboar
 
     setIsCreating(true);
     try {
-      const newDashboard = await createDashboard(user.id, {
-        name: 'New Dashboard',
-        description: ''
+      const newDashboard = await createDashboard({
+        name: 'New Dashboard'
       });
 
       setDashboards(prev => [...prev, newDashboard]);
@@ -125,7 +124,6 @@ export function Sidebar({ currentDashboardId, onSelectDashboard, onShareDashboar
   };
 
   const currentDashboard = dashboards.find(d => d.id === currentDashboardId);
-  const metricCount = currentDashboard?.metrics?.length || 0;
 
   return (
     <div className="fixed left-0 top-0 w-64 h-screen bg-gradient-to-b from-slate-800 to-slate-900 border-r border-gray-700 flex flex-col z-50 shadow-xl">
@@ -179,11 +177,6 @@ export function Sidebar({ currentDashboardId, onSelectDashboard, onShareDashboar
                     <span className="flex-1 text-sm font-medium truncate">
                       {dashboard.name}
                     </span>
-                    {isActive && (
-                      <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full">
-                        {dashboard.id === currentDashboardId ? metricCount : 0}
-                      </span>
-                    )}
                   </button>
 
                   {/* Delete Button (appears on hover) */}

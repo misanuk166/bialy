@@ -21,7 +21,7 @@ import type { DateRange } from '../components/RangeControls';
 import { DEFAULT_SELECTION_COMPARISONS, DEFAULT_FOCUS_COMPARISONS, type ComparisonConfig } from '../types/comparison';
 
 export function DashboardPage() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [currentDashboardId, setCurrentDashboardId] = useState<string | null>(null);
   const [currentDashboard, setCurrentDashboard] = useState<Dashboard | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -259,14 +259,6 @@ export function DashboardPage() {
     } catch (error) {
       console.error('[SYNTHETIC] Unexpected error:', error);
       alert('Failed to load synthetic metrics. Check console for details.');
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
     }
   };
 

@@ -1394,102 +1394,94 @@ export function MetricGrid({
 
       {/* Aggregation Popup */}
       {showAggregationModal && (
-        <div
-          ref={aggregationPopupRef}
-          className="fixed bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
-          style={{
-            top: aggregationEditButtonRef.current ? aggregationEditButtonRef.current.getBoundingClientRect().bottom + 5 : '50%',
-            left: aggregationEditButtonRef.current ? aggregationEditButtonRef.current.getBoundingClientRect().left : '50%',
-            width: '300px'
-          }}
-        >
-          <AggregateControls
-            config={globalSettings.aggregation || { enabled: true, mode: 'smoothing', period: 7, unit: 'days', groupByPeriod: 'month' }}
-            onChange={onAggregationChange}
-          />
-          <button
-            onClick={() => setShowAggregationModal(false)}
-            className="mt-3 w-full text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            ref={aggregationPopupRef}
+            className="bg-white border border-gray-300 rounded-lg p-4 shadow-xl"
+            style={{ width: '300px' }}
           >
-            Close
-          </button>
+            <AggregateControls
+              config={globalSettings.aggregation || { enabled: true, mode: 'smoothing', period: 7, unit: 'days', groupByPeriod: 'month' }}
+              onChange={onAggregationChange}
+            />
+            <button
+              onClick={() => setShowAggregationModal(false)}
+              className="mt-3 w-full text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+            >
+              Close
+            </button>
+          </div>
         </div>
       )}
 
       {/* Shadow Popup */}
       {showShadowModal && (
-        <div
-          ref={shadowPopupRef}
-          className="fixed bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
-          style={{
-            top: shadowEditButtonRef.current ? shadowEditButtonRef.current.getBoundingClientRect().bottom + 5 : '50%',
-            left: shadowEditButtonRef.current ? shadowEditButtonRef.current.getBoundingClientRect().left : '50%',
-            width: '320px'
-          }}
-        >
-          <ShadowControls
-            shadows={globalSettings.shadows || []}
-            averageTogether={globalSettings.averageShadows || false}
-            onChange={(shadows) => onShadowsChange(shadows, globalSettings.averageShadows || false)}
-            onAverageTogetherChange={(enabled) => onShadowsChange(globalSettings.shadows || [], enabled)}
-          />
-          <button
-            onClick={() => setShowShadowModal(false)}
-            className="mt-3 w-full text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            ref={shadowPopupRef}
+            className="bg-white border border-gray-300 rounded-lg p-4 shadow-xl"
+            style={{ width: '320px' }}
           >
-            Close
-          </button>
+            <ShadowControls
+              shadows={globalSettings.shadows || []}
+              averageTogether={globalSettings.averageShadows || false}
+              onChange={(shadows) => onShadowsChange(shadows, globalSettings.averageShadows || false)}
+              onAverageTogetherChange={(enabled) => onShadowsChange(globalSettings.shadows || [], enabled)}
+            />
+            <button
+              onClick={() => setShowShadowModal(false)}
+              className="mt-3 w-full text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+            >
+              Close
+            </button>
+          </div>
         </div>
       )}
 
       {/* Annotation Popup */}
       {showAnnotationModal && (
-        <div
-          ref={annotationPopupRef}
-          className="fixed bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50 max-h-[80vh] overflow-y-auto"
-          style={{
-            top: annotationEditButtonRef.current ? annotationEditButtonRef.current.getBoundingClientRect().bottom + 5 : '50%',
-            left: annotationEditButtonRef.current ? annotationEditButtonRef.current.getBoundingClientRect().left : '50%',
-            width: '400px'
-          }}
-        >
-          <AnnotationControls
-            annotations={globalSettings.annotations || []}
-            onChange={(annotations) => onAnnotationsChange(annotations, globalSettings.annotationsEnabled || false)}
-            enabled={globalSettings.annotationsEnabled || false}
-            onEnabledChange={(enabled) => onAnnotationsChange(globalSettings.annotations || [], enabled)}
-          />
-          <button
-            onClick={() => setShowAnnotationModal(false)}
-            className="mt-3 w-full text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            ref={annotationPopupRef}
+            className="bg-white border border-gray-300 rounded-lg p-4 shadow-xl max-h-[80vh] overflow-y-auto"
+            style={{ width: '400px' }}
           >
-            Close
-          </button>
+            <AnnotationControls
+              annotations={globalSettings.annotations || []}
+              onChange={(annotations) => onAnnotationsChange(annotations, globalSettings.annotationsEnabled || false)}
+              enabled={globalSettings.annotationsEnabled || false}
+              onEnabledChange={(enabled) => onAnnotationsChange(globalSettings.annotations || [], enabled)}
+            />
+            <button
+              onClick={() => setShowAnnotationModal(false)}
+              className="mt-3 w-full text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+            >
+              Close
+            </button>
+          </div>
         </div>
       )}
 
       {/* Range Popup */}
       {showRangeModal && (
-        <div
-          ref={rangePopupRef}
-          className="fixed bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
-          style={{
-            top: rangeEditButtonRef.current ? rangeEditButtonRef.current.getBoundingClientRect().bottom + 5 : '50%',
-            left: rangeEditButtonRef.current ? rangeEditButtonRef.current.getBoundingClientRect().left : '50%',
-            width: '320px'
-          }}
-        >
-          <RangeControls
-            range={globalSettings.dateRange || { preset: 'all' }}
-            onChange={onDateRangeChange}
-            dataExtent={dataExtent}
-          />
-          <button
-            onClick={() => setShowRangeModal(false)}
-            className="mt-3 w-full text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            ref={rangePopupRef}
+            className="bg-white border border-gray-300 rounded-lg p-4 shadow-xl"
+            style={{ width: '320px' }}
           >
-            Close
-          </button>
+            <RangeControls
+              range={globalSettings.dateRange || { preset: 'all' }}
+              onChange={onDateRangeChange}
+              dataExtent={dataExtent}
+            />
+            <button
+              onClick={() => setShowRangeModal(false)}
+              className="mt-3 w-full text-xs px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+            >
+              Close
+            </button>
+          </div>
         </div>
       )}
 
