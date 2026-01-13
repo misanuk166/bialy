@@ -3,6 +3,7 @@ import { downloadCSVFile } from './storageService';
 import type {
   Dashboard,
   DashboardWithData,
+  DashboardWithMetricsCount,
   CreateDashboardInput,
   UpdateDashboardInput
 } from '../types/dashboard';
@@ -24,6 +25,51 @@ export async function fetchDashboards(): Promise<Dashboard[]> {
   }
 
   return data || [];
+}
+
+/**
+ * Fetch all dashboards with metrics count
+ */
+export async function fetchDashboardsWithMetricsCount(): Promise<DashboardWithMetricsCount[]> {
+  // Fetch all dashboards
+  const { data: dashboards, error: dashboardsError } = await supabase
+    .from('dashboards')
+    .select('*')
+    .order('updated_at', { ascending: false });
+
+  if (dashboardsError) {
+    console.error('Error fetching dashboards:', dashboardsError);
+    throw dashboardsError;
+  }
+
+  if (!dashboards || dashboards.length === 0) {
+    return [];
+  }
+
+  // Fetch metrics counts for all dashboards in a single query
+  const dashboardIds = dashboards.map(d => d.id);
+  const { data: metricCounts, error: countsError } = await supabase
+    .from('metrics')
+    .select('dashboard_id')
+    .in('dashboard_id', dashboardIds);
+
+  if (countsError) {
+    console.error('Error fetching metrics counts:', countsError);
+    throw countsError;
+  }
+
+  // Count metrics per dashboard
+  const countsMap = new Map<string, number>();
+  (metricCounts || []).forEach(metric => {
+    const currentCount = countsMap.get(metric.dashboard_id) || 0;
+    countsMap.set(metric.dashboard_id, currentCount + 1);
+  });
+
+  // Combine dashboards with counts
+  return dashboards.map(dashboard => ({
+    ...dashboard,
+    metrics_count: countsMap.get(dashboard.id) || 0
+  }));
 }
 
 /**
@@ -295,6 +341,7 @@ export async function createDashboard(input: CreateDashboardInput): Promise<Dash
     .insert({
       owner_id: user.id,
       name: input.name,
+      description: input.description,
       permission_level: input.permission_level || 'private'
     })
     .select()

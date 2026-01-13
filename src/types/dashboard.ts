@@ -12,6 +12,7 @@ export interface Dashboard {
   id: string;
   owner_id: string;
   name: string;
+  description?: string;
   permission_level: PermissionLevel;
   created_at: string;
   updated_at: string;
@@ -30,6 +31,7 @@ export interface DashboardWithData extends Dashboard {
  */
 export interface CreateDashboardInput {
   name: string;
+  description?: string;
   permission_level?: PermissionLevel;
 }
 
@@ -38,5 +40,13 @@ export interface CreateDashboardInput {
  */
 export interface UpdateDashboardInput {
   name?: string;
+  description?: string;
   permission_level?: PermissionLevel;
+}
+
+/**
+ * Dashboard with metrics count for list views
+ */
+export interface DashboardWithMetricsCount extends Dashboard {
+  metrics_count: number;
 }

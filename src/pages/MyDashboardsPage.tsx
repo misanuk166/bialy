@@ -2,15 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Sidebar } from '../components/Sidebar';
-import { fetchDashboards, deleteDashboard, createDashboard } from '../services/dashboardService';
-import type { Dashboard } from '../types/dashboard';
+import { fetchDashboardsWithMetricsCount, deleteDashboard, createDashboard } from '../services/dashboardService';
+import type { DashboardWithMetricsCount } from '../types/dashboard';
 
 // Extended dashboard type with UI-specific fields
-interface DashboardListItem extends Dashboard {
+interface DashboardListItem extends DashboardWithMetricsCount {
   favorited: boolean;
   saves: number;
   views: number;
-  metricsCount: number;
   owner_name: string;
 }
 
@@ -103,7 +102,7 @@ export function MyDashboardsPage() {
   const loadDashboards = async () => {
     try {
       setIsLoading(true);
-      const data = await fetchDashboards();
+      const data = await fetchDashboardsWithMetricsCount();
 
       // Transform to DashboardListItem with mock data for UI-specific fields
       const listItems: DashboardListItem[] = data.map(d => ({
@@ -111,7 +110,6 @@ export function MyDashboardsPage() {
         favorited: false, // TODO: Load from user preferences
         saves: Math.floor(Math.random() * 50), // Mock data
         views: Math.floor(Math.random() * 500), // Mock data
-        metricsCount: Math.floor(Math.random() * 20), // TODO: Load from dashboard_data
         owner_name: user?.email?.split('@')[0] || 'Unknown' // TODO: Join with users table
       }));
 
@@ -435,7 +433,7 @@ export function MyDashboardsPage() {
 
                         {/* Metrics Count */}
                         <td className="px-4 py-4 text-center">
-                          <span className="font-semibold text-gray-900">{dashboard.metricsCount}</span>
+                          <span className="font-semibold text-gray-900">{dashboard.metrics_count}</span>
                         </td>
 
                         {/* Last Updated */}
