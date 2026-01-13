@@ -90,7 +90,7 @@ export function MyDashboardsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'recent' | 'favorites'>('all');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-  const [currentDashboardId, setCurrentDashboardId] = useState<string | null>(null);
+  const [currentDashboardId] = useState<string | null>(null);
 
   useEffect(() => {
     loadDashboards();
@@ -236,7 +236,6 @@ export function MyDashboardsPage() {
       {/* Sidebar Navigation */}
       <Sidebar
         currentDashboardId={currentDashboardId}
-        onSelectDashboard={setCurrentDashboardId}
         onShareDashboard={() => {}}
       />
 

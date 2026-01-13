@@ -6,7 +6,6 @@ import type { Dashboard } from '../types/dashboard';
 
 interface SidebarProps {
   currentDashboardId: string | null;
-  onSelectDashboard: (dashboardId: string | null) => void;
   onShareDashboard: (dashboard: Dashboard) => void;
 }
 
@@ -57,7 +56,7 @@ function getDashboardColor(id: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-export function Sidebar({ currentDashboardId, onSelectDashboard, onShareDashboard }: SidebarProps) {
+export function Sidebar({ currentDashboardId, onShareDashboard }: SidebarProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
@@ -70,14 +69,14 @@ export function Sidebar({ currentDashboardId, onSelectDashboard, onShareDashboar
       const data = await fetchDashboards();
       setDashboards(data);
 
-      // Auto-select first dashboard if none selected
-      if (!currentDashboardId && data.length > 0) {
-        onSelectDashboard(data[0].id);
+      // Auto-select first dashboard if none selected (only on dashboard page)
+      if (!currentDashboardId && data.length > 0 && window.location.pathname === '/') {
+        navigate(`/?dashboard=${data[0].id}`);
       }
     };
 
     loadDashboards();
-  }, [user]);
+  }, [user, navigate]);
 
   const handleCreateDashboard = async () => {
     if (!user || isCreating) return;
@@ -89,7 +88,7 @@ export function Sidebar({ currentDashboardId, onSelectDashboard, onShareDashboar
       });
 
       setDashboards(prev => [...prev, newDashboard]);
-      onSelectDashboard(newDashboard.id);
+      navigate(`/?dashboard=${newDashboard.id}`);
     } catch (error) {
       console.error('Failed to create dashboard:', error);
       alert('Failed to create dashboard');
@@ -110,13 +109,13 @@ export function Sidebar({ currentDashboardId, onSelectDashboard, onShareDashboar
       // Remove from local state
       setDashboards(prev => prev.filter(d => d.id !== dashboardId));
 
-      // If deleting current dashboard, select another one
+      // If deleting current dashboard, navigate to another one
       if (dashboardId === currentDashboardId) {
         const remaining = dashboards.filter(d => d.id !== dashboardId);
         if (remaining.length > 0) {
-          onSelectDashboard(remaining[0].id);
+          navigate(`/?dashboard=${remaining[0].id}`);
         } else {
-          onSelectDashboard(null);
+          navigate('/');
         }
       }
     } catch (error) {
@@ -156,7 +155,7 @@ export function Sidebar({ currentDashboardId, onSelectDashboard, onShareDashboar
                   className="relative group"
                 >
                   <button
-                    onClick={() => onSelectDashboard(dashboard.id)}
+                    onClick={() => navigate(`/?dashboard=${dashboard.id}`)}
                     className={`
                       w-full flex items-center gap-3 px-3 py-2.5 rounded-lg
                       transition-all text-left

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { CSVUpload } from '../components/CSVUpload';
 import { MetricGrid } from '../components/MetricGrid';
 import { SingleMetricView } from '../components/SingleMetricView';
@@ -7,7 +8,7 @@ import { DashboardHeader } from '../components/DashboardHeader';
 import { ShareDashboardModal } from '../components/ShareDashboardModal';
 import { loadSyntheticMetrics } from '../utils/generateSyntheticData';
 // ❌ REMOVED localStorage imports - now using database persistence exclusively
-import { fetchDashboard, saveDashboardData } from '../services/dashboardService';
+import { fetchDashboard, saveDashboardData, updateDashboard } from '../services/dashboardService';
 import { saveSeriesAsCSV } from '../services/storageService';
 import { useAuth } from '../contexts/AuthContext';
 import type { Dashboard } from '../types/dashboard';
@@ -22,6 +23,7 @@ import { DEFAULT_SELECTION_COMPARISONS, DEFAULT_FOCUS_COMPARISONS, type Comparis
 
 export function DashboardPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [currentDashboardId, setCurrentDashboardId] = useState<string | null>(null);
   const [currentDashboard, setCurrentDashboard] = useState<Dashboard | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -58,6 +60,14 @@ export function DashboardPage() {
   const [showAggregationModal, setShowAggregationModal] = useState(false);
   const [showShadowModal, setShowShadowModal] = useState(false);
   const [showAnnotationModal, setShowAnnotationModal] = useState(false);
+
+  // Read dashboard ID from URL query parameter on mount
+  useEffect(() => {
+    const dashboardParam = searchParams.get('dashboard');
+    if (dashboardParam) {
+      setCurrentDashboardId(dashboardParam);
+    }
+  }, [searchParams]);
 
   // Load dashboard data when currentDashboardId changes
   useEffect(() => {
@@ -271,6 +281,18 @@ export function DashboardPage() {
     setCurrentDashboard(updated);
   };
 
+  const handleDashboardMetadataUpdate = async (updates: { name?: string; description?: string }) => {
+    if (!currentDashboardId) return;
+
+    try {
+      const updatedDashboard = await updateDashboard(currentDashboardId, updates);
+      setCurrentDashboard(updatedDashboard);
+    } catch (error) {
+      console.error('Failed to update dashboard:', error);
+      alert('Failed to update dashboard');
+    }
+  };
+
   // Get data extent for focus period controls (primary series data only)
   const dataExtent = metrics.length > 0 ? (() => {
     const allDates: Date[] = [];
@@ -296,7 +318,6 @@ export function DashboardPage() {
       {/* Sidebar Navigation */}
       <Sidebar
         currentDashboardId={currentDashboardId}
-        onSelectDashboard={setCurrentDashboardId}
         onShareDashboard={handleShareDashboard}
       />
 
@@ -306,12 +327,14 @@ export function DashboardPage() {
         {currentDashboard && (
           <DashboardHeader
             dashboardName={currentDashboard.name}
+            dashboardDescription={currentDashboard.description}
             readOnly={readOnly}
             onShowRangeModal={() => setShowRangeModal(true)}
             onShowAggregationModal={() => setShowAggregationModal(true)}
             onShowShadowModal={() => setShowShadowModal(true)}
             onShowAnnotationModal={() => setShowAnnotationModal(true)}
             onAddMetric={handleAddMetric}
+            onUpdateDashboard={handleDashboardMetadataUpdate}
           />
         )}
 
