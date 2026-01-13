@@ -170,11 +170,33 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
       }
 
       // Extract configurations by type
-      const goals = metricConfigRecords.find(c => c.config_type === 'goal')?.config_data as any[] | undefined;
-      const forecastConfig = metricConfigRecords.find(c => c.config_type === 'forecast')?.config_data as any;
-      const forecast = forecastConfig ? { ...forecastConfig, snapshot: undefined } : undefined; // Extract forecast settings
-      const forecastSnapshot = forecastConfig?.snapshot; // Extract embedded snapshot
+      const goalsRaw = metricConfigRecords.find(c => c.config_type === 'goal')?.config_data as any[] | undefined;
+      const forecastConfigRaw = metricConfigRecords.find(c => c.config_type === 'forecast')?.config_data as any;
       const annotationsRaw = metricConfigRecords.find(c => c.config_type === 'annotation')?.config_data as any[] | undefined;
+
+      // Deserialize forecast dates
+      const forecast = forecastConfigRaw ? {
+        ...forecastConfigRaw,
+        startDate: forecastConfigRaw.startDate ? new Date(forecastConfigRaw.startDate) : undefined,
+        snapshot: undefined
+      } : undefined;
+
+      // Deserialize forecast snapshot dates
+      const forecastSnapshotRaw = forecastConfigRaw?.snapshot;
+      const forecastSnapshot = forecastSnapshotRaw ? {
+        ...forecastSnapshotRaw,
+        config: {
+          ...forecastSnapshotRaw.config,
+          startDate: forecastSnapshotRaw.config.startDate ? new Date(forecastSnapshotRaw.config.startDate) : undefined
+        }
+      } : undefined;
+
+      // Deserialize goal dates
+      const goals = goalsRaw?.map(goal => ({
+        ...goal,
+        startDate: goal.startDate ? new Date(goal.startDate) : undefined,
+        endDate: goal.endDate ? new Date(goal.endDate) : undefined
+      })) || [];
 
       // Deserialize annotation dates
       const annotations = annotationsRaw?.map(annotation => ({

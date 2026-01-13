@@ -36,6 +36,7 @@ import { calculateMetricRowValues, calculateComparisons } from '../utils/metricC
 import { normalizeSelectionDate } from '../utils/aggregation';
 import { calculateDateRange } from '../utils/dateRange';
 import { updateComparisonLabelsForShadows } from '../utils/shadowLabels';
+import { addDays, addWeeks, addMonths, addQuarters, addYears } from 'date-fns';
 
 interface MetricGridProps {
   metrics: MetricConfig[];
@@ -154,7 +155,7 @@ export function MetricGrid({
     metricIndex: 20,
     name: 273,
     chart: 390,
-    selectionMean: 100,
+    selectionMean: 140, // Compact layout with label above navigation
     focusMean: 100,
     comparison: 100
   });
@@ -282,6 +283,35 @@ export function MetricGrid({
   }, [showAggregationModal, showShadowModal, showAnnotationModal, showRangeModal, showComparisonModal]);
 
   // Note: Selection Period and Focus Period modals handle their own click-outside logic
+
+  // Keyboard shortcuts for navigating selection date
+  useEffect(() => {
+    if (readOnly || !selectionDate) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle arrow keys when no modal is open and no input is focused
+      const isInputFocused = document.activeElement?.tagName === 'INPUT' ||
+                            document.activeElement?.tagName === 'TEXTAREA';
+      const isModalOpen = showSelectionPeriodModal || showFocusPeriodModal ||
+                         showAggregationModal || showShadowModal ||
+                         showAnnotationModal || showRangeModal || showComparisonModal;
+
+      if (isInputFocused || isModalOpen) return;
+
+      if (event.key === 'ArrowLeft' && canNavigateSelectionDate(-1)) {
+        event.preventDefault();
+        handleNavigateSelectionDate(-1);
+      } else if (event.key === 'ArrowRight' && canNavigateSelectionDate(1)) {
+        event.preventDefault();
+        handleNavigateSelectionDate(1);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [readOnly, selectionDate, showSelectionPeriodModal, showFocusPeriodModal,
+      showAggregationModal, showShadowModal, showAnnotationModal, showRangeModal,
+      showComparisonModal]);
 
   // Calculate row values for all metrics using locked selection date
   const metricsWithValues = useMemo(() => {
@@ -744,6 +774,85 @@ export function MetricGrid({
     if (onMetricsReorder) onMetricsReorder(updatedMetrics);
   };
 
+  // Navigate selection date forward/backward by one period
+  const handleNavigateSelectionDate = (direction: -1 | 1) => {
+    if (!selectionDate || !dataExtent) return;
+
+    const agg = globalSettings.aggregation;
+    let newDate: Date;
+
+    if (!agg || !agg.enabled) {
+      // No aggregation: move by 1 day
+      newDate = addDays(selectionDate, direction);
+    } else if (agg.mode === 'groupBy') {
+      // Group By mode: move by the grouping period
+      switch (agg.groupByPeriod) {
+        case 'week':
+          newDate = addWeeks(selectionDate, direction);
+          break;
+        case 'month':
+          newDate = addMonths(selectionDate, direction);
+          break;
+        case 'quarter':
+          newDate = addQuarters(selectionDate, direction);
+          break;
+        case 'year':
+          newDate = addYears(selectionDate, direction);
+          break;
+        default:
+          newDate = addWeeks(selectionDate, direction);
+      }
+    } else {
+      // Rolling average: move by the period
+      const period = agg.period || 7;
+      const unit = agg.unit || 'days';
+      switch (unit) {
+        case 'days':
+          newDate = addDays(selectionDate, direction * period);
+          break;
+        case 'weeks':
+          newDate = addWeeks(selectionDate, direction * period);
+          break;
+        case 'months':
+          newDate = addMonths(selectionDate, direction * period);
+          break;
+        default:
+          newDate = addDays(selectionDate, direction * period);
+      }
+    }
+
+    // Clamp to data extent
+    const minDate = dataExtent[0];
+    const maxDate = dataExtent[1];
+
+    if (newDate < minDate) {
+      newDate = minDate;
+    } else if (newDate > maxDate) {
+      newDate = maxDate;
+    }
+
+    // Only update if the date actually changed
+    if (newDate.getTime() !== selectionDate.getTime()) {
+      onSelectionDateChange(newDate);
+    }
+  };
+
+  // Check if we can navigate in the given direction
+  const canNavigateSelectionDate = (direction: -1 | 1): boolean => {
+    if (!selectionDate || !dataExtent) return false;
+
+    const minDate = dataExtent[0];
+    const maxDate = dataExtent[1];
+
+    if (direction === -1) {
+      // Can go back if not at the minimum
+      return selectionDate.getTime() > minDate.getTime();
+    } else {
+      // Can go forward if not at the maximum
+      return selectionDate.getTime() < maxDate.getTime();
+    }
+  };
+
   if (!xDomain) return <div>Loading...</div>;
 
   // Get column definitions based on comparisons
@@ -926,28 +1035,51 @@ export function MetricGrid({
             />
           </div>
           {/* Selection Group */}
-          <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300 flex items-center justify-center gap-2 relative" style={{ gridColumn: `span ${1 + selectionComparisons.length}` }}>
-            <span>
-              {getSelectionLabel} {displaySelectionDate ? displaySelectionDate.toLocaleDateString() : '—'}
-            </span>
-            {!readOnly && (
-              <button
-                ref={comparisonEditButtonRef}
-                onClick={() => {
-                  setComparisonModalPeriodType('selection');
-                  setShowComparisonModal(true);
-                }}
-                className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-                title="Manage comparisons"
-              >
-                Edit
-              </button>
-            )}
+          <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300 flex flex-col items-center justify-center gap-1 relative py-1" style={{ gridColumn: `span ${1 + selectionComparisons.length}` }}>
+            <span className="text-xs">{getSelectionLabel}</span>
+            <div className="flex items-center justify-center gap-1.5">
+              {!readOnly && selectionDate && (
+                <button
+                  onClick={() => handleNavigateSelectionDate(-1)}
+                  disabled={!canNavigateSelectionDate(-1)}
+                  className="text-xs px-1.5 py-0.5 border border-gray-300 text-gray-600 rounded hover:bg-gray-100 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:border-gray-300"
+                  title="Previous period"
+                >
+                  ◀
+                </button>
+              )}
+              <span className="text-xs text-gray-600 font-bold">
+                {displaySelectionDate ? displaySelectionDate.toLocaleDateString() : '—'}
+              </span>
+              {!readOnly && selectionDate && (
+                <button
+                  onClick={() => handleNavigateSelectionDate(1)}
+                  disabled={!canNavigateSelectionDate(1)}
+                  className="text-xs px-1.5 py-0.5 border border-gray-300 text-gray-600 rounded hover:bg-gray-100 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:border-gray-300"
+                  title="Next period"
+                >
+                  ▶
+                </button>
+              )}
+              {!readOnly && (
+                <button
+                  ref={comparisonEditButtonRef}
+                  onClick={() => {
+                    setComparisonModalPeriodType('selection');
+                    setShowComparisonModal(true);
+                  }}
+                  className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  title="Manage comparisons"
+                >
+                  Edit
+                </button>
+              )}
+            </div>
             <ColumnResizeHandle
               columnKey="selectionMean"
               onResize={handleColumnResize}
               currentWidth={columnWidths.selectionMean}
-              minWidth={80}
+              minWidth={120}
             />
           </div>
           {/* Focus Period Group */}
@@ -1138,7 +1270,7 @@ export function MetricGrid({
                     columnKey="selectionMean"
                     onResize={handleColumnResize}
                     currentWidth={columnWidths.selectionMean}
-                    minWidth={80}
+                    minWidth={120}
                   />
                 )}
                 {isFocusMean && (
