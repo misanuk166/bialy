@@ -138,13 +138,13 @@ export function Sidebar({ currentDashboardId, onShareDashboard }: SidebarProps) 
 
       {/* Sidebar Content */}
       <div className="flex-1 overflow-y-auto px-3 py-4">
-        {/* Dashboards Section */}
+        {/* Recents Section */}
         <div className="mb-6">
           <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-3 pb-2">
-            Dashboards
+            Recents
           </div>
           <div className="space-y-0.5">
-            {dashboards.map((dashboard) => {
+            {dashboards.slice(0, 3).map((dashboard) => {
               const initials = getDashboardInitials(dashboard.name);
               const colorClass = getDashboardColor(dashboard.id);
               const isActive = dashboard.id === currentDashboardId;
