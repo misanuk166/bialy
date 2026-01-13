@@ -1126,24 +1126,26 @@ export function MetricGrid({
             />
           </div>
           {/* Focus Period Group */}
-          <div className="px-1.5 text-sm font-bold text-gray-800 text-center flex items-center justify-center gap-2 relative" style={{ gridColumn: `span ${1 + focusComparisons.length}` }}>
-            <span>
+          <div className="px-1.5 text-sm font-bold text-gray-800 text-center flex flex-col items-center justify-center gap-1 relative py-1" style={{ gridColumn: `span ${1 + focusComparisons.length}` }}>
+            <span className="text-xs">
               {globalSettings.focusPeriod?.enabled && globalSettings.focusPeriod.label
                 ? globalSettings.focusPeriod.label
                 : 'Focus Period'}
             </span>
-            {!readOnly && (
-              <button
-                onClick={() => {
-                  setComparisonModalPeriodType('focus');
-                  setShowComparisonModal(true);
-                }}
-                className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-                title="Manage comparisons"
-              >
-                Edit
-              </button>
-            )}
+            <div className="flex items-center justify-center gap-1.5">
+              {!readOnly && (
+                <button
+                  onClick={() => {
+                    setComparisonModalPeriodType('focus');
+                    setShowComparisonModal(true);
+                  }}
+                  className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  title="Manage comparisons"
+                >
+                  Edit
+                </button>
+              )}
+            </div>
             <ColumnResizeHandle
               columnKey="focusMean"
               onResize={handleColumnResize}

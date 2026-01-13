@@ -1,27 +1,106 @@
+import { useState } from 'react';
+
 interface DashboardHeaderProps {
   dashboardName: string;
+  dashboardDescription?: string;
   readOnly: boolean;
   onShowRangeModal: () => void;
   onShowAggregationModal: () => void;
   onShowShadowModal: () => void;
   onShowAnnotationModal: () => void;
   onAddMetric: () => void;
+  onUpdateDashboard: (updates: { name?: string; description?: string }) => void;
 }
 
 export function DashboardHeader({
   dashboardName,
+  dashboardDescription,
   readOnly,
   onShowRangeModal,
   onShowAggregationModal,
   onShowShadowModal,
   onShowAnnotationModal,
-  onAddMetric
+  onAddMetric,
+  onUpdateDashboard
 }: DashboardHeaderProps) {
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editedName, setEditedName] = useState(dashboardName);
+  const [editedDescription, setEditedDescription] = useState(dashboardDescription || '');
+
+  const handleNameSave = () => {
+    if (editedName.trim() && editedName !== dashboardName) {
+      onUpdateDashboard({ name: editedName.trim() });
+    }
+    setIsEditingName(false);
+  };
+
+  const handleDescriptionSave = () => {
+    if (editedDescription !== dashboardDescription) {
+      onUpdateDashboard({ description: editedDescription.trim() || undefined });
+    }
+    setIsEditingDescription(false);
+  };
+
   return (
     <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
-      <div className="px-8 py-4 flex items-center justify-between">
-        {/* Dashboard Title */}
-        <h1 className="text-xl font-semibold text-gray-900">{dashboardName}</h1>
+      <div className="px-8 py-4 flex items-start justify-between">
+        {/* Dashboard Title and Description */}
+        <div className="flex-1 mr-4">
+          {/* Title */}
+          {isEditingName && !readOnly ? (
+            <input
+              type="text"
+              value={editedName}
+              onChange={(e) => setEditedName(e.target.value)}
+              onBlur={handleNameSave}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleNameSave();
+                if (e.key === 'Escape') {
+                  setEditedName(dashboardName);
+                  setIsEditingName(false);
+                }
+              }}
+              autoFocus
+              className="text-xl font-semibold text-gray-900 border-b-2 border-blue-500 bg-transparent outline-none w-full"
+            />
+          ) : (
+            <h1
+              className={`text-xl font-semibold text-gray-900 block ${!readOnly ? 'cursor-pointer hover:bg-gray-50 px-2 -mx-2 rounded' : ''}`}
+              onClick={() => !readOnly && setIsEditingName(true)}
+              title={!readOnly ? 'Click to edit title' : ''}
+            >
+              {dashboardName}
+            </h1>
+          )}
+
+          {/* Description */}
+          {isEditingDescription && !readOnly ? (
+            <textarea
+              value={editedDescription}
+              onChange={(e) => setEditedDescription(e.target.value)}
+              onBlur={handleDescriptionSave}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setEditedDescription(dashboardDescription || '');
+                  setIsEditingDescription(false);
+                }
+              }}
+              autoFocus
+              placeholder="Add a description..."
+              className="mt-0.5 w-full text-sm text-gray-600 border border-blue-500 bg-transparent outline-none rounded px-2 py-1 resize-none block"
+              rows={2}
+            />
+          ) : (
+            <p
+              className={`mt-0.5 text-sm text-gray-600 block ${!readOnly ? 'cursor-pointer hover:bg-gray-50 px-2 -mx-2 rounded min-h-[1.5rem]' : ''}`}
+              onClick={() => !readOnly && setIsEditingDescription(true)}
+              title={!readOnly ? 'Click to edit description' : ''}
+            >
+              {dashboardDescription || (!readOnly && 'Add a description...')}
+            </p>
+          )}
+        </div>
 
         {/* Control Buttons */}
         {!readOnly && (
