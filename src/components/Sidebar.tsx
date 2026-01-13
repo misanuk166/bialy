@@ -76,7 +76,7 @@ export function Sidebar({ currentDashboardId, onShareDashboard }: SidebarProps) 
     };
 
     loadDashboards();
-  }, [user, navigate]);
+  }, [user, navigate, currentDashboardId]); // Re-fetch when currentDashboardId changes
 
   const handleCreateDashboard = async () => {
     if (!user || isCreating) return;

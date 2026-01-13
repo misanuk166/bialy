@@ -16,6 +16,7 @@ export interface Dashboard {
   permission_level: PermissionLevel;
   created_at: string;
   updated_at: string;
+  last_viewed_at: string;
 }
 
 /**

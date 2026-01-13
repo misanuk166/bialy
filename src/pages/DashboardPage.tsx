@@ -8,7 +8,7 @@ import { DashboardHeader } from '../components/DashboardHeader';
 import { ShareDashboardModal } from '../components/ShareDashboardModal';
 import { loadSyntheticMetrics } from '../utils/generateSyntheticData';
 // ❌ REMOVED localStorage imports - now using database persistence exclusively
-import { fetchDashboard, saveDashboardData, updateDashboard } from '../services/dashboardService';
+import { fetchDashboard, saveDashboardData, updateDashboard, updateDashboardViewTime } from '../services/dashboardService';
 import { saveSeriesAsCSV } from '../services/storageService';
 import { useAuth } from '../contexts/AuthContext';
 import type { Dashboard } from '../types/dashboard';
@@ -85,6 +85,9 @@ export function DashboardPage() {
           setMetrics(dashboard.metrics);
           setGlobalSettings(dashboard.global_settings);
           console.log('[DASHBOARD] Loaded dashboard with', dashboard.metrics.length, 'metrics');
+
+          // Update last viewed timestamp
+          updateDashboardViewTime(currentDashboardId);
         }
       } catch (error) {
         console.error('Failed to load dashboard:', error);

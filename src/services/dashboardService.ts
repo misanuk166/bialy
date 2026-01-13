@@ -12,12 +12,13 @@ import type { Series } from '../types/series';
 
 /**
  * Fetch all dashboards accessible to the current user
+ * Ordered by last viewed (most recent first)
  */
 export async function fetchDashboards(): Promise<Dashboard[]> {
   const { data, error } = await supabase
     .from('dashboards')
     .select('*')
-    .order('updated_at', { ascending: false });
+    .order('last_viewed_at', { ascending: false });
 
   if (error) {
     console.error('Error fetching dashboards:', error);
@@ -29,13 +30,14 @@ export async function fetchDashboards(): Promise<Dashboard[]> {
 
 /**
  * Fetch all dashboards with metrics count
+ * Ordered by last viewed (most recent first)
  */
 export async function fetchDashboardsWithMetricsCount(): Promise<DashboardWithMetricsCount[]> {
   // Fetch all dashboards
   const { data: dashboards, error: dashboardsError } = await supabase
     .from('dashboards')
     .select('*')
-    .order('updated_at', { ascending: false });
+    .order('last_viewed_at', { ascending: false });
 
   if (dashboardsError) {
     console.error('Error fetching dashboards:', dashboardsError);
@@ -375,6 +377,22 @@ export async function updateDashboard(
   }
 
   return data;
+}
+
+/**
+ * Update dashboard last viewed timestamp
+ * Called when a dashboard is opened/viewed
+ */
+export async function updateDashboardViewTime(dashboardId: string): Promise<void> {
+  const { error } = await supabase
+    .from('dashboards')
+    .update({ last_viewed_at: new Date().toISOString() })
+    .eq('id', dashboardId);
+
+  if (error) {
+    console.error('Error updating dashboard view time:', error);
+    // Don't throw - this is a non-critical update
+  }
 }
 
 /**
