@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchDashboards, createDashboard, deleteDashboard } from '../services/dashboardService';
 import type { Dashboard } from '../types/dashboard';
@@ -58,6 +59,7 @@ function getDashboardColor(id: string): string {
 
 export function Sidebar({ currentDashboardId, onSelectDashboard, onShareDashboard }: SidebarProps) {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -214,7 +216,10 @@ export function Sidebar({ currentDashboardId, onSelectDashboard, onShareDashboar
             Workspace
           </div>
           <div className="space-y-0.5">
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm">
+            <button
+              onClick={() => navigate('/dashboards')}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm"
+            >
               <span className="text-lg">🏢</span>
               <span>My Dashboards</span>
             </button>
