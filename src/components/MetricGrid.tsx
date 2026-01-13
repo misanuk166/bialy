@@ -57,6 +57,15 @@ interface MetricGridProps {
   onSelectionDateChange: (date: Date | null) => void;
   onAddMetric: () => void;
   onClearAllMetrics: () => void;
+  // Modal state props (controlled from DashboardHeader)
+  showRangeModal?: boolean;
+  onCloseRangeModal?: () => void;
+  showAggregationModal?: boolean;
+  onCloseAggregationModal?: () => void;
+  showShadowModal?: boolean;
+  onCloseShadowModal?: () => void;
+  showAnnotationModal?: boolean;
+  onCloseAnnotationModal?: () => void;
 }
 
 const getColumnDefinitions = (comparisons?: ComparisonConfig[]) => {
@@ -120,7 +129,16 @@ export function MetricGrid({
   onAnnotationsChange,
   onSelectionDateChange,
   onAddMetric,
-  onClearAllMetrics
+  onClearAllMetrics,
+  // Modal state props (controlled from DashboardHeader)
+  showRangeModal: externalShowRangeModal,
+  onCloseRangeModal,
+  showAggregationModal: externalShowAggregationModal,
+  onCloseAggregationModal,
+  showShadowModal: externalShowShadowModal,
+  onCloseShadowModal,
+  showAnnotationModal: externalShowAnnotationModal,
+  onCloseAnnotationModal
 }: MetricGridProps) {
   // 🔧 FIX: Use selectionDate from globalSettings (per-dashboard) instead of local component state
   const selectionDate = globalSettings.selectionDate || null;
@@ -130,10 +148,49 @@ export function MetricGrid({
   const [xDomain, setXDomain] = useState<[Date, Date] | null>(null);
   const [showSelectionPeriodModal, setShowSelectionPeriodModal] = useState(false);
   const [showFocusPeriodModal, setShowFocusPeriodModal] = useState(false);
-  const [showAggregationModal, setShowAggregationModal] = useState(false);
-  const [showShadowModal, setShowShadowModal] = useState(false);
-  const [showRangeModal, setShowRangeModal] = useState(false);
-  const [showAnnotationModal, setShowAnnotationModal] = useState(false);
+
+  // Use external modal state when provided (controlled from DashboardHeader), otherwise use local state
+  const [internalShowAggregationModal, setInternalShowAggregationModal] = useState(false);
+  const [internalShowShadowModal, setInternalShowShadowModal] = useState(false);
+  const [internalShowRangeModal, setInternalShowRangeModal] = useState(false);
+  const [internalShowAnnotationModal, setInternalShowAnnotationModal] = useState(false);
+
+  const showAggregationModal = externalShowAggregationModal ?? internalShowAggregationModal;
+  const setShowAggregationModal = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    if (onCloseAggregationModal && (value === false || (typeof value === 'function' && !value(showAggregationModal)))) {
+      onCloseAggregationModal();
+    } else if (!onCloseAggregationModal) {
+      setInternalShowAggregationModal(value);
+    }
+  }, [onCloseAggregationModal, showAggregationModal]);
+
+  const showShadowModal = externalShowShadowModal ?? internalShowShadowModal;
+  const setShowShadowModal = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    if (onCloseShadowModal && (value === false || (typeof value === 'function' && !value(showShadowModal)))) {
+      onCloseShadowModal();
+    } else if (!onCloseShadowModal) {
+      setInternalShowShadowModal(value);
+    }
+  }, [onCloseShadowModal, showShadowModal]);
+
+  const showRangeModal = externalShowRangeModal ?? internalShowRangeModal;
+  const setShowRangeModal = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    if (onCloseRangeModal && (value === false || (typeof value === 'function' && !value(showRangeModal)))) {
+      onCloseRangeModal();
+    } else if (!onCloseRangeModal) {
+      setInternalShowRangeModal(value);
+    }
+  }, [onCloseRangeModal, showRangeModal]);
+
+  const showAnnotationModal = externalShowAnnotationModal ?? internalShowAnnotationModal;
+  const setShowAnnotationModal = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    if (onCloseAnnotationModal && (value === false || (typeof value === 'function' && !value(showAnnotationModal)))) {
+      onCloseAnnotationModal();
+    } else if (!onCloseAnnotationModal) {
+      setInternalShowAnnotationModal(value);
+    }
+  }, [onCloseAnnotationModal, showAnnotationModal]);
+
   const [showComparisonModal, setShowComparisonModal] = useState(false);
   const [comparisonModalPeriodType, setComparisonModalPeriodType] = useState<'selection' | 'focus' | null>(null);
   const [showForecastAllModal, setShowForecastAllModal] = useState(false);
@@ -162,10 +219,6 @@ export function MetricGrid({
 
   const selectionPeriodEditButtonRef = useRef<HTMLButtonElement>(null);
   const focusPeriodEditButtonRef = useRef<HTMLButtonElement>(null);
-  const aggregationEditButtonRef = useRef<HTMLButtonElement>(null);
-  const shadowEditButtonRef = useRef<HTMLButtonElement>(null);
-  const annotationEditButtonRef = useRef<HTMLButtonElement>(null);
-  const rangeEditButtonRef = useRef<HTMLButtonElement>(null);
   const comparisonEditButtonRef = useRef<HTMLButtonElement>(null);
   const groupSetInputRef = useRef<HTMLInputElement>(null);
   const aggregationPopupRef = useRef<HTMLDivElement>(null);
@@ -1014,19 +1067,9 @@ export function MetricGrid({
               minWidth={100}
             />
           </div>
-          {/* Range with Edit button */}
-          <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300 flex items-center justify-center gap-1 relative">
+          {/* Range */}
+          <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300 relative">
             <span>{getRangeLabel}</span>
-            {!readOnly && (
-              <button
-                ref={rangeEditButtonRef}
-                onClick={() => setShowRangeModal(true)}
-                className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-                title="Edit range"
-              >
-                Edit
-              </button>
-            )}
             <ColumnResizeHandle
               columnKey="chart"
               onResize={handleColumnResize}
@@ -1183,60 +1226,19 @@ export function MetricGrid({
           )}
 
           {/* Chart Column Sub-headers - these 3 columns share the chart area width equally */}
-          {/* Aggregation with Edit button */}
-          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center flex items-center justify-center gap-1">
+          {/* Aggregation */}
+          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center">
             <span>Aggregation</span>
-            {!readOnly && (
-              <button
-                ref={aggregationEditButtonRef}
-                onClick={() => {
-                  // Auto-select "group by" and "week" when opening aggregation modal
-                  onAggregationChange({
-                    ...globalSettings.aggregation,
-                    enabled: true,
-                    mode: 'groupBy',
-                    period: 7,
-                    unit: 'days',
-                    groupByPeriod: 'week'
-                  });
-                  setShowAggregationModal(true);
-                }}
-                className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-                title="Edit aggregation"
-              >
-                Edit
-              </button>
-            )}
           </div>
 
-          {/* Shadow with Edit button */}
-          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center flex items-center justify-center gap-1">
+          {/* Shadow */}
+          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center">
             <span>Shadow</span>
-            {!readOnly && (
-              <button
-                ref={shadowEditButtonRef}
-                onClick={() => setShowShadowModal(true)}
-                className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-                title="Edit shadow"
-              >
-                Edit
-              </button>
-            )}
           </div>
 
-          {/* Annotations with Edit button */}
-          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 flex items-center justify-center gap-1 relative">
+          {/* Annotations */}
+          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 relative">
             <span>Annotations</span>
-            {!readOnly && (
-              <button
-                ref={annotationEditButtonRef}
-                onClick={() => setShowAnnotationModal(true)}
-                className="text-xs px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600"
-                title="Edit annotations"
-              >
-                Edit
-              </button>
-            )}
             <ColumnResizeHandle
               columnKey="chart"
               onResize={handleColumnResize}

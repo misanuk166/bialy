@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { CSVUpload } from '../components/CSVUpload';
 import { MetricGrid } from '../components/MetricGrid';
 import { SingleMetricView } from '../components/SingleMetricView';
-import { DashboardSelector } from '../components/DashboardSelector';
+import { Sidebar } from '../components/Sidebar';
+import { DashboardHeader } from '../components/DashboardHeader';
 import { ShareDashboardModal } from '../components/ShareDashboardModal';
 import { loadSyntheticMetrics } from '../utils/generateSyntheticData';
 // ❌ REMOVED localStorage imports - now using database persistence exclusively
@@ -50,11 +51,13 @@ export function DashboardPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [expandedMetricId, setExpandedMetricId] = useState<string | null>(null);
   const [showAddMetricModal, setShowAddMetricModal] = useState(false);
-  const [title, setTitle] = useState('Bialy');
-  const [description, setDescription] = useState('Multi-metric time series data visualization and analysis');
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
+
+  // Modal states for header controls
+  const [showRangeModal, setShowRangeModal] = useState(false);
+  const [showAggregationModal, setShowAggregationModal] = useState(false);
+  const [showShadowModal, setShowShadowModal] = useState(false);
+  const [showAnnotationModal, setShowAnnotationModal] = useState(false);
 
   // Load dashboard data when currentDashboardId changes
   useEffect(() => {
@@ -297,91 +300,28 @@ export function DashboardPage() {
   const readOnly = !isOwner;
 
   return (
-    <div className="min-h-screen bg-white py-1">
-      <div className="mx-auto px-1" style={{ maxWidth: '2000px' }}>
-        {/* Header with user info */}
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <header>
-              {isEditingTitle ? (
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  onBlur={() => setIsEditingTitle(false)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === 'Escape') {
-                      setIsEditingTitle(false);
-                    }
-                  }}
-                  autoFocus
-                  className="text-4xl font-bold text-gray-900 border-b-2 border-blue-500 bg-transparent outline-none"
-                />
-              ) : (
-                <h1
-                  className="text-4xl font-bold text-gray-900 cursor-pointer hover:bg-gray-100 inline-block px-2 rounded"
-                  onClick={() => setIsEditingTitle(true)}
-                  title="Click to edit title"
-                >
-                  {title}
-                </h1>
-              )}
-              {isEditingDescription ? (
-                <input
-                  type="text"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  onBlur={() => setIsEditingDescription(false)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === 'Escape') {
-                      setIsEditingDescription(false);
-                    }
-                  }}
-                  autoFocus
-                  className="text-gray-600 mt-2 border-b-2 border-blue-500 bg-transparent outline-none w-full"
-                />
-              ) : (
-                <p
-                  className="text-gray-600 mt-2 cursor-pointer hover:bg-gray-100 inline-block px-2 rounded"
-                  onClick={() => setIsEditingDescription(true)}
-                  title="Click to edit description"
-                >
-                  {description}
-                </p>
-              )}
-            </header>
+    <>
+      {/* Sidebar Navigation */}
+      <Sidebar
+        currentDashboardId={currentDashboardId}
+        onSelectDashboard={setCurrentDashboardId}
+        onShareDashboard={handleShareDashboard}
+      />
 
-            {/* Dashboard Selector */}
-            <div className="mt-4">
-              <DashboardSelector
-                currentDashboardId={currentDashboardId}
-                onSelectDashboard={setCurrentDashboardId}
-                onShareDashboard={handleShareDashboard}
-              />
-            </div>
-          </div>
-
-          {/* User Menu */}
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm font-medium text-gray-900">{user?.user_metadata?.name || user?.email}</p>
-              <p className="text-xs text-gray-500">{user?.email}</p>
-            </div>
-            {user?.user_metadata?.avatar_url && (
-              <img
-                src={user.user_metadata.avatar_url}
-                alt="Profile"
-                className="w-10 h-10 rounded-full"
-              />
-            )}
-            <button
-              onClick={handleSignOut}
-              className="px-3 py-1 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
+      {/* Main Content Area (with left margin for sidebar) */}
+      <div className="ml-64 min-h-screen bg-gray-50">
+        {/* Dashboard Header with Controls */}
+        {currentDashboard && (
+          <DashboardHeader
+            dashboardName={currentDashboard.name}
+            readOnly={readOnly}
+            onShowRangeModal={() => setShowRangeModal(true)}
+            onShowAggregationModal={() => setShowAggregationModal(true)}
+            onShowShadowModal={() => setShowShadowModal(true)}
+            onShowAnnotationModal={() => setShowAnnotationModal(true)}
+            onAddMetric={handleAddMetric}
+          />
+        )}
 
         {/* Share Modal */}
         {showShareModal && currentDashboard && (
@@ -394,28 +334,32 @@ export function DashboardPage() {
 
         {/* Single Metric Expanded View */}
         {viewMode === 'single-metric' && expandedMetric && (
-          <SingleMetricView
-            metric={expandedMetric}
-            globalSettings={globalSettings}
-            onClose={handleCloseExpandedView}
-            onMetricUpdate={handleMetricUpdate}
-          />
+          <div className="p-8">
+            <SingleMetricView
+              metric={expandedMetric}
+              globalSettings={globalSettings}
+              onClose={handleCloseExpandedView}
+              onMetricUpdate={handleMetricUpdate}
+            />
+          </div>
         )}
 
         {/* Grid View */}
         {viewMode === 'grid' && (
-          <>
+          <div className="p-8">
             {metrics.length === 0 ? (
               <div className="space-y-4">
-                <CSVUpload onSeriesLoaded={handleSeriesLoaded} />
-                <div className="text-center">
-                  <p className="text-gray-600 mb-2">or</p>
-                  <button
-                    onClick={handleLoadSyntheticMetrics}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Load 10 Synthetic Metrics (2.5 years of data)
-                  </button>
+                <div className="bg-white rounded-lg shadow p-8">
+                  <CSVUpload onSeriesLoaded={handleSeriesLoaded} />
+                  <div className="text-center mt-6">
+                    <p className="text-gray-600 mb-2">or</p>
+                    <button
+                      onClick={handleLoadSyntheticMetrics}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Load 10 Synthetic Metrics (2.5 years of data)
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -449,6 +393,15 @@ export function DashboardPage() {
                   onAnnotationsChange={handleAnnotationsChange}
                   onAddMetric={handleAddMetric}
                   onClearAllMetrics={handleClearAllMetrics}
+                  // Pass modal state handlers for header controls
+                  showRangeModal={showRangeModal}
+                  onCloseRangeModal={() => setShowRangeModal(false)}
+                  showAggregationModal={showAggregationModal}
+                  onCloseAggregationModal={() => setShowAggregationModal(false)}
+                  showShadowModal={showShadowModal}
+                  onCloseShadowModal={() => setShowShadowModal(false)}
+                  showAnnotationModal={showAnnotationModal}
+                  onCloseAnnotationModal={() => setShowAnnotationModal(false)}
                 />
 
                 {/* Add Metric Modal */}
@@ -485,9 +438,9 @@ export function DashboardPage() {
                 )}
               </>
             )}
-          </>
+          </div>
         )}
       </div>
-    </div>
+    </>
   );
 }
