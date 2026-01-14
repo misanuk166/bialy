@@ -7,6 +7,7 @@ import type { Dashboard } from '../types/dashboard';
 interface SidebarProps {
   currentDashboardId: string | null;
   onShareDashboard: (dashboard: Dashboard) => void;
+  onCollapseChange?: (collapsed: boolean) => void;
 }
 
 // Generate initials from dashboard name (1-3 letters)
@@ -56,11 +57,18 @@ function getDashboardColor(id: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-export function Sidebar({ currentDashboardId, onShareDashboard }: SidebarProps) {
+export function Sidebar({ currentDashboardId, onShareDashboard, onCollapseChange }: SidebarProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const toggleCollapse = () => {
+    const newCollapsed = !isCollapsed;
+    setIsCollapsed(newCollapsed);
+    onCollapseChange?.(newCollapsed);
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -127,147 +135,209 @@ export function Sidebar({ currentDashboardId, onShareDashboard }: SidebarProps) 
   const currentDashboard = dashboards.find(d => d.id === currentDashboardId);
 
   return (
-    <div className="fixed left-0 top-0 w-64 h-screen bg-gradient-to-b from-slate-800 to-slate-900 border-r border-gray-700 flex flex-col z-50 shadow-xl">
+    <div className={`fixed left-0 top-0 h-screen bg-gradient-to-b from-slate-800 to-slate-900 border-r border-gray-700 flex flex-col z-50 shadow-xl transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'}`}>
       {/* App Logo/Header */}
       <div className="px-6 py-5 border-b border-gray-700">
-        <div className="flex items-center gap-3">
-          <span className="text-3xl">📊</span>
-          <span className="text-xl font-bold text-white tracking-tight">Bialy</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">📊</span>
+            {!isCollapsed && <span className="text-xl font-bold text-white tracking-tight">Bialy</span>}
+          </div>
+
+          {/* Collapse/Expand Toggle Button */}
+          <button
+            onClick={toggleCollapse}
+            className="p-2 hover:bg-slate-700 rounded-lg transition-colors text-gray-300 hover:text-white"
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {isCollapsed ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              )}
+            </svg>
+          </button>
         </div>
       </div>
 
       {/* Sidebar Content */}
       <div className="flex-1 overflow-y-auto px-3 py-4">
-        {/* Recents Section */}
-        <div className="mb-6">
-          <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-3 pb-2">
-            Recents
-          </div>
-          <div className="space-y-0.5">
+        {!isCollapsed ? (
+          <>
+            {/* Recents Section - Expanded */}
+            <div className="mb-6">
+              <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-3 pb-2">
+                Recents
+              </div>
+              <div className="space-y-0.5">
+                {dashboards.slice(0, 3).map((dashboard) => {
+                  const initials = getDashboardInitials(dashboard.name);
+                  const colorClass = getDashboardColor(dashboard.id);
+                  const isActive = dashboard.id === currentDashboardId;
+
+                  return (
+                    <div
+                      key={dashboard.id}
+                      className="relative group"
+                    >
+                      <button
+                        onClick={() => navigate(`/?dashboard=${dashboard.id}`)}
+                        className={`
+                          w-full flex items-center gap-3 px-3 py-2.5 rounded-lg
+                          transition-all text-left
+                          ${isActive
+                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30'
+                            : 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
+                          }
+                        `}
+                      >
+                        <div
+                          className={`
+                            w-8 h-8 rounded-md flex items-center justify-center
+                            text-white text-xs font-bold
+                            ${isActive ? 'bg-white/20' : colorClass}
+                          `}
+                        >
+                          {initials}
+                        </div>
+                        <span className="flex-1 text-sm font-medium truncate">
+                          {dashboard.name}
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteDashboard(dashboard.id, dashboard.name);
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400"
+                        title="Delete dashboard"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={handleCreateDashboard}
+                disabled={isCreating}
+                className="w-full mt-2 flex items-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-gray-600 text-gray-400 hover:bg-gray-700/30 hover:border-gray-500 hover:text-gray-300 transition-all text-sm disabled:opacity-50"
+              >
+                <span>+</span>
+                <span>New Dashboard</span>
+              </button>
+            </div>
+
+            {/* Workspace Section */}
+            <div className="mb-6">
+              <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-3 pb-2">
+                Workspace
+              </div>
+              <div className="space-y-0.5">
+                <button
+                  onClick={() => navigate('/dashboards')}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm"
+                >
+                  <span className="text-lg">🏢</span>
+                  <span>My Dashboards</span>
+                </button>
+                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm">
+                  <span className="text-lg">👥</span>
+                  <span>Shared with Me</span>
+                </button>
+                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm">
+                  <span className="text-lg">⭐</span>
+                  <span>Favorites</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Settings Section */}
+            <div className="mb-6">
+              <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-3 pb-2">
+                Settings
+              </div>
+              <div className="space-y-0.5">
+                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm">
+                  <span className="text-lg">⚙️</span>
+                  <span>Dashboard Settings</span>
+                </button>
+                <button
+                  onClick={() => {
+                    if (currentDashboard) {
+                      onShareDashboard(currentDashboard);
+                    }
+                  }}
+                  disabled={!currentDashboard}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="text-lg">🔗</span>
+                  <span>Share & Permissions</span>
+                </button>
+                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm">
+                  <span className="text-lg">📤</span>
+                  <span>Export Data</span>
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Collapsed View - Show only icons */
+          <div className="space-y-2">
             {dashboards.slice(0, 3).map((dashboard) => {
               const initials = getDashboardInitials(dashboard.name);
               const colorClass = getDashboardColor(dashboard.id);
               const isActive = dashboard.id === currentDashboardId;
 
               return (
-                <div
+                <button
                   key={dashboard.id}
-                  className="relative group"
+                  onClick={() => navigate(`/?dashboard=${dashboard.id}`)}
+                  className={`
+                    w-full flex items-center justify-center p-2 rounded-lg
+                    transition-all
+                    ${isActive
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30'
+                      : 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
+                    }
+                  `}
+                  title={dashboard.name}
                 >
-                  <button
-                    onClick={() => navigate(`/?dashboard=${dashboard.id}`)}
+                  <div
                     className={`
-                      w-full flex items-center gap-3 px-3 py-2.5 rounded-lg
-                      transition-all text-left
-                      ${isActive
-                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30'
-                        : 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
-                      }
+                      w-8 h-8 rounded-md flex items-center justify-center
+                      text-white text-xs font-bold
+                      ${isActive ? 'bg-white/20' : colorClass}
                     `}
                   >
-                    {/* Dashboard Badge with Initials */}
-                    <div
-                      className={`
-                        w-8 h-8 rounded-md flex items-center justify-center
-                        text-white text-xs font-bold
-                        ${isActive ? 'bg-white/20' : colorClass}
-                      `}
-                    >
-                      {initials}
-                    </div>
-                    <span className="flex-1 text-sm font-medium truncate">
-                      {dashboard.name}
-                    </span>
-                  </button>
-
-                  {/* Delete Button (appears on hover) */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteDashboard(dashboard.id, dashboard.name);
-                    }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400"
-                    title="Delete dashboard"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
+                    {initials}
+                  </div>
+                </button>
               );
             })}
-          </div>
-
-          {/* Add Dashboard Button */}
-          <button
-            onClick={handleCreateDashboard}
-            disabled={isCreating}
-            className="w-full mt-2 flex items-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-gray-600 text-gray-400 hover:bg-gray-700/30 hover:border-gray-500 hover:text-gray-300 transition-all text-sm disabled:opacity-50"
-          >
-            <span>+</span>
-            <span>New Dashboard</span>
-          </button>
-        </div>
-
-        {/* Workspace Section */}
-        <div className="mb-6">
-          <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-3 pb-2">
-            Workspace
-          </div>
-          <div className="space-y-0.5">
             <button
-              onClick={() => navigate('/dashboards')}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm"
+              onClick={handleCreateDashboard}
+              disabled={isCreating}
+              className="w-full flex items-center justify-center p-2 rounded-lg border border-dashed border-gray-600 text-gray-400 hover:bg-gray-700/30 hover:border-gray-500 hover:text-gray-300 transition-all disabled:opacity-50"
+              title="New Dashboard"
             >
-              <span className="text-lg">🏢</span>
-              <span>My Dashboards</span>
-            </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm">
-              <span className="text-lg">👥</span>
-              <span>Shared with Me</span>
-            </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm">
-              <span className="text-lg">⭐</span>
-              <span>Favorites</span>
+              <span className="text-xl">+</span>
             </button>
           </div>
-        </div>
-
-        {/* Settings Section */}
-        <div className="mb-6">
-          <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-3 pb-2">
-            Settings
-          </div>
-          <div className="space-y-0.5">
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm">
-              <span className="text-lg">⚙️</span>
-              <span>Dashboard Settings</span>
-            </button>
-            <button
-              onClick={() => {
-                if (currentDashboard) {
-                  onShareDashboard(currentDashboard);
-                }
-              }}
-              disabled={!currentDashboard}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className="text-lg">🔗</span>
-              <span>Share & Permissions</span>
-            </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm">
-              <span className="text-lg">📤</span>
-              <span>Export Data</span>
-            </button>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* User Profile Footer */}
-      <div className="px-4 py-4 border-t border-gray-700">
+      <div className={`py-4 border-t border-gray-700 ${isCollapsed ? 'px-2' : 'px-4'}`}>
         <button
           onClick={signOut}
-          className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-700/50 transition-all"
+          className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-700/50 transition-all ${isCollapsed ? 'justify-center' : ''}`}
+          title={isCollapsed ? `Sign out (${user?.email})` : undefined}
         >
           {user?.user_metadata?.avatar_url ? (
             <img
@@ -280,12 +350,14 @@ export function Sidebar({ currentDashboardId, onShareDashboard }: SidebarProps) 
               {(user?.user_metadata?.name?.[0] || user?.email?.[0] || 'U').toUpperCase()}
             </div>
           )}
-          <div className="flex-1 text-left overflow-hidden">
-            <div className="text-sm font-semibold text-white truncate">
-              {user?.user_metadata?.name || user?.email?.split('@')[0]}
+          {!isCollapsed && (
+            <div className="flex-1 text-left overflow-hidden">
+              <div className="text-sm font-semibold text-white truncate">
+                {user?.user_metadata?.name || user?.email?.split('@')[0]}
+              </div>
+              <div className="text-xs text-gray-400 truncate">{user?.email}</div>
             </div>
-            <div className="text-xs text-gray-400 truncate">{user?.email}</div>
-          </div>
+          )}
         </button>
       </div>
     </div>

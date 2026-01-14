@@ -9,6 +9,7 @@ import type {
 } from '../types/dashboard';
 import type { MetricConfig, GlobalSettings } from '../types/appState';
 import type { Series } from '../types/series';
+import { DEFAULT_SELECTION_COMPARISONS, DEFAULT_FOCUS_COMPARISONS } from '../types/comparison';
 
 /**
  * Fetch all dashboards accessible to the current user
@@ -283,12 +284,17 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
     averageShadows: false,
     focusPeriod: { enabled: false },
     dateRange: { preset: 'all' },
-    comparisons: [],
+    comparisons: [...DEFAULT_SELECTION_COMPARISONS, ...DEFAULT_FOCUS_COMPARISONS],
     selectionIncludesForecast: false,
     focusIncludesForecast: false,
     annotations: [],
     annotationsEnabled: false
   };
+
+  // Ensure comparisons exist even if loaded from old data
+  if (!globalSettings.comparisons || globalSettings.comparisons.length === 0) {
+    globalSettings.comparisons = [...DEFAULT_SELECTION_COMPARISONS, ...DEFAULT_FOCUS_COMPARISONS];
+  }
 
   // Deserialize focus period dates (they're stored as strings in JSON)
   if (globalSettings.focusPeriod?.startDate) {

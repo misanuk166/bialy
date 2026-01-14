@@ -54,6 +54,7 @@ export function DashboardPage() {
   const [expandedMetricId, setExpandedMetricId] = useState<string | null>(null);
   const [showAddMetricModal, setShowAddMetricModal] = useState(false);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Modal states for header controls
   const [showRangeModal, setShowRangeModal] = useState(false);
@@ -152,6 +153,20 @@ export function DashboardPage() {
           confidenceLevel: 95
         }
       };
+
+      // Add default shadow (1 year ago) when adding the first metric
+      if (prevMetrics.length === 0) {
+        setGlobalSettings(prev => ({
+          ...prev,
+          shadows: [{
+            id: crypto.randomUUID(),
+            enabled: true,
+            periods: 1,
+            unit: 'year',
+            label: '1 year ago'
+          }]
+        }));
+      }
 
       return [...prevMetrics, newMetric];
     });
@@ -328,10 +343,11 @@ export function DashboardPage() {
       <Sidebar
         currentDashboardId={currentDashboardId}
         onShareDashboard={handleShareDashboard}
+        onCollapseChange={setIsSidebarCollapsed}
       />
 
       {/* Main Content Area (with left margin for sidebar) */}
-      <div className="ml-64 min-h-screen bg-gray-50">
+      <div className={`min-h-screen bg-white transition-all duration-300 pl-4 ${isSidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
         {/* Dashboard Header with Controls */}
         {currentDashboard && (
           <DashboardHeader
@@ -362,7 +378,7 @@ export function DashboardPage() {
 
         {/* Single Metric Expanded View */}
         {viewMode === 'single-metric' && expandedMetric && (
-          <div className="p-8">
+          <div>
             <SingleMetricView
               metric={expandedMetric}
               globalSettings={globalSettings}
@@ -374,9 +390,9 @@ export function DashboardPage() {
 
         {/* Grid View */}
         {viewMode === 'grid' && (
-          <div className="p-8">
+          <div>
             {metrics.length === 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-4 mx-8 mt-6 mb-8">
                 <div className="bg-white rounded-lg shadow p-8">
                   <CSVUpload onSeriesLoaded={handleSeriesLoaded} />
                   <div className="text-center mt-6">
