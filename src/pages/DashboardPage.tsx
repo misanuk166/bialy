@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { CSVUpload } from '../components/CSVUpload';
 import { MetricGrid } from '../components/MetricGrid';
@@ -60,6 +60,12 @@ export function DashboardPage() {
   const [showAggregationModal, setShowAggregationModal] = useState(false);
   const [showShadowModal, setShowShadowModal] = useState(false);
   const [showAnnotationModal, setShowAnnotationModal] = useState(false);
+
+  // Refs for header control buttons (for modal positioning)
+  const rangeButtonRef = useRef<HTMLButtonElement>(null);
+  const aggregationButtonRef = useRef<HTMLButtonElement>(null);
+  const shadowButtonRef = useRef<HTMLButtonElement>(null);
+  const annotationButtonRef = useRef<HTMLButtonElement>(null);
 
   // Read dashboard ID from URL query parameter on mount
   useEffect(() => {
@@ -338,6 +344,10 @@ export function DashboardPage() {
             onShowAnnotationModal={() => setShowAnnotationModal(true)}
             onAddMetric={handleAddMetric}
             onUpdateDashboard={handleDashboardMetadataUpdate}
+            rangeButtonRef={rangeButtonRef}
+            aggregationButtonRef={aggregationButtonRef}
+            shadowButtonRef={shadowButtonRef}
+            annotationButtonRef={annotationButtonRef}
           />
         )}
 
@@ -420,6 +430,11 @@ export function DashboardPage() {
                   onCloseShadowModal={() => setShowShadowModal(false)}
                   showAnnotationModal={showAnnotationModal}
                   onCloseAnnotationModal={() => setShowAnnotationModal(false)}
+                  // Pass button refs for modal positioning
+                  rangeButtonRef={rangeButtonRef}
+                  aggregationButtonRef={aggregationButtonRef}
+                  shadowButtonRef={shadowButtonRef}
+                  annotationButtonRef={annotationButtonRef}
                 />
 
                 {/* Add Metric Modal */}

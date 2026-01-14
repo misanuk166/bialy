@@ -10,6 +10,10 @@ interface DashboardHeaderProps {
   onShowAnnotationModal: () => void;
   onAddMetric: () => void;
   onUpdateDashboard: (updates: { name?: string; description?: string }) => void;
+  rangeButtonRef?: React.RefObject<HTMLButtonElement | null>;
+  aggregationButtonRef?: React.RefObject<HTMLButtonElement | null>;
+  shadowButtonRef?: React.RefObject<HTMLButtonElement | null>;
+  annotationButtonRef?: React.RefObject<HTMLButtonElement | null>;
 }
 
 export function DashboardHeader({
@@ -21,7 +25,11 @@ export function DashboardHeader({
   onShowShadowModal,
   onShowAnnotationModal,
   onAddMetric,
-  onUpdateDashboard
+  onUpdateDashboard,
+  rangeButtonRef,
+  aggregationButtonRef,
+  shadowButtonRef,
+  annotationButtonRef
 }: DashboardHeaderProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -106,6 +114,7 @@ export function DashboardHeader({
         {!readOnly && (
           <div className="flex items-center gap-2">
             <button
+              ref={rangeButtonRef}
               onClick={onShowRangeModal}
               className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center gap-1.5"
               title="Configure date range"
@@ -115,6 +124,7 @@ export function DashboardHeader({
             </button>
 
             <button
+              ref={aggregationButtonRef}
               onClick={onShowAggregationModal}
               className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center gap-1.5"
               title="Configure aggregation"
@@ -124,6 +134,7 @@ export function DashboardHeader({
             </button>
 
             <button
+              ref={shadowButtonRef}
               onClick={onShowShadowModal}
               className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center gap-1.5"
               title="Manage shadows"
@@ -133,6 +144,7 @@ export function DashboardHeader({
             </button>
 
             <button
+              ref={annotationButtonRef}
               onClick={onShowAnnotationModal}
               className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center gap-1.5"
               title="Manage annotations"
