@@ -140,7 +140,10 @@ export function Sidebar({ currentDashboardId, onShareDashboard, onCollapseChange
       <div className="px-6 py-5 border-b border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">📊</span>
+            <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 20l4-5 4 1 5-6 5-3" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 19l4-2 4 3 5-4 5 2" opacity="0.5" />
+            </svg>
             {!isCollapsed && <span className="text-xl font-bold text-white tracking-tight">Bialy</span>}
           </div>
 
