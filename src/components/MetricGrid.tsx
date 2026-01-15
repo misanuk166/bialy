@@ -24,6 +24,7 @@ import { RangeControls, type DateRange } from './RangeControls';
 import { ComparisonControls } from './ComparisonControls';
 import { AnnotationControls } from './AnnotationControls';
 import { ForecastControls } from './ForecastControls';
+import { DateRangeSlider } from './DateRangeSlider';
 import type { MetricConfig, GlobalSettings, ColumnKey } from '../types/appState';
 import type { FocusPeriod } from '../types/focusPeriod';
 import type { AggregationConfig } from '../utils/aggregation';
@@ -613,6 +614,17 @@ export function MetricGrid({
   const getRangeLabel = useMemo(() => {
     const range = globalSettings.dateRange;
 
+    // Always show actual date range if we have data extent
+    if (dataExtent) {
+      const filteredRange = calculateDateRange(range, dataExtent);
+      if (filteredRange) {
+        const start = filteredRange[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const end = filteredRange[1].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        return `${start} - ${end}`;
+      }
+    }
+
+    // Fallback for when no data extent is available
     if (!range || range.preset === 'all') {
       return 'All Data';
     }
@@ -632,7 +644,7 @@ export function MetricGrid({
     }
 
     return 'Range';
-  }, [globalSettings.dateRange]);
+  }, [globalSettings.dateRange, dataExtent]);
 
   const handleColumnHeaderClick = (columnKey: ColumnKey) => {
     if (sortColumn === columnKey) {
@@ -944,9 +956,7 @@ export function MetricGrid({
     `${columnWidths.group}px`,  // Group name
     `${columnWidths.metricIndex}px`,  // Metric index
     `${columnWidths.name}px`, // Metric name
-    `${columnWidths.chart / 3}px`, // Chart column 1 (Aggregation)
-    `${columnWidths.chart / 3}px`, // Chart column 2 (Shadow)
-    `${columnWidths.chart / 3}px`, // Chart column 3 (Annotations)
+    `${columnWidths.chart}px`, // Chart column (Date Range Slider)
     `${columnWidths.selectionMean}px`, // Selection Mean/Range
     ...selectionComparisons.map(() => `${columnWidths.comparison}px`), // Selection comparisons
     `${columnWidths.focusMean}px`, // Focus Mean/Range
@@ -1078,7 +1088,7 @@ export function MetricGrid({
             />
           </div>
           {/* Range */}
-          <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300 relative">
+          <div className="px-1.5 text-sm font-bold text-gray-800 text-center border-r border-gray-300 relative flex items-center justify-center">
             <span>{getRangeLabel}</span>
             <ColumnResizeHandle
               columnKey="chart"
@@ -1237,20 +1247,14 @@ export function MetricGrid({
           </div>
           )}
 
-          {/* Chart Column Sub-headers - these 3 columns share the chart area width equally */}
-          {/* Aggregation */}
-          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center">
-            <span>Aggregation</span>
-          </div>
-
-          {/* Shadow */}
-          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center">
-            <span>Shadow</span>
-          </div>
-
-          {/* Annotations */}
-          <div className="px-1.5 text-xs font-semibold text-gray-700 text-center border-r border-gray-300 relative">
-            <span>Annotations</span>
+          {/* Date Range Slider - replaces Aggregation, Shadow, Annotations buttons */}
+          <div className="border-r border-gray-300 relative bg-gray-50">
+            <DateRangeSlider
+              dateRange={globalSettings.dateRange || { preset: 'all' }}
+              dataExtent={dataExtent}
+              onChange={onDateRangeChange}
+              readOnly={readOnly}
+            />
             <ColumnResizeHandle
               columnKey="chart"
               onResize={handleColumnResize}
