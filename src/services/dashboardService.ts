@@ -243,7 +243,7 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
       // Deserialize goal dates
       // Handle both old format (array) and new format (object with goals + goalsEnabled)
       const goalsRaw = Array.isArray(goalsConfigRaw) ? goalsConfigRaw : goalsConfigRaw?.goals;
-      const goals = goalsRaw?.map(goal => ({
+      const goals = goalsRaw?.map((goal: any) => ({
         ...goal,
         startDate: goal.startDate ? new Date(goal.startDate) : undefined,
         endDate: goal.endDate ? new Date(goal.endDate) : undefined
