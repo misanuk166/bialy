@@ -333,32 +333,34 @@ export function ComparisonControls({
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                Start Date
-              </label>
-              <input
-                type="date"
-                value={focusStartDate}
-                onChange={(e) => setFocusStartDate(e.target.value)}
-                min={dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined}
-                max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
-                className="w-full text-sm border border-gray-300 rounded px-2 py-1"
-              />
-            </div>
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={focusStartDate}
+                  onChange={(e) => setFocusStartDate(e.target.value)}
+                  min={dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined}
+                  max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
+                  className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+                />
+              </div>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                End Date
-              </label>
-              <input
-                type="date"
-                value={focusEndDate}
-                onChange={(e) => setFocusEndDate(e.target.value)}
-                min={focusStartDate || (dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined)}
-                max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
-                className="w-full text-sm border border-gray-300 rounded px-2 py-1"
-              />
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  value={focusEndDate}
+                  onChange={(e) => setFocusEndDate(e.target.value)}
+                  min={focusStartDate || (dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined)}
+                  max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
+                  className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+                />
+              </div>
             </div>
 
             <div className="flex gap-2 pt-2">
