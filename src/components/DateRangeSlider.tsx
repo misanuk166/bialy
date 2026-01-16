@@ -194,12 +194,6 @@ export function DateRangeSlider({ dateRange, dataExtent, onChange, readOnly = fa
   // Check if labels would overlap (within 10% of slider width)
   const labelsOverlap = Math.abs(endPercent - startPercent) < 10;
 
-  // Generate tick marks (show monthly ticks)
-  const tickMarks = dates.filter((date, idx) => {
-    if (idx === 0 || idx === dates.length - 1) return true;
-    return date.getDate() === 1; // First day of month
-  });
-
   return (
     <div className="w-full px-4 py-1.5">
       {/* Slider */}

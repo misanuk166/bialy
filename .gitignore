@@ -33,3 +33,4 @@ docs/SETUP_COMPLETE.md
 playwright-report/
 test-results/
 test-data/
+.vercel
