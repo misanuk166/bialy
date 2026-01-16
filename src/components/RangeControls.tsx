@@ -43,11 +43,18 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
         endDate: range.endDate
       });
     } else if (preset === 'all') {
-      // All Data - use undefined to signal full data extent
+      // All Data - use data extent if available
+      const startDate = dataExtent ? dataExtent[0] : undefined;
+      const endDate = dataExtent ? dataExtent[1] : undefined;
+
+      // Update local state
+      setLocalStartDate(startDate ? startDate.toISOString().split('T')[0] : '');
+      setLocalEndDate(endDate ? endDate.toISOString().split('T')[0] : '');
+
       onChange({
         preset: 'all',
-        startDate: undefined,
-        endDate: undefined
+        startDate,
+        endDate
       });
     } else {
       // Calculate date ranges based on preset
@@ -78,6 +85,10 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
       }
 
       startDate.setHours(0, 0, 0, 0);
+
+      // Update local state
+      setLocalStartDate(startDate.toISOString().split('T')[0]);
+      setLocalEndDate(endDate.toISOString().split('T')[0]);
 
       onChange({
         preset,
@@ -163,37 +174,35 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
         </div>
       </div>
 
-      {/* Custom Date Range */}
-      {range.preset === 'custom' && (
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Start Date
-            </label>
-            <input
-              type="date"
-              value={localStartDate}
-              onChange={(e) => handleCustomDateChange('start', e.target.value)}
-              min={dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined}
-              max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
-              className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              End Date
-            </label>
-            <input
-              type="date"
-              value={localEndDate}
-              onChange={(e) => handleCustomDateChange('end', e.target.value)}
-              min={dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined}
-              max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
-              className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
-            />
-          </div>
+      {/* Date Range - Always Visible */}
+      <div className="flex gap-3">
+        <div className="flex-1">
+          <label className="block text-xs font-medium text-gray-700 mb-1">
+            Start Date
+          </label>
+          <input
+            type="date"
+            value={localStartDate}
+            onChange={(e) => handleCustomDateChange('start', e.target.value)}
+            min={dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined}
+            max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
+            className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
+          />
         </div>
-      )}
+        <div className="flex-1">
+          <label className="block text-xs font-medium text-gray-700 mb-1">
+            End Date
+          </label>
+          <input
+            type="date"
+            value={localEndDate}
+            onChange={(e) => handleCustomDateChange('end', e.target.value)}
+            min={dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined}
+            max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
+            className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
+          />
+        </div>
+      </div>
     </div>
   );
 }
