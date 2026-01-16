@@ -165,8 +165,8 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
 
       {/* Custom Date Range */}
       {range.preset === 'custom' && (
-        <div className="space-y-2">
-          <div>
+        <div className="flex gap-3">
+          <div className="flex-1">
             <label className="block text-xs font-medium text-gray-700 mb-1">
               Start Date
             </label>
@@ -179,7 +179,7 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
               className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
             />
           </div>
-          <div>
+          <div className="flex-1">
             <label className="block text-xs font-medium text-gray-700 mb-1">
               End Date
             </label>
