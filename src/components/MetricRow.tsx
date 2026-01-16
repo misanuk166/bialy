@@ -463,6 +463,7 @@ export const MetricRow = memo(function MetricRow({
             series={metric.series}
             aggregationConfig={globalSettings.aggregation}
             shadows={globalSettings.shadows}
+            shadowsEnabled={globalSettings.shadowsEnabled}
             averageShadows={globalSettings.averageShadows}
             forecastConfig={metric.forecast}
             forecastSnapshot={metric.forecastSnapshot}

@@ -14,6 +14,7 @@ import type { Annotation } from './annotation';
 export interface GlobalSettings {
   aggregation?: AggregationConfig;
   shadows?: Shadow[];
+  shadowsEnabled?: boolean;
   averageShadows?: boolean;
   focusPeriod?: FocusPeriod;
   dateRange?: DateRange;

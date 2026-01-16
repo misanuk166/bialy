@@ -49,7 +49,7 @@ interface MetricGridProps {
   onMetricRemove: (metricId: string) => void;
   onMetricExpand: (metricId: string) => void;
   onAggregationChange: (config: AggregationConfig) => void;
-  onShadowsChange: (shadows: Shadow[], averageShadows: boolean) => void;
+  onShadowsChange: (shadows: Shadow[], averageShadows: boolean, shadowsEnabled: boolean) => void;
   onFocusPeriodChange: (focusPeriod: FocusPeriod) => void;
   onDateRangeChange: (range: DateRange) => void;
   onComparisonsChange: (comparisons: ComparisonConfig[]) => void;
@@ -1446,8 +1446,10 @@ export function MetricGrid({
           <ShadowControls
             shadows={globalSettings.shadows || []}
             averageTogether={globalSettings.averageShadows || false}
-            onChange={(shadows) => onShadowsChange(shadows, globalSettings.averageShadows || false)}
-            onAverageTogetherChange={(enabled) => onShadowsChange(globalSettings.shadows || [], enabled)}
+            onChange={(shadows) => onShadowsChange(shadows, globalSettings.averageShadows || false, globalSettings.shadowsEnabled !== false)}
+            onAverageTogetherChange={(avg) => onShadowsChange(globalSettings.shadows || [], avg, globalSettings.shadowsEnabled !== false)}
+            enabled={globalSettings.shadowsEnabled !== false}
+            onEnabledChange={(enabled) => onShadowsChange(globalSettings.shadows || [], globalSettings.averageShadows || false, enabled)}
           />
           <button
             onClick={() => setShowShadowModal(false)}
@@ -1465,8 +1467,10 @@ export function MetricGrid({
           className="fixed bg-white border border-gray-300 rounded-lg p-4 shadow-xl z-50"
           style={{
             top: annotationButtonRef?.current ? annotationButtonRef.current.getBoundingClientRect().bottom + 5 : '50%',
-            left: annotationButtonRef?.current ? annotationButtonRef.current.getBoundingClientRect().left : '50%',
-            width: '400px',
+            right: annotationButtonRef?.current
+              ? `${window.innerWidth - annotationButtonRef.current.getBoundingClientRect().right}px`
+              : 'auto',
+            width: '320px',
             maxHeight: '80vh',
             overflowY: 'auto'
           }}

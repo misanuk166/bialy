@@ -24,22 +24,34 @@ export function AggregateControls({ config, onChange }: AggregateControlsProps) 
     onChange({ ...config, groupByPeriod: e.target.value as GroupByPeriod, enabled: true });
   };
 
-  const handleDisable = () => {
-    onChange({ ...config, enabled: false });
+  const handleToggle = () => {
+    onChange({ ...config, enabled: !config.enabled });
   };
-
-  // Auto-enable aggregation with default settings if not already enabled
-  // This matches the behavior of ShadowControls
-  React.useEffect(() => {
-    if (!config.enabled) {
-      // Enable with current config (which has default values)
-      onChange({ ...config, enabled: true });
-    }
-  }, []); // Only run once on mount
 
   return (
     <div className="space-y-3">
-      <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium text-gray-700">
+          Enable Aggregation
+        </label>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            checked={config.enabled}
+            onChange={handleToggle}
+            className="sr-only peer"
+          />
+          <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+        </label>
+      </div>
+
+      <div className="h-px bg-gray-200"></div>
+
+      <div className={`space-y-3 relative transition-opacity ${!config.enabled ? 'opacity-50 pointer-events-none' : ''}`}>
+        {!config.enabled && (
+          <div className="absolute inset-0 bg-white/60 rounded z-10"></div>
+        )}
+
         {/* Mode Selection */}
         <div className="space-y-1">
           <label className="block text-xs font-medium text-gray-700">
@@ -124,16 +136,6 @@ export function AggregateControls({ config, onChange }: AggregateControlsProps) 
           </div>
         )}
       </div>
-
-      {/* Disable Button */}
-      {config.enabled && (
-        <button
-          onClick={handleDisable}
-          className="w-full text-xs px-2 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-        >
-          Disable Aggregation
-        </button>
-      )}
     </div>
   );
 }

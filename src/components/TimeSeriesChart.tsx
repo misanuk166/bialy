@@ -21,6 +21,7 @@ interface TimeSeriesChartProps {
   series: Series;
   aggregationConfig?: AggregationConfig;
   shadows?: Shadow[];
+  shadowsEnabled?: boolean;
   averageShadows?: boolean;
   goals?: Goal[];
   forecastConfig?: ForecastConfig;
@@ -242,6 +243,7 @@ export function TimeSeriesChart({
   series,
   aggregationConfig,
   shadows = [],
+  shadowsEnabled = true,
   averageShadows = false,
   goals = [],
   forecastConfig,
@@ -401,8 +403,8 @@ export function TimeSeriesChart({
     // Use displayData so gaps are detected in the currently displayed data (smoothed or raw)
     const dataWithGaps = fillGapsWithNulls(displayData);
 
-    // Generate shadow data
-    const shadowsData = generateShadowsData(series.data, shadows);
+    // Generate shadow data (only if shadows are enabled)
+    const shadowsData = shadowsEnabled ? generateShadowsData(series.data, shadows) : [];
 
     // Apply aggregation to shadow data if enabled
     const aggregatedShadowsData = aggregationConfig?.enabled
@@ -2173,14 +2175,14 @@ export function TimeSeriesChart({
         });
     }
 
-  }, [series, aggregationConfig, shadows, averageShadows, goals, forecastConfig, focusPeriod, currentDomain, chartWidth, height, selectedGoalIndex, annotationsEnabled, annotations, metricAnnotations]);
+  }, [series, aggregationConfig, shadows, shadowsEnabled, averageShadows, goals, forecastConfig, focusPeriod, currentDomain, chartWidth, height, selectedGoalIndex, annotationsEnabled, annotations, metricAnnotations]);
 
   // Update hover data when shadows or averageShadows change
   useEffect(() => {
     if (!hoverData) return;
 
-    // Recalculate shadow data
-    const shadowsData = generateShadowsData(series.data, shadows);
+    // Recalculate shadow data (only if shadows are enabled)
+    const shadowsData = shadowsEnabled ? generateShadowsData(series.data, shadows) : [];
 
     // Apply aggregation to shadow data if enabled
     const aggregatedShadowsData = aggregationConfig?.enabled
@@ -2227,7 +2229,7 @@ export function TimeSeriesChart({
       shadowValue,
       shadowLabel
     });
-  }, [shadows, series.data, averageShadows, aggregationConfig]);
+  }, [shadows, shadowsEnabled, series.data, averageShadows, aggregationConfig]);
 
   const handleNameSave = () => {
     if (onSeriesUpdate && editedName.trim()) {

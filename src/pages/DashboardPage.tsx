@@ -200,8 +200,8 @@ export function DashboardPage() {
     setGlobalSettings(prev => ({ ...prev, aggregation: config }));
   };
 
-  const handleShadowsChange = (shadows: Shadow[], averageShadows: boolean) => {
-    setGlobalSettings(prev => ({ ...prev, shadows, averageShadows }));
+  const handleShadowsChange = (shadows: Shadow[], averageShadows: boolean, shadowsEnabled: boolean) => {
+    setGlobalSettings(prev => ({ ...prev, shadows, averageShadows, shadowsEnabled }));
   };
 
   const handleFocusPeriodChange = (focusPeriod: FocusPeriod) => {

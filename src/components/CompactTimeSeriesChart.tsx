@@ -20,6 +20,7 @@ interface CompactTimeSeriesChartProps {
   series: Series;
   aggregationConfig?: AggregationConfig;
   shadows?: Shadow[];
+  shadowsEnabled?: boolean;
   averageShadows?: boolean;
   forecastConfig?: ForecastConfig;
   forecastSnapshot?: ForecastSnapshot;
@@ -43,6 +44,7 @@ export function CompactTimeSeriesChart({
   series,
   aggregationConfig,
   shadows,
+  shadowsEnabled = true,
   averageShadows,
   forecastConfig,
   forecastSnapshot,
@@ -100,8 +102,8 @@ export function CompactTimeSeriesChart({
       d.date >= xDomain[0] && d.date <= xDomain[1]
     );
 
-    // Generate shadow data
-    const shadowsData = shadows && shadows.length > 0 ? generateShadowsData(series.data, shadows) : [];
+    // Generate shadow data (only if shadows are enabled)
+    const shadowsData = shadowsEnabled && shadows && shadows.length > 0 ? generateShadowsData(series.data, shadows) : [];
 
     // Apply aggregation to shadow data if enabled
     const aggregatedShadowsData = aggregationConfig?.enabled
@@ -1069,7 +1071,7 @@ export function CompactTimeSeriesChart({
       hoverGroupForecast.style('opacity', 0);
     }
 
-  }, [series, aggregationConfig, shadows, averageShadows, forecastConfig, focusPeriod, goals, xDomain, width, height, showXAxis, selectionDate, currentHoverDate, onHover, onClick, onZoom]);
+  }, [series, aggregationConfig, shadows, shadowsEnabled, averageShadows, forecastConfig, focusPeriod, goals, xDomain, width, height, showXAxis, selectionDate, currentHoverDate, onHover, onClick, onZoom, annotationsEnabled, annotations, metricAnnotations]);
 
   return <svg ref={svgRef} className="w-full" style={{ overflow: 'visible' }} />;
 }

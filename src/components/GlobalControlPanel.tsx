@@ -12,7 +12,7 @@ interface GlobalControlPanelProps {
   settings: GlobalSettings;
   dataExtent?: [Date, Date];
   onAggregationChange: (config: AggregationConfig) => void;
-  onShadowsChange: (shadows: Shadow[], averageShadows: boolean) => void;
+  onShadowsChange: (shadows: Shadow[], averageShadows: boolean, enabled: boolean) => void;
   onFocusPeriodChange: (focusPeriod: FocusPeriod) => void;
   onAnnotationsChange: (annotations: Annotation[], enabled: boolean) => void;
 }
@@ -46,9 +46,11 @@ export function GlobalControlPanel({
           <h3 className="text-sm font-medium text-gray-700 mb-2">Shadows</h3>
           <ShadowControls
             shadows={settings.shadows || []}
-            onChange={(shadows) => onShadowsChange(shadows, settings.averageShadows || false)}
+            onChange={(shadows) => onShadowsChange(shadows, settings.averageShadows || false, settings.shadowsEnabled !== false)}
             averageTogether={settings.averageShadows || false}
-            onAverageTogetherChange={(avg) => onShadowsChange(settings.shadows || [], avg)}
+            onAverageTogetherChange={(avg) => onShadowsChange(settings.shadows || [], avg, settings.shadowsEnabled !== false)}
+            enabled={settings.shadowsEnabled !== false}
+            onEnabledChange={(enabled) => onShadowsChange(settings.shadows || [], settings.averageShadows || false, enabled)}
           />
         </div>
         <div>

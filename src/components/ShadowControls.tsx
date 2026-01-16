@@ -8,6 +8,8 @@ interface ShadowControlsProps {
   maxShadows?: number;
   averageTogether?: boolean;
   onAverageTogetherChange?: (enabled: boolean) => void;
+  enabled: boolean;
+  onEnabledChange: (enabled: boolean) => void;
 }
 
 export function ShadowControls({
@@ -15,7 +17,9 @@ export function ShadowControls({
   onChange,
   maxShadows = 10,
   averageTogether = false,
-  onAverageTogetherChange
+  onAverageTogetherChange,
+  enabled,
+  onEnabledChange
 }: ShadowControlsProps) {
   const [period, setPeriod] = React.useState(1);
   const [unit, setUnit] = React.useState<ShadowPeriodUnit>('year');
@@ -70,13 +74,34 @@ export function ShadowControls({
     generateShadows(period, unit, newCount);
   };
 
-  const handleDisable = () => {
-    onChange([]);
+  const handleToggle = () => {
+    onEnabledChange(!enabled);
   };
 
   return (
     <div className="space-y-3">
-      <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium text-gray-700">
+          Enable Shadows
+        </label>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={handleToggle}
+            className="sr-only peer"
+          />
+          <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+        </label>
+      </div>
+
+      <div className="h-px bg-gray-200"></div>
+
+      <div className={`space-y-2 relative transition-opacity ${!enabled ? 'opacity-50 pointer-events-none' : ''}`}>
+        {!enabled && (
+          <div className="absolute inset-0 bg-white/60 rounded z-10"></div>
+        )}
+
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
             Period
@@ -139,16 +164,6 @@ export function ShadowControls({
           </div>
         )}
       </div>
-
-      {/* Disable Button */}
-      {shadows.length > 0 && (
-        <button
-          onClick={handleDisable}
-          className="w-full text-xs px-2 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-        >
-          Disable Shadows
-        </button>
-      )}
     </div>
   );
 }
