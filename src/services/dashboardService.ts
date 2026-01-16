@@ -219,7 +219,7 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
       }
 
       // Extract configurations by type
-      const goalsRaw = metricConfigRecords.find(c => c.config_type === 'goal')?.config_data as any[] | undefined;
+      const goalsConfigRaw = metricConfigRecords.find(c => c.config_type === 'goal')?.config_data as any;
       const forecastConfigRaw = metricConfigRecords.find(c => c.config_type === 'forecast')?.config_data as any;
       const annotationsRaw = metricConfigRecords.find(c => c.config_type === 'annotation')?.config_data as any[] | undefined;
 
@@ -241,6 +241,9 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
       } : undefined;
 
       // Deserialize goal dates
+      // Handle both old format (array) and new format (object with goals + goalsEnabled)
+      const goalsRaw = Array.isArray(goalsConfigRaw) ? goalsConfigRaw : goalsConfigRaw?.goals;
+      const goalsEnabled = Array.isArray(goalsConfigRaw) ? false : (goalsConfigRaw?.goalsEnabled ?? false);
       const goals = goalsRaw?.map(goal => ({
         ...goal,
         startDate: goal.startDate ? new Date(goal.startDate) : undefined,
@@ -260,7 +263,7 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
         series,
         order: metric.order_index,
         goals: goals || [],
-        goalsEnabled: false,
+        goalsEnabled: goalsEnabled,
         forecast: forecast || { enabled: false, horizon: 90, seasonal: 'none', showConfidenceIntervals: true, confidenceLevel: 95 },
         forecastSnapshot,
         annotations,
@@ -614,7 +617,10 @@ export async function saveDashboardData(
           configRecords.push({
             metric_id: metricId,
             config_type: 'goal',
-            config_data: metric.goals
+            config_data: {
+              goals: metric.goals,
+              goalsEnabled: metric.goalsEnabled ?? false
+            }
           });
         }
 

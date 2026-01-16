@@ -396,14 +396,26 @@ export function CompactTimeSeriesChart({
       const goalsData = generateGoalsData(series.data, goals, forecastEndDate);
 
       goalsData.forEach(goalData => {
-        const goalValues = goalData.data
+        let goalValues = goalData.data
           .map(d => ({
             date: d.date,
             value: d.numerator / d.denominator
           }))
-          .filter(d => d.date >= xDomain[0] && d.date <= xDomain[1] && !isNaN(d.value) && isFinite(d.value));
+          .filter(d => !isNaN(d.value) && isFinite(d.value));
 
-        if (goalValues.length > 0) {
+        // For continuous goals, ensure we have at least 2 points spanning the visible domain
+        if (goalData.goal.type === 'continuous' && goalValues.length >= 2) {
+          const targetValue = goalValues[0].value;
+          goalValues = [
+            { date: xDomain[0], value: targetValue },
+            { date: xDomain[1], value: targetValue }
+          ];
+        } else {
+          // For end-of-period goals, filter to visible range
+          goalValues = goalValues.filter(d => d.date >= xDomain[0] && d.date <= xDomain[1]);
+        }
+
+        if (goalValues.length >= 2) {
           const goalLine = d3Line<{ date: Date; value: number }>()
             .x(d => xScale(d.date))
             .y(d => yScale(d.value))
