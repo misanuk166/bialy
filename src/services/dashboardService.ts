@@ -243,12 +243,15 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
       // Deserialize goal dates
       // Handle both old format (array) and new format (object with goals + goalsEnabled)
       const goalsRaw = Array.isArray(goalsConfigRaw) ? goalsConfigRaw : goalsConfigRaw?.goals;
-      const goalsEnabled = Array.isArray(goalsConfigRaw) ? false : (goalsConfigRaw?.goalsEnabled ?? false);
       const goals = goalsRaw?.map(goal => ({
         ...goal,
         startDate: goal.startDate ? new Date(goal.startDate) : undefined,
         endDate: goal.endDate ? new Date(goal.endDate) : undefined
       })) || [];
+      // Default goalsEnabled to true if goals exist, otherwise use saved value
+      const goalsEnabled = Array.isArray(goalsConfigRaw)
+        ? (goals.length > 0) // Old format: enable if goals exist
+        : (goalsConfigRaw?.goalsEnabled ?? (goals.length > 0)); // New format: use saved value or enable if goals exist
 
       // Deserialize annotation dates
       const annotations = annotationsRaw?.map(annotation => ({
@@ -619,7 +622,7 @@ export async function saveDashboardData(
             config_type: 'goal',
             config_data: {
               goals: metric.goals,
-              goalsEnabled: metric.goalsEnabled ?? false
+              goalsEnabled: metric.goalsEnabled ?? true // Default to true if goals exist
             }
           });
         }
