@@ -945,7 +945,7 @@ export function MetricGrid({
   ].filter(Boolean).join(' ');
 
   return (
-    <div className="w-full mx-8 mt-6 mb-8">
+    <div className="w-full px-8 mt-6 mb-8">
       {/* Column Headers - Sticky wrapper */}
       <div className="sticky top-0 bg-white border-b-2 border-gray-300 z-50 shadow-sm overflow-x-auto">
         <div className="w-full">
