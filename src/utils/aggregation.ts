@@ -19,6 +19,8 @@ export interface AggregationConfig {
  * Calculate rolling average for time series data
  * For rate metrics (numerator/denominator), we sum numerators and denominators
  * separately, then divide for the proper average rate
+ *
+ * OPTIMIZED: Uses sliding window approach - O(n) instead of O(n²)
  */
 export function calculateRollingAverage(
   data: TimeSeriesPoint[],
@@ -43,32 +45,33 @@ export function calculateRollingAverage(
     }
   };
 
+  // Sliding window approach - maintain a window of valid points
+  let windowStart = 0;
+  let sumNumerator = 0;
+  let sumDenominator = 0;
+
   // For each point, calculate the rolling average
   for (let i = 0; i < data.length; i++) {
     const currentDate = data[i].date;
     const startDate = getDateBefore(currentDate, period - 1);
 
-    // Find all points within the rolling window
-    let sumNumerator = 0;
-    let sumDenominator = 0;
-    let count = 0;
+    // Add current point to window
+    sumNumerator += data[i].numerator;
+    sumDenominator += data[i].denominator;
 
-    for (let j = 0; j <= i; j++) {
-      if (data[j].date >= startDate && data[j].date <= currentDate) {
-        sumNumerator += data[j].numerator;
-        sumDenominator += data[j].denominator;
-        count++;
-      }
+    // Remove points that are now outside the window (too old)
+    while (windowStart < i && data[windowStart].date < startDate) {
+      sumNumerator -= data[windowStart].numerator;
+      sumDenominator -= data[windowStart].denominator;
+      windowStart++;
     }
 
-    // Only add point if we have data in the window
-    if (count > 0) {
-      result.push({
-        date: currentDate,
-        numerator: sumNumerator,
-        denominator: sumDenominator
-      });
-    }
+    // Add result point with accumulated values
+    result.push({
+      date: currentDate,
+      numerator: sumNumerator,
+      denominator: sumDenominator
+    });
   }
 
   return result;

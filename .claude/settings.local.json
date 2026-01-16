@@ -47,7 +47,18 @@
       "WebFetch(domain:github.com)",
       "Bash(npm run test:*)",
       "Bash(git ls-tree:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(npx tsx:*)",
+      "Bash(git restore:*)",
+      "Bash(npx vercel inspect:*)",
+      "WebFetch(domain:vercel.com)",
+      "WebFetch(domain:bialy-9uh8xhbn7-matts-projects-c8eeb416.vercel.app)",
+      "Bash(npx vercel:*)",
+      "Read(//Users/misanuk/**)",
+      "Bash(vercel:*)",
+      "Bash(claude mcp add:*)",
+      "mcp__vercel__list_deployments",
+      "mcp__vercel__get_deployment_build_logs"
     ],
     "deny": [],
     "ask": []

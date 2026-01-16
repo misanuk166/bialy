@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { select, pointer } from 'd3-selection';
 import { scaleTime, scaleLinear } from 'd3-scale';
 import { axisBottom, axisLeft } from 'd3-axis';
@@ -302,6 +302,61 @@ export function TimeSeriesChart({
     return () => resizeObserver.disconnect();
   }, []);
 
+  // Memoize aggregation calculations to avoid recalculating on every render
+  const aggregatedDataMemo = useMemo(() => {
+    if (!aggregationConfig?.enabled) return null;
+
+    // Combine historical data with forecast for aggregation
+    const forecastAsTimeSeriesPoints: TimeSeriesPoint[] = forecastConfig?.enabled && forecastSnapshot
+      ? forecastSnapshot.values.map(f => ({
+          date: new Date(f.date),
+          numerator: f.value,
+          denominator: 1
+        }))
+      : [];
+
+    const combinedData = [...series.data, ...forecastAsTimeSeriesPoints];
+    const aggregatedData = applyAggregation(combinedData, aggregationConfig);
+
+    const aggregatedDataWithValues = aggregatedData.map(d => ({
+      date: d.date,
+      value: d.numerator / d.denominator
+    }));
+
+    // Determine the actual forecast start date
+    const forecastStartDate = forecastSnapshot && forecastSnapshot.values.length > 0
+      ? new Date(forecastSnapshot.values[0].date)
+      : null;
+
+    const aggregatedHistorical = aggregatedDataWithValues.filter(d => !forecastStartDate || d.date < forecastStartDate);
+    const aggregatedForecast = aggregatedDataWithValues.filter(d => forecastStartDate && d.date >= forecastStartDate);
+
+    return {
+      aggregatedData,
+      aggregatedDataWithValues,
+      aggregatedHistorical,
+      aggregatedForecast,
+      forecastStartDate
+    };
+  }, [series.data, aggregationConfig, forecastConfig?.enabled, forecastSnapshot]);
+
+  // Memoize shadow aggregation calculations
+  const aggregatedShadowsDataMemo = useMemo(() => {
+    if (!shadowsEnabled) return [];
+
+    const shadowsData = generateShadowsData(series.data, shadows);
+
+    if (!aggregationConfig?.enabled) {
+      return shadowsData;
+    }
+
+    return shadowsData.map(sd => ({
+      shadow: sd.shadow,
+      data: applyAggregation(sd.data, aggregationConfig),
+      color: sd.color
+    }));
+  }, [series.data, shadows, shadowsEnabled, aggregationConfig]);
+
   useEffect(() => {
     if (!svgRef.current || !series.data.length) return;
 
@@ -349,44 +404,11 @@ export function TimeSeriesChart({
       ...dataWithValues.slice(0, 100).map(d => getDecimalPrecision(d.value))
     ));
 
-    // Use forecast snapshot (only display pre-computed forecasts)
-    const forecastAsTimeSeriesPoints: TimeSeriesPoint[] = forecastConfig?.enabled && forecastSnapshot
-      ? forecastSnapshot.values.map(f => ({
-          date: new Date(f.date),
-          numerator: f.value,
-          denominator: 1
-        }))
-      : [];
-
-    // Combine historical data with forecast for aggregation
-    const combinedData = [...series.data, ...forecastAsTimeSeriesPoints];
-
-    // Calculate aggregated data if enabled (includes both historical and forecast)
-    let aggregatedData: TimeSeriesPoint[] = [];
-    let aggregatedDataWithValues: Array<{ date: Date; value: number }> = [];
-
-    if (aggregationConfig?.enabled) {
-      aggregatedData = applyAggregation(
-        combinedData,
-        aggregationConfig
-      );
-      aggregatedDataWithValues = aggregatedData.map(d => ({
-        date: d.date,
-        value: d.numerator / d.denominator
-      }));
-    }
-
-    // Determine the actual forecast start date
-    const forecastStartDate = forecastSnapshot && forecastSnapshot.values.length > 0
-      ? new Date(forecastSnapshot.values[0].date)
-      : null;
-
-    const aggregatedHistorical = aggregationConfig?.enabled
-      ? aggregatedDataWithValues.filter(d => !forecastStartDate || d.date < forecastStartDate)
-      : dataWithValues;
-    const aggregatedForecast = aggregationConfig?.enabled
-      ? aggregatedDataWithValues.filter(d => forecastStartDate && d.date >= forecastStartDate)
-      : forecastSnapshot?.values.map(v => ({ date: new Date(v.date), value: v.value })) || [];
+    // Use memoized aggregation data
+    const aggregatedDataWithValues = aggregatedDataMemo?.aggregatedDataWithValues || [];
+    const aggregatedHistorical = aggregatedDataMemo?.aggregatedHistorical || dataWithValues;
+    const aggregatedForecast = aggregatedDataMemo?.aggregatedForecast ||
+      (forecastSnapshot?.values.map(v => ({ date: new Date(v.date), value: v.value })) || []);
 
     // Create forecast result from snapshot
     const forecastResult = forecastConfig?.enabled && forecastSnapshot ? {
@@ -403,17 +425,8 @@ export function TimeSeriesChart({
     // Use displayData so gaps are detected in the currently displayed data (smoothed or raw)
     const dataWithGaps = fillGapsWithNulls(displayData);
 
-    // Generate shadow data (only if shadows are enabled)
-    const shadowsData = shadowsEnabled ? generateShadowsData(series.data, shadows) : [];
-
-    // Apply aggregation to shadow data if enabled
-    const aggregatedShadowsData = aggregationConfig?.enabled
-      ? shadowsData.map(sd => ({
-          shadow: sd.shadow,
-          data: applyAggregation(sd.data, aggregationConfig),
-          color: sd.color
-        }))
-      : shadowsData;
+    // Use memoized shadow aggregation data
+    const aggregatedShadowsData = aggregatedShadowsDataMemo;
 
     // Convert shadow data to include calculated values for comparison
     const shadowsDataWithValues = aggregatedShadowsData.map(sd => ({
@@ -2175,7 +2188,7 @@ export function TimeSeriesChart({
         });
     }
 
-  }, [series, aggregationConfig, shadows, shadowsEnabled, averageShadows, goals, forecastConfig, focusPeriod, currentDomain, chartWidth, height, selectedGoalIndex, annotationsEnabled, annotations, metricAnnotations]);
+  }, [series, aggregationConfig, shadows, shadowsEnabled, averageShadows, goals, forecastConfig, focusPeriod, currentDomain, chartWidth, height, selectedGoalIndex, annotationsEnabled, annotations, metricAnnotations, aggregatedDataMemo, aggregatedShadowsDataMemo, forecastSnapshot]);
 
   // Update hover data when shadows or averageShadows change
   useEffect(() => {
