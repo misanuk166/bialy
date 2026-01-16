@@ -878,22 +878,8 @@ export function MetricGrid({
           newDate = addWeeks(selectionDate, direction);
       }
     } else {
-      // Rolling average: move by the period
-      const period = agg.period || 7;
-      const unit = agg.unit || 'days';
-      switch (unit) {
-        case 'days':
-          newDate = addDays(selectionDate, direction * period);
-          break;
-        case 'weeks':
-          newDate = addWeeks(selectionDate, direction * period);
-          break;
-        case 'months':
-          newDate = addMonths(selectionDate, direction * period);
-          break;
-        default:
-          newDate = addDays(selectionDate, direction * period);
-      }
+      // Smoothing/Rolling average: move by 1 day for precise control
+      newDate = addDays(selectionDate, direction);
     }
 
     // Clamp to data extent
