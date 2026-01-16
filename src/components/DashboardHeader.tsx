@@ -52,7 +52,7 @@ export function DashboardHeader({
 
   return (
     <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
-      <div className="px-8 py-4 flex items-start justify-between">
+      <div className="pl-1 pr-8 py-4 flex items-start justify-between">
         {/* Dashboard Title and Description */}
         <div className="flex-1 mr-4">
           {/* Title */}
