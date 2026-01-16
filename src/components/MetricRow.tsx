@@ -458,7 +458,7 @@ export const MetricRow = memo(function MetricRow({
         </div>
 
         {/* Compact Chart - spans Aggregation, Shadow, and Range columns */}
-        <div className="border-r border-gray-300 relative px-[4px] overflow-hidden" style={{ gridColumn: 'span 3', height: isChartExpanded ? '400px' : '60px' }}>
+        <div className="border-r border-gray-300 relative px-1.5 overflow-hidden" style={{ gridColumn: 'span 3', height: isChartExpanded ? '400px' : '60px' }}>
           <CompactTimeSeriesChart
             series={metric.series}
             aggregationConfig={globalSettings.aggregation}
