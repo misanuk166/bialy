@@ -218,8 +218,8 @@ export function MetricGrid({
     metricIndex: 20,
     name: 273,
     chart: 390,
-    selectionMean: 140, // Compact layout with label above navigation
-    focusMean: 100,
+    selectionMean: 120,
+    focusMean: 120,
     comparison: 100
   });
 
