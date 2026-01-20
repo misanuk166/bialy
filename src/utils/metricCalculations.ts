@@ -274,7 +274,7 @@ export function calculateMetricRowValues(
   let shadowValue: number | undefined;
   let shadowLabel: string | undefined;
   if (shadows && shadows.length > 0) {
-    const shadowsData = generateShadowsData(series.data, shadows);
+    const shadowsData = generateShadowsData(series.data, shadows, currentDate || undefined);
     const aggregatedShadowsData = aggregationConfig?.enabled
       ? shadowsData.map(sd => ({
           shadow: sd.shadow,
@@ -340,7 +340,7 @@ export function calculateMetricRowValues(
   if (focusPeriodMean !== undefined && focusPeriod?.enabled && focusPeriod.startDate && focusPeriod.endDate) {
     // Calculate average shadow value over the focus period range
     if (shadows && shadows.length > 0) {
-      const shadowsData = generateShadowsData(series.data, shadows);
+      const shadowsData = generateShadowsData(series.data, shadows, currentDate || undefined);
       const aggregatedShadowsData = aggregationConfig?.enabled
         ? shadowsData.map(sd => ({
             shadow: sd.shadow,
@@ -459,7 +459,7 @@ function calculateComparison(
     case 'shadow': {
       if (!shadows || shadows.length === 0) return null;
 
-      const shadowsData = generateShadowsData(seriesData, shadows);
+      const shadowsData = generateShadowsData(seriesData, shadows, currentDate || undefined);
       const aggregatedShadowsData = aggregationConfig?.enabled
         ? shadowsData.map(sd => ({
             shadow: sd.shadow,

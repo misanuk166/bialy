@@ -8,6 +8,7 @@ export interface Shadow {
   periods: number;
   unit: ShadowPeriodUnit;
   label: string;
+  alignDayOfWeek?: boolean; // Align shadow to same day-of-week as current selection
 }
 
 export interface ShadowData {

@@ -78,6 +78,17 @@ export function ShadowControls({
     onEnabledChange(!enabled);
   };
 
+  const handleAlignDayOfWeekChange = (alignEnabled: boolean) => {
+    const updatedShadows = shadows.map(shadow => ({
+      ...shadow,
+      alignDayOfWeek: alignEnabled
+    }));
+    onChange(updatedShadows);
+  };
+
+  // Check if any shadows have alignDayOfWeek enabled
+  const alignDayOfWeekEnabled = shadows.length > 0 && shadows[0].alignDayOfWeek === true;
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -163,6 +174,26 @@ export function ShadowControls({
             </label>
           </div>
         )}
+
+        <div className="flex items-center justify-between pt-1 border-t border-gray-200">
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-gray-700">
+              Align day-of-week
+            </label>
+            <span className="text-[10px] text-gray-500">
+              Shift by up to 3 days to match weekday
+            </span>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={alignDayOfWeekEnabled}
+              onChange={(e) => handleAlignDayOfWeekChange(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
       </div>
     </div>
   );

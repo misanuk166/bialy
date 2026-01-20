@@ -344,7 +344,7 @@ export function TimeSeriesChart({
   const aggregatedShadowsDataMemo = useMemo(() => {
     if (!shadowsEnabled) return [];
 
-    const shadowsData = generateShadowsData(series.data, shadows);
+    const shadowsData = generateShadowsData(series.data, shadows, selectionDate);
 
     if (!aggregationConfig?.enabled) {
       return shadowsData;
@@ -355,7 +355,7 @@ export function TimeSeriesChart({
       data: applyAggregation(sd.data, aggregationConfig),
       color: sd.color
     }));
-  }, [series.data, shadows, shadowsEnabled, aggregationConfig]);
+  }, [series.data, shadows, shadowsEnabled, aggregationConfig, selectionDate]);
 
   useEffect(() => {
     if (!svgRef.current || !series.data.length) return;
@@ -2195,7 +2195,7 @@ export function TimeSeriesChart({
     if (!hoverData) return;
 
     // Recalculate shadow data (only if shadows are enabled)
-    const shadowsData = shadowsEnabled ? generateShadowsData(series.data, shadows) : [];
+    const shadowsData = shadowsEnabled ? generateShadowsData(series.data, shadows, selectionDate) : [];
 
     // Apply aggregation to shadow data if enabled
     const aggregatedShadowsData = aggregationConfig?.enabled

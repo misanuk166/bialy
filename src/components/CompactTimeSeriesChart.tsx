@@ -107,7 +107,7 @@ export function CompactTimeSeriesChart({
     );
 
     // Generate shadow data (only if shadows are enabled)
-    const shadowsData = shadowsEnabled && shadows && shadows.length > 0 ? generateShadowsData(series.data, shadows) : [];
+    const shadowsData = shadowsEnabled && shadows && shadows.length > 0 ? generateShadowsData(series.data, shadows, selectionDate) : [];
 
     // Apply aggregation to shadow data if enabled
     const aggregatedShadowsData = aggregationConfig?.enabled

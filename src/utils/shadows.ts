@@ -2,15 +2,49 @@ import type { TimeSeriesPoint } from '../types/series';
 import type { Shadow, ShadowData, ShadowPeriodUnit } from '../types/shadow';
 
 /**
+ * Calculate the minimum number of days to shift to align day-of-week
+ * Returns offset in days (-3 to +3) to align shadowDate with targetDate's day-of-week
+ */
+export function calculateDayOfWeekAlignment(targetDate: Date, shadowDate: Date): number {
+  const targetDay = targetDate.getDay(); // 0 (Sunday) to 6 (Saturday)
+  const shadowDay = shadowDate.getDay();
+
+  const diff = targetDay - shadowDay;
+
+  if (diff === 0) return 0; // Already aligned
+
+  // Calculate forward and backward shifts
+  const forwardShift = diff > 0 ? diff : diff + 7;
+  const backwardShift = diff < 0 ? diff : diff - 7;
+
+  // Choose minimum absolute value (maximum 3 days)
+  return Math.abs(forwardShift) <= Math.abs(backwardShift) ? forwardShift : backwardShift;
+}
+
+/**
  * Apply temporal transform to create shadow data
  * Shifts dates forward by the specified period so historical data
  * appears aligned with current data on the time axis
+ * If alignDayOfWeek is enabled, also shifts by up to 3 days to align day-of-week
  */
 export function createShadowData(
   data: TimeSeriesPoint[],
-  shadow: Shadow
+  shadow: Shadow,
+  referenceDate?: Date // Current selection date for day-of-week alignment
 ): TimeSeriesPoint[] {
   if (!shadow.enabled) return [];
+
+  // Calculate base time offset for the shadow period
+  const baseOffset = getTimeOffset(shadow.periods, shadow.unit);
+
+  // Calculate day-of-week alignment offset if enabled
+  let alignmentOffset = 0;
+  if (shadow.alignDayOfWeek && referenceDate && data.length > 0) {
+    // Use first data point as reference for calculating alignment
+    const firstShadowDate = new Date(data[0].date.getTime() + baseOffset);
+    const alignmentDays = calculateDayOfWeekAlignment(referenceDate, firstShadowDate);
+    alignmentOffset = alignmentDays * 24 * 60 * 60 * 1000; // Convert days to milliseconds
+  }
 
   return data.map(point => {
     // Normalize to midnight to avoid time-of-day issues
@@ -19,8 +53,7 @@ export function createShadowData(
 
     return {
       date: new Date(
-        normalizedDate.getTime() +
-        getTimeOffset(shadow.periods, shadow.unit)
+        normalizedDate.getTime() + baseOffset + alignmentOffset
       ),
       numerator: point.numerator,
       denominator: point.denominator
@@ -67,13 +100,14 @@ export function getShadowColor(index: number, total: number): string {
  */
 export function generateShadowsData(
   data: TimeSeriesPoint[],
-  shadows: Shadow[]
+  shadows: Shadow[],
+  referenceDate?: Date // Selection date for day-of-week alignment
 ): ShadowData[] {
   const enabledShadows = shadows.filter(s => s.enabled);
 
   return enabledShadows.map((shadow, index) => ({
     shadow,
-    data: createShadowData(data, shadow),
+    data: createShadowData(data, shadow, referenceDate),
     color: getShadowColor(index, enabledShadows.length)
   }));
 }
