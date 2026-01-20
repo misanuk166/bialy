@@ -30,7 +30,7 @@ export function calculateDayOfWeekAlignment(targetDate: Date, shadowDate: Date):
 export function createShadowData(
   data: TimeSeriesPoint[],
   shadow: Shadow,
-  referenceDate?: Date // Optional reference date for alignment (unused - kept for backward compatibility)
+  _referenceDate?: Date // Optional reference date (unused - alignment based on first date in data)
 ): TimeSeriesPoint[] {
   if (!shadow.enabled) return [];
 
