@@ -36,33 +36,38 @@ export function applyDashboardSettings(
 
   // Apply aggregation mode setting
   const aggregationMode = dashboardSettings.get('aggregationMode') as string | undefined;
-  if (aggregationMode && updatedSettings.aggregation) {
+  if (aggregationMode) {
     switch (aggregationMode) {
       case 'none':
-        updatedSettings.aggregation.enabled = false;
+        updatedSettings.aggregation = {
+          ...updatedSettings.aggregation,
+          enabled: false
+        };
         break;
       case '7day':
         updatedSettings.aggregation = {
           enabled: true,
-          mode: 'movingAverage',
+          mode: 'smoothing',
           period: 7,
-          unit: 'days'
+          unit: 'days',
+          groupByPeriod: 'week' // Required field, though not used in smoothing mode
         };
         break;
       case '30day':
         updatedSettings.aggregation = {
           enabled: true,
-          mode: 'movingAverage',
+          mode: 'smoothing',
           period: 30,
-          unit: 'days'
+          unit: 'days',
+          groupByPeriod: 'week' // Required field, though not used in smoothing mode
         };
         break;
       case 'week':
         updatedSettings.aggregation = {
           enabled: true,
           mode: 'groupBy',
-          period: 1,
-          unit: 'weeks',
+          period: 7, // Required field, though not used in groupBy mode
+          unit: 'days',
           groupByPeriod: 'week'
         };
         break;
@@ -70,8 +75,8 @@ export function applyDashboardSettings(
         updatedSettings.aggregation = {
           enabled: true,
           mode: 'groupBy',
-          period: 1,
-          unit: 'months',
+          period: 30, // Required field, though not used in groupBy mode
+          unit: 'days',
           groupByPeriod: 'month'
         };
         break;
