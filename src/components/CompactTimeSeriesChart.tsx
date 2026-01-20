@@ -35,6 +35,7 @@ interface CompactTimeSeriesChartProps {
   showXAxis?: boolean;
   selectionDate?: Date;
   currentHoverDate?: Date;
+  precision?: number;
   onHover?: (date: Date | null) => void;
   onClick?: (date: Date) => void;
   onZoom?: (domain: [Date, Date]) => void;
@@ -59,6 +60,7 @@ export function CompactTimeSeriesChart({
   showXAxis = false,
   selectionDate,
   currentHoverDate,
+  precision = 2,
   onHover,
   onClick,
   onZoom
@@ -610,7 +612,7 @@ export function CompactTimeSeriesChart({
           if (closestActualPoint) {
             const actualX = xScale(closestActualPoint.date);
             const actualY = yScale(closestActualPoint.value);
-            const actualText = closestActualPoint.value.toFixed(2);
+            const actualText = closestActualPoint.value.toFixed(precision);
             const actualTextWidth = actualText.length * 6 + 4;
 
             hoverCircle
@@ -647,7 +649,7 @@ export function CompactTimeSeriesChart({
             if (closestGoal) {
               const goalValue = closestGoal.numerator / closestGoal.denominator;
               const goalY = yScale(goalValue);
-              const goalText = goalValue.toFixed(2);
+              const goalText = goalValue.toFixed(precision);
               const goalTextWidth = goalText.length * 6 + 4;
 
               hoverCircleGoal
@@ -722,7 +724,7 @@ export function CompactTimeSeriesChart({
 
           if (shadowValue !== undefined && shadowExists) {
             const shadowY = yScale(shadowValue);
-            const shadowText = shadowValue.toFixed(2);
+            const shadowText = shadowValue.toFixed(precision);
             const shadowTextWidth = shadowText.length * 6 + 4;
 
             hoverCircleShadow
@@ -759,7 +761,7 @@ export function CompactTimeSeriesChart({
           if (forecastPoint) {
             const forecastX = xScale(forecastPoint.date);
             const forecastY = yScale(forecastPoint.value);
-            const forecastText = forecastPoint.value.toFixed(2);
+            const forecastText = forecastPoint.value.toFixed(precision);
             const forecastTextWidth = forecastText.length * 6 + 4;
 
             hoverCircleForecast
@@ -946,7 +948,7 @@ export function CompactTimeSeriesChart({
           if (closestActualPoint) {
             const actualX = xScale(closestActualPoint.date);
             const actualY = yScale(closestActualPoint.value);
-            const actualText = closestActualPoint.value.toFixed(2);
+            const actualText = closestActualPoint.value.toFixed(precision);
             const actualTextWidth = actualText.length * 6 + 4;
 
             hoverCircle.attr('cx', actualX).attr('cy', actualY);
@@ -973,7 +975,7 @@ export function CompactTimeSeriesChart({
               if (closestGoal) {
                 const goalValue = closestGoal.numerator / closestGoal.denominator;
                 const goalY = yScale(goalValue);
-                const goalText = goalValue.toFixed(2);
+                const goalText = goalValue.toFixed(precision);
                 const goalTextWidth = goalText.length * 6 + 4;
 
                 hoverCircleGoal.attr('cx', x).attr('cy', goalY).attr('fill', firstGoalData.color);
@@ -1032,7 +1034,7 @@ export function CompactTimeSeriesChart({
 
             if (shadowValue !== undefined && shadowExists) {
               const shadowY = yScale(shadowValue);
-              const shadowText = shadowValue.toFixed(2);
+              const shadowText = shadowValue.toFixed(precision);
               const shadowTextWidth = shadowText.length * 6 + 4;
 
               hoverCircleShadow.attr('cx', x).attr('cy', shadowY);
@@ -1056,7 +1058,7 @@ export function CompactTimeSeriesChart({
             if (forecastPoint) {
               const forecastX = xScale(forecastPoint.date);
               const forecastY = yScale(forecastPoint.value);
-              const forecastText = forecastPoint.value.toFixed(2);
+              const forecastText = forecastPoint.value.toFixed(precision);
               const forecastTextWidth = forecastText.length * 6 + 4;
 
               hoverCircleForecast.attr('cx', forecastX).attr('cy', forecastY);

@@ -43,6 +43,7 @@ interface MetricGridProps {
   globalSettings: GlobalSettings;
   dataExtent?: [Date, Date];
   readOnly?: boolean;
+  precision?: number;
   onMetricsReorder?: (metrics: MetricConfig[]) => void;
   onMetricUpdate: (metric: MetricConfig) => void;
   onMetricRemove: (metricId: string) => void;
@@ -121,6 +122,7 @@ export function MetricGrid({
   globalSettings,
   dataExtent,
   readOnly = false,
+  precision = 2,
   onMetricsReorder,
   onMetricUpdate,
   onMetricRemove,
@@ -1276,6 +1278,7 @@ export function MetricGrid({
                 globalSettings={globalSettings}
                 rowValues={values}
                 selectionDate={selectionDate || undefined}
+                precision={precision}
                 currentHoverDate={currentHoverDate || undefined}
                 xDomain={xDomain}
                 chartWidth={columnWidths.chart}
@@ -1313,6 +1316,7 @@ export function MetricGrid({
                   globalSettings={globalSettings}
                   rowValues={values}
                   selectionDate={selectionDate || undefined}
+                  precision={precision}
                   currentHoverDate={currentHoverDate || undefined}
                   xDomain={xDomain}
                   chartWidth={columnWidths.chart}

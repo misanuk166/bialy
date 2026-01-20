@@ -477,6 +477,7 @@ export const MetricRow = memo(function MetricRow({
             height={isChartExpanded ? 380 : 58}
             showXAxis={isChartExpanded}
             selectionDate={selectionDate}
+            precision={precision}
             currentHoverDate={currentHoverDate}
             onHover={onHover}
             onClick={onSelectionChange}
