@@ -266,7 +266,10 @@ export function Sidebar({ currentDashboardId, onShareDashboard, onCollapseChange
                 Settings
               </div>
               <div className="space-y-0.5">
-                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm">
+                <button
+                  onClick={() => navigate('/settings')}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm"
+                >
                   <span className="text-lg">⚙️</span>
                   <span>Dashboard Settings</span>
                 </button>

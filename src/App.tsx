@@ -3,6 +3,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { MyDashboardsPage } from './pages/MyDashboardsPage';
+import { DashboardSettingsPage } from './pages/DashboardSettingsPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 function App() {
@@ -16,6 +17,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <MyDashboardsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <DashboardSettingsPage />
               </ProtectedRoute>
             }
           />

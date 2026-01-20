@@ -10,6 +10,8 @@ import { loadSyntheticMetrics } from '../utils/generateSyntheticData';
 // ❌ REMOVED localStorage imports - now using database persistence exclusively
 import { fetchDashboard, saveDashboardData, updateDashboard, updateDashboardViewTime } from '../services/dashboardService';
 import { saveSeriesAsCSV } from '../services/storageService';
+import { fetchDashboardSettingsForDashboard } from '../services/settingsService';
+import { applyDashboardSettings } from '../utils/applyDashboardSettings';
 import { useAuth } from '../contexts/AuthContext';
 import type { Dashboard } from '../types/dashboard';
 import type { Series } from '../types/series';
@@ -55,6 +57,7 @@ export function DashboardPage() {
   const [showAddMetricModal, setShowAddMetricModal] = useState(false);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [dashboardSettings, setDashboardSettings] = useState<Map<string, any>>(new Map());
 
   // Modal states for header controls
   const [showRangeModal, setShowRangeModal] = useState(false);
@@ -85,13 +88,29 @@ export function DashboardPage() {
         console.log('[DASHBOARD] Starting to load dashboard:', currentDashboardId);
         setIsLoadingDashboard(true);
 
-        const dashboard = await fetchDashboard(currentDashboardId);
+        // Load dashboard data and settings in parallel
+        const [dashboard, dashboardSettings] = await Promise.all([
+          fetchDashboard(currentDashboardId),
+          fetchDashboardSettingsForDashboard(currentDashboardId).catch(err => {
+            console.warn('Failed to load dashboard settings, using defaults:', err);
+            return new Map(); // Return empty map if settings fail to load
+          })
+        ]);
 
         if (dashboard) {
           setCurrentDashboard(dashboard);
           setMetrics(dashboard.metrics);
-          setGlobalSettings(dashboard.global_settings);
+          setDashboardSettings(dashboardSettings);
+
+          // Apply dashboard settings to override defaults
+          const settingsWithOverrides = applyDashboardSettings(
+            dashboard.global_settings,
+            dashboardSettings
+          );
+          setGlobalSettings(settingsWithOverrides);
+
           console.log('[DASHBOARD] Loaded dashboard with', dashboard.metrics.length, 'metrics');
+          console.log('[DASHBOARD] Applied', dashboardSettings.size, 'setting overrides');
 
           // Update last viewed timestamp
           updateDashboardViewTime(currentDashboardId);
