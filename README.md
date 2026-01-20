@@ -25,13 +25,28 @@ Bialy is a web-based tool that makes it easy to:
 
 ---
 
+## Recent Updates (January 2026)
+
+### Bug Fixes & Improvements
+- ✅ **Multi-CSV Upload** - Fixed issue where only first CSV saved when uploading multiple metrics
+- ✅ **Metric Name Persistence** - Database names now override CSV filenames (user edits preserved)
+- ✅ **Date Range Persistence** - Date range selections now save correctly across page refreshes
+- ✅ **Dashboard Settings** - Added configurable decimal places and series line colors
+- ✅ **Shadow Day-of-Week Alignment** - Shadows can align by weekday (up to 3 days shift)
+
+### Technical Improvements
+- Improved filename parsing to remove timestamps from metric names
+- Fixed filePath parameter passing in Add Metric modal
+- Removed date range from preferences (now part of dashboard state)
+- Enhanced error logging for troubleshooting
+
 ## Features
 
 ### Core Capabilities
 - **CSV Upload** - Drag and drop your data files
 - **Interactive Charts** - Zoom, pan, and explore with D3.js
 - **Smoothing** - Moving average to reduce noise
-- **Shadows** - Compare current data to past periods
+- **Shadows** - Compare current data to past periods (with day-of-week alignment)
 - **Goals** - Set continuous or end-of-period targets
 - **Forecasting** - Linear regression with confidence intervals
 - **Focus Periods** - Analyze specific date ranges with statistics
@@ -41,6 +56,7 @@ Bialy is a web-based tool that makes it easy to:
 - **Multi-Metric** - View multiple charts in a synchronized grid
 - **Drag & Drop** - Reorder metrics easily
 - **Shared X-Axis** - Synchronize time across all charts
+- **Dashboard Settings** - Customize decimal places and chart colors per dashboard
 
 ### Collaboration
 - **Private** - Keep dashboards to yourself
@@ -364,4 +380,4 @@ MIT License - See LICENSE file for details
 
 **🎉 Bialy is live and ready for users! 🎉**
 
-*Last Updated: January 7, 2026*
+*Last Updated: January 20, 2026*
