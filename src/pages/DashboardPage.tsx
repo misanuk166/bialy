@@ -153,13 +153,23 @@ export function DashboardPage() {
   }, [currentDashboardId, metrics, globalSettings, isLoadingDashboard]);
 
   const handleSeriesLoaded = (series: Series, filePath?: string) => {
+    console.log(`[DASHBOARD] handleSeriesLoaded called for "${series.metadata.name}"`);
+    console.log(`[DASHBOARD]   series.filePath (before): ${series.filePath || '(none)'}`);
+    console.log(`[DASHBOARD]   filePath parameter: ${filePath || '(none)'}`);
+
     setMetrics(prevMetrics => {
+      console.log(`[DASHBOARD]   prevMetrics.length: ${prevMetrics.length}`);
+
+      const seriesWithPath = {
+        ...series,
+        filePath // Explicitly add filePath to series object
+      };
+
+      console.log(`[DASHBOARD]   seriesWithPath.filePath: ${seriesWithPath.filePath || '(none)'}`);
+
       const newMetric: MetricConfig = {
         id: series.id,
-        series: {
-          ...series,
-          filePath // Store file path with series for later retrieval
-        } as any,
+        series: seriesWithPath,
         order: prevMetrics.length,
         metricIndex: prevMetrics.length,
         goals: [],
@@ -172,6 +182,8 @@ export function DashboardPage() {
           confidenceLevel: 95
         }
       };
+
+      console.log(`[DASHBOARD]   newMetric.series.filePath: ${newMetric.series.filePath || '(none)'}`);
 
       // Add default shadow (1 year ago) when adding the first metric
       if (prevMetrics.length === 0) {
@@ -187,12 +199,28 @@ export function DashboardPage() {
         }));
       }
 
-      return [...prevMetrics, newMetric];
+      const newMetrics = [...prevMetrics, newMetric];
+      console.log(`[DASHBOARD]   Returning ${newMetrics.length} metrics`);
+      newMetrics.forEach((m, i) => {
+        console.log(`[DASHBOARD]     [${i}] ${m.series.metadata.name}: filePath = "${m.series.filePath || '(none)'}"`);
+      });
+
+      return newMetrics;
     });
   };
 
   const handleMetricUpdate = (updatedMetric: MetricConfig) => {
-    setMetrics(prevMetrics => prevMetrics.map(m => m.id === updatedMetric.id ? updatedMetric : m));
+    console.log(`[DASHBOARD] handleMetricUpdate called for "${updatedMetric.series.metadata.name}"`);
+    console.log(`[DASHBOARD]   updatedMetric.series.filePath: ${updatedMetric.series.filePath || '(none)'}`);
+
+    setMetrics(prevMetrics => {
+      const newMetrics = prevMetrics.map(m => m.id === updatedMetric.id ? updatedMetric : m);
+      console.log(`[DASHBOARD]   After update, metrics:`);
+      newMetrics.forEach((m, i) => {
+        console.log(`[DASHBOARD]     [${i}] ${m.series.metadata.name}: filePath = "${m.series.filePath || '(none)'}"`);
+      });
+      return newMetrics;
+    });
   };
 
   const handleMetricRemove = (metricId: string) => {
