@@ -20,16 +20,10 @@ export function applyDashboardSettings(
         updatedSettings.dateRange = { preset: 'all' };
         break;
       case 'qtd':
-        updatedSettings.dateRange = { preset: 'qtd' };
+        updatedSettings.dateRange = { preset: 'QTD' };
         break;
       case 'ytd':
-        updatedSettings.dateRange = { preset: 'ytd' };
-        break;
-      case '30d':
-        updatedSettings.dateRange = { preset: 'last30days' };
-        break;
-      case '90d':
-        updatedSettings.dateRange = { preset: 'last90days' };
+        updatedSettings.dateRange = { preset: 'YTD' };
         break;
     }
   }

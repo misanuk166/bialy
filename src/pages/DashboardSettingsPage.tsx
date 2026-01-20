@@ -61,8 +61,6 @@ const SETTINGS: Record<string, { section: string; settings: SettingConfig[] }> =
           { value: 'all', label: 'All Data' },
           { value: 'qtd', label: 'QTD (Quarter to Date)' },
           { value: 'ytd', label: 'YTD (Year to Date)' },
-          { value: '30d', label: 'Last 30 Days' },
-          { value: '90d', label: 'Last 90 Days' },
         ],
       },
     ],
@@ -440,9 +438,6 @@ export function DashboardSettingsPage() {
         return null;
     }
   };
-
-  const selectedDashboardName =
-    dashboards.find((d) => d.id === selectedDashboard)?.name || 'Dashboard';
 
   return (
     <>
