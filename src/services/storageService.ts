@@ -267,8 +267,10 @@ function parseCSVToSeries(data: any[], filePath: string): Series {
 
   // Extract name from filename
   const fileName = filePath.split('/').pop()?.replace(/\.csv$/, '') || 'Metric';
-  // Remove timestamp pattern (e.g., -1767914661186 at the end)
-  const fileNameWithoutTimestamp = fileName.replace(/-\d{13}$/, '');
+  // Remove timestamp patterns (e.g., 1767914661186- at the start or -1767914661186 at the end)
+  const fileNameWithoutTimestamp = fileName
+    .replace(/^\d{13}-/, '')  // Remove timestamp from beginning
+    .replace(/-\d{13}$/, '');  // Remove timestamp from end
   const name = fileNameWithoutTimestamp.replace(/-|_/g, ' ').trim();
 
   // Extract labels

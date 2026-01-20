@@ -203,6 +203,10 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
           series = await downloadCSVFile(metric.data_file_path);
           series.filePath = metric.data_file_path;
 
+          // Override CSV-derived name with database name (user may have edited it)
+          // Database is the source of truth for metric names, not CSV filenames
+          series.metadata.name = metric.name;
+
           console.log(`[LOAD] ✓ Loaded "${metric.name}" - ${series.data.length} data points`);
         } catch (error) {
           console.error(`[LOAD] ✗ Failed to load "${metric.name}":`, error);
