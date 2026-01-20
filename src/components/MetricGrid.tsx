@@ -44,6 +44,7 @@ interface MetricGridProps {
   dataExtent?: [Date, Date];
   readOnly?: boolean;
   precision?: number;
+  seriesColor?: string;
   onMetricsReorder?: (metrics: MetricConfig[]) => void;
   onMetricUpdate: (metric: MetricConfig) => void;
   onMetricRemove: (metricId: string) => void;
@@ -123,6 +124,7 @@ export function MetricGrid({
   dataExtent,
   readOnly = false,
   precision = 2,
+  seriesColor = '#2563eb',
   onMetricsReorder,
   onMetricUpdate,
   onMetricRemove,
@@ -1279,6 +1281,7 @@ export function MetricGrid({
                 rowValues={values}
                 selectionDate={selectionDate || undefined}
                 precision={precision}
+                seriesColor={seriesColor}
                 currentHoverDate={currentHoverDate || undefined}
                 xDomain={xDomain}
                 chartWidth={columnWidths.chart}
@@ -1317,6 +1320,7 @@ export function MetricGrid({
                   rowValues={values}
                   selectionDate={selectionDate || undefined}
                   precision={precision}
+                  seriesColor={seriesColor}
                   currentHoverDate={currentHoverDate || undefined}
                   xDomain={xDomain}
                   chartWidth={columnWidths.chart}

@@ -36,6 +36,7 @@ interface CompactTimeSeriesChartProps {
   selectionDate?: Date;
   currentHoverDate?: Date;
   precision?: number;
+  seriesColor?: string;
   onHover?: (date: Date | null) => void;
   onClick?: (date: Date) => void;
   onZoom?: (domain: [Date, Date]) => void;
@@ -61,6 +62,7 @@ export function CompactTimeSeriesChart({
   selectionDate,
   currentHoverDate,
   precision = 2,
+  seriesColor = '#2563eb',
   onHover,
   onClick,
   onZoom
@@ -377,7 +379,7 @@ export function CompactTimeSeriesChart({
     g.append('path')
       .datum(displayData)
       .attr('fill', 'none')
-      .attr('stroke', '#2563eb')
+      .attr('stroke', seriesColor)
       .attr('stroke-width', 2)
       .attr('d', line);
 
@@ -498,7 +500,7 @@ export function CompactTimeSeriesChart({
     const hoverGroup = g.append('g').style('opacity', 0);
     const hoverCircle = hoverGroup.append('circle')
       .attr('r', 5)
-      .attr('fill', '#2563eb')
+      .attr('fill', seriesColor)
       .attr('stroke', 'white')
       .attr('stroke-width', 2);
 

@@ -39,6 +39,7 @@ interface MetricRowProps {
   xDomain: [Date, Date];
   chartWidth: number;
   precision?: number;
+  seriesColor?: string;
   onMetricUpdate: (metric: MetricConfig) => void;
   onExpand: () => void;
   onRemove: () => void;
@@ -63,6 +64,7 @@ export const MetricRow = memo(function MetricRow({
   xDomain,
   chartWidth,
   precision = 2,
+  seriesColor = '#2563eb',
   onMetricUpdate,
   onExpand,
   onRemove,
@@ -478,6 +480,7 @@ export const MetricRow = memo(function MetricRow({
             showXAxis={isChartExpanded}
             selectionDate={selectionDate}
             precision={precision}
+            seriesColor={seriesColor}
             currentHoverDate={currentHoverDate}
             onHover={onHover}
             onClick={onSelectionChange}

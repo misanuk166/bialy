@@ -11,7 +11,7 @@ import { loadSyntheticMetrics } from '../utils/generateSyntheticData';
 import { fetchDashboard, saveDashboardData, updateDashboard, updateDashboardViewTime } from '../services/dashboardService';
 import { saveSeriesAsCSV } from '../services/storageService';
 import { fetchDashboardSettingsForDashboard } from '../services/settingsService';
-import { applyDashboardSettings, getDecimalPlaces } from '../utils/applyDashboardSettings';
+import { applyDashboardSettings, getDecimalPlaces, getSeriesColor } from '../utils/applyDashboardSettings';
 import { useAuth } from '../contexts/AuthContext';
 import type { Dashboard } from '../types/dashboard';
 import type { Series } from '../types/series';
@@ -443,6 +443,7 @@ export function DashboardPage() {
                   dataExtent={dataExtent}
                   readOnly={readOnly}
                   precision={getDecimalPlaces(dashboardSettings)}
+                  seriesColor={getSeriesColor(dashboardSettings)}
                   onMetricsReorder={setMetrics}
                   onMetricUpdate={handleMetricUpdate}
                   onMetricRemove={handleMetricRemove}
