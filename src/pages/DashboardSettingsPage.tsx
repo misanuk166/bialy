@@ -65,48 +65,6 @@ const SETTINGS: Record<string, { section: string; settings: SettingConfig[] }> =
           { value: '90d', label: 'Last 90 Days' },
         ],
       },
-      {
-        id: 'aggregationMode',
-        label: 'Aggregation Mode',
-        description: 'How to smooth or group time series data',
-        type: 'select',
-        options: [
-          { value: 'none', label: 'None' },
-          { value: '7day', label: '7-day Smoothing' },
-          { value: '30day', label: '30-day Smoothing' },
-          { value: 'week', label: 'Group by Week' },
-          { value: 'month', label: 'Group by Month' },
-        ],
-      },
-    ],
-  },
-  display: {
-    section: 'Data Display',
-    settings: [
-      {
-        id: 'showShadows',
-        label: 'Show Shadows',
-        description: 'Display comparison periods (e.g., previous week, previous year)',
-        type: 'toggle',
-      },
-      {
-        id: 'showGoals',
-        label: 'Show Goals',
-        description: 'Display target lines and goal indicators',
-        type: 'toggle',
-      },
-      {
-        id: 'showAnnotations',
-        label: 'Show Annotations',
-        description: 'Display event markers and date ranges (e.g., holidays, launches)',
-        type: 'toggle',
-      },
-      {
-        id: 'showConfidenceIntervals',
-        label: 'Show Forecast Confidence Intervals',
-        description: 'Display shaded confidence bands around forecast predictions',
-        type: 'toggle',
-      },
     ],
   },
 };
@@ -116,11 +74,6 @@ const DEFAULT_SETTINGS: Record<string, any> = {
   decimalPlaces: '2',
   seriesColor: '#2563eb',
   dateRange: 'ytd',
-  aggregationMode: '7day',
-  showShadows: true,
-  showGoals: true,
-  showAnnotations: true,
-  showConfidenceIntervals: true,
 };
 
 export function DashboardSettingsPage() {

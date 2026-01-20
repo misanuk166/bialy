@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Settings</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            margin-bottom: 32px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #6e6e73;
+            font-size: 16px;
+        }
+
+        /* Dashboard Dropdown in Header */
+        .dashboard-dropdown {
+            padding: 8px 32px 8px 12px;
+            font-size: 14px;
+            font-weight: 600;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%236e6e73' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            color: #1d1d1f;
+        }
+
+        .dashboard-dropdown:hover {
+            border-color: #007aff;
+            background-color: #f9f9f9;
+        }
+
+        .dashboard-dropdown:focus {
+            outline: none;
+            border-color: #007aff;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        /* Settings Table */
+        .settings-table {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .table-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1.2fr;
+            gap: 24px;
+            padding: 20px 32px;
+            background: #f5f5f7;
+            border-bottom: 2px solid #e5e5e7;
+            align-items: center;
+        }
+
+        .table-header-cell {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6e6e73;
+        }
+
+        .table-header-cell.center {
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .section-divider {
+            background: #f5f5f7;
+            padding: 12px 32px;
+            border-top: 1px solid #e5e5e7;
+            border-bottom: 1px solid #e5e5e7;
+        }
+
+        .section-divider h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1d1d1f;
+        }
+
+        .table-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1.2fr;
+            gap: 24px;
+            padding: 20px 32px;
+            border-bottom: 1px solid #f5f5f7;
+            align-items: center;
+        }
+
+        .table-row:last-child {
+            border-bottom: none;
+        }
+
+        .table-row:hover {
+            background: #fafafa;
+        }
+
+        .setting-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .setting-label {
+            font-size: 15px;
+            font-weight: 500;
+            color: #1d1d1f;
+        }
+
+        .setting-description {
+            font-size: 13px;
+            color: #6e6e73;
+            line-height: 1.4;
+        }
+
+        .setting-value {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Dashboard Control Wrapper */
+        .dashboard-control-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .dashboard-control-wrapper.overridden {
+            background: #fff7ed;
+            margin: -20px -24px;
+            padding: 20px 24px;
+            border-radius: 8px;
+        }
+
+        .control-with-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Override Checkbox */
+        .override-checkbox {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #ff9500;
+            flex-shrink: 0;
+        }
+
+        .override-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: #6e6e73;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .override-label input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+            accent-color: #ff9500;
+        }
+
+        .override-label.active {
+            color: #ff9500;
+            font-weight: 600;
+        }
+
+        .override-indicator-dot {
+            width: 6px;
+            height: 6px;
+            background: #ff9500;
+            border-radius: 50%;
+            display: none;
+        }
+
+        .override-label.active .override-indicator-dot {
+            display: block;
+        }
+
+        /* Toggle Switch */
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 51px;
+            height: 31px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #e5e5e7;
+            transition: 0.3s;
+            border-radius: 31px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 27px;
+            width: 27px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .toggle input:checked + .toggle-slider {
+            background-color: #34c759;
+        }
+
+        .toggle input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        .toggle input:disabled + .toggle-slider {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Select Dropdown */
+        select.control {
+            padding: 8px 32px 8px 12px;
+            font-size: 14px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            min-width: 160px;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%236e6e73' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+
+        select.control:hover:not(:disabled) {
+            border-color: #86868b;
+        }
+
+        select.control:focus {
+            outline: none;
+            border-color: #007aff;
+        }
+
+        select.control:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background-color: #f9f9f9;
+        }
+
+        select.control.overridden {
+            border-color: #ff9500;
+            border-width: 2px;
+            padding: 7px 31px 7px 11px;
+        }
+
+        /* Input Field */
+        input[type="number"].control {
+            padding: 8px 12px;
+            font-size: 14px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            width: 100px;
+            text-align: center;
+        }
+
+        input[type="number"].control:focus {
+            outline: none;
+            border-color: #007aff;
+        }
+
+        input[type="number"].control:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background-color: #f9f9f9;
+        }
+
+        input[type="number"].control.overridden {
+            border-color: #ff9500;
+            border-width: 2px;
+            padding: 7px 11px;
+        }
+
+        /* Color Picker */
+        input[type="color"].control {
+            width: 60px;
+            height: 40px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        input[type="color"].control:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        input[type="color"].control.overridden {
+            border-color: #ff9500;
+            border-width: 2px;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 32px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #1d1d1f;
+            border: 1px solid #d2d2d7;
+        }
+
+        .btn-secondary:hover {
+            background: #f5f5f7;
+            border-color: #86868b;
+        }
+
+        .btn-primary {
+            background: #007aff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0051d5;
+        }
+
+        /* Info Banner */
+        .info-banner {
+            background: #e8f4fd;
+            border-left: 4px solid #007aff;
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            color: #1d1d1f;
+        }
+
+        .info-banner strong {
+            font-weight: 600;
+        }
+
+        @media (max-width: 1024px) {
+            .table-header,
+            .table-row {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .table-header-cell {
+                text-align: left;
+            }
+
+            .setting-value {
+                justify-content: flex-start;
+            }
+
+            .dashboard-control-wrapper.overridden {
+                margin: 0;
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Dashboard Settings</h1>
+            <p>Configure global defaults and customize individual dashboard preferences</p>
+        </div>
+
+        <div class="info-banner">
+            <strong>Tip:</strong> Check the box next to a setting to override global defaults for the selected dashboard.
+        </div>
+
+        <div class="settings-table">
+            <!-- Table Header -->
+            <div class="table-header">
+                <div class="table-header-cell">Setting</div>
+                <div class="table-header-cell center">Global Default</div>
+                <div class="table-header-cell center">
+                    <select id="dashboardSelect" class="dashboard-dropdown">
+                        <option value="main">Main Dashboard</option>
+                        <option value="analytics" selected>Analytics Dashboard</option>
+                        <option value="performance">Performance Dashboard</option>
+                        <option value="sales">Sales Dashboard</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Number Formatting Section -->
+            <div class="section-divider">
+                <h3>Number Formatting</h3>
+            </div>
+
+            <div class="table-row">
+                <div class="setting-info">
+                    <div class="setting-label">Decimal Places</div>
+                    <div class="setting-description">Number of decimal places to display for metric values</div>
+                </div>
+                <div class="setting-value">
+                    <select class="control" id="global-decimals">
+                        <option value="0">0 (whole numbers)</option>
+                        <option value="1">1</option>
+                        <option value="2" selected>2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                    </select>
+                </div>
+                <div class="setting-value">
+                    <div class="dashboard-control-wrapper">
+                        <div class="control-with-checkbox">
+                            <select class="control" id="dashboard-decimals" disabled>
+                                <option value="2" selected>2</option>
+                            </select>
+                        </div>
+                        <label class="override-label">
+                            <input type="checkbox" class="override-checkbox" data-target="dashboard-decimals">
+                            <span class="override-indicator-dot"></span>
+                            Override
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart Appearance Section -->
+            <div class="section-divider">
+                <h3>Chart Appearance</h3>
+            </div>
+
+            <div class="table-row">
+                <div class="setting-info">
+                    <div class="setting-label">Series Line Color</div>
+                    <div class="setting-description">Color for the main metric line in charts</div>
+                </div>
+                <div class="setting-value">
+                    <input type="color" class="control" id="global-series-color" value="#2563eb">
+                </div>
+                <div class="setting-value">
+                    <div class="dashboard-control-wrapper overridden">
+                        <div class="control-with-checkbox">
+                            <input type="color" class="control overridden" id="dashboard-series-color" value="#10b981">
+                        </div>
+                        <label class="override-label active">
+                            <input type="checkbox" class="override-checkbox" checked data-target="dashboard-series-color">
+                            <span class="override-indicator-dot"></span>
+                            Override
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-row">
+                <div class="setting-info">
+                    <div class="setting-label">Default Date Range</div>
+                    <div class="setting-description">Initial time period shown when loading dashboard</div>
+                </div>
+                <div class="setting-value">
+                    <select class="control" id="global-daterange">
+                        <option>All Data</option>
+                        <option>QTD (Quarter to Date)</option>
+                        <option selected>YTD (Year to Date)</option>
+                        <option>Last 30 Days</option>
+                        <option>Last 90 Days</option>
+                    </select>
+                </div>
+                <div class="setting-value">
+                    <div class="dashboard-control-wrapper">
+                        <div class="control-with-checkbox">
+                            <select class="control" id="dashboard-daterange" disabled>
+                                <option selected>YTD (Year to Date)</option>
+                            </select>
+                        </div>
+                        <label class="override-label">
+                            <input type="checkbox" class="override-checkbox" data-target="dashboard-daterange">
+                            <span class="override-indicator-dot"></span>
+                            Override
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-row">
+                <div class="setting-info">
+                    <div class="setting-label">Aggregation Mode</div>
+                    <div class="setting-description">How to smooth or group time series data</div>
+                </div>
+                <div class="setting-value">
+                    <select class="control" id="global-aggregation">
+                        <option>None</option>
+                        <option selected>7-day Smoothing</option>
+                        <option>30-day Smoothing</option>
+                        <option>Group by Week</option>
+                        <option>Group by Month</option>
+                    </select>
+                </div>
+                <div class="setting-value">
+                    <div class="dashboard-control-wrapper">
+                        <div class="control-with-checkbox">
+                            <select class="control" id="dashboard-aggregation" disabled>
+                                <option selected>7-day Smoothing</option>
+                            </select>
+                        </div>
+                        <label class="override-label">
+                            <input type="checkbox" class="override-checkbox" data-target="dashboard-aggregation">
+                            <span class="override-indicator-dot"></span>
+                            Override
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Display Section -->
+            <div class="section-divider">
+                <h3>Data Display</h3>
+            </div>
+
+            <div class="table-row">
+                <div class="setting-info">
+                    <div class="setting-label">Show Shadows</div>
+                    <div class="setting-description">Display comparison periods (e.g., previous week, previous year)</div>
+                </div>
+                <div class="setting-value">
+                    <label class="toggle">
+                        <input type="checkbox" id="global-shadows" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-value">
+                    <div class="dashboard-control-wrapper">
+                        <div class="control-with-checkbox">
+                            <label class="toggle">
+                                <input type="checkbox" id="dashboard-shadows" checked disabled>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <label class="override-label">
+                            <input type="checkbox" class="override-checkbox" data-target="dashboard-shadows">
+                            <span class="override-indicator-dot"></span>
+                            Override
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-row">
+                <div class="setting-info">
+                    <div class="setting-label">Show Goals</div>
+                    <div class="setting-description">Display target lines and goal indicators</div>
+                </div>
+                <div class="setting-value">
+                    <label class="toggle">
+                        <input type="checkbox" id="global-goals" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-value">
+                    <div class="dashboard-control-wrapper">
+                        <div class="control-with-checkbox">
+                            <label class="toggle">
+                                <input type="checkbox" id="dashboard-goals" checked disabled>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <label class="override-label">
+                            <input type="checkbox" class="override-checkbox" data-target="dashboard-goals">
+                            <span class="override-indicator-dot"></span>
+                            Override
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-row">
+                <div class="setting-info">
+                    <div class="setting-label">Show Annotations</div>
+                    <div class="setting-description">Display event markers and date ranges (e.g., holidays, launches)</div>
+                </div>
+                <div class="setting-value">
+                    <label class="toggle">
+                        <input type="checkbox" id="global-annotations" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-value">
+                    <div class="dashboard-control-wrapper overridden">
+                        <div class="control-with-checkbox">
+                            <label class="toggle">
+                                <input type="checkbox" id="dashboard-annotations">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <label class="override-label active">
+                            <input type="checkbox" class="override-checkbox" checked data-target="dashboard-annotations">
+                            <span class="override-indicator-dot"></span>
+                            Override
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-row">
+                <div class="setting-info">
+                    <div class="setting-label">Show Forecast Confidence Intervals</div>
+                    <div class="setting-description">Display shaded confidence bands around forecast predictions</div>
+                </div>
+                <div class="setting-value">
+                    <label class="toggle">
+                        <input type="checkbox" id="global-confidence" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-value">
+                    <div class="dashboard-control-wrapper">
+                        <div class="control-with-checkbox">
+                            <label class="toggle">
+                                <input type="checkbox" id="dashboard-confidence" checked disabled>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <label class="override-label">
+                            <input type="checkbox" class="override-checkbox" data-target="dashboard-confidence">
+                            <span class="override-indicator-dot"></span>
+                            Override
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn btn-secondary">Reset All Overrides</button>
+            <button class="btn btn-secondary">Cancel</button>
+            <button class="btn btn-primary">Save Changes</button>
+        </div>
+    </div>
+
+    <script>
+        // Handle override checkbox changes
+        document.querySelectorAll('.override-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const targetId = this.getAttribute('data-target');
+                const targetControl = document.getElementById(targetId);
+                const wrapper = this.closest('.dashboard-control-wrapper');
+                const label = this.closest('.override-label');
+
+                if (this.checked) {
+                    // Enable override
+                    targetControl.disabled = false;
+                    wrapper.classList.add('overridden');
+                    label.classList.add('active');
+
+                    // Add overridden class to the control for border styling
+                    if (targetControl.classList.contains('control')) {
+                        targetControl.classList.add('overridden');
+                    }
+                } else {
+                    // Disable override (use global)
+                    targetControl.disabled = true;
+                    wrapper.classList.remove('overridden');
+                    label.classList.remove('active');
+
+                    // Remove overridden class
+                    if (targetControl.classList.contains('control')) {
+                        targetControl.classList.remove('overridden');
+                    }
+
+                    // Copy value from global control
+                    const globalControl = document.getElementById(targetId.replace('dashboard-', 'global-'));
+                    if (globalControl) {
+                        if (targetControl.type === 'checkbox') {
+                            targetControl.checked = globalControl.checked;
+                        } else {
+                            targetControl.value = globalControl.value;
+                        }
+                    }
+                }
+            });
+        });
+
+        // Sync values when dashboard control is disabled (using global)
+        document.querySelectorAll('.control[id^="global-"]').forEach(globalControl => {
+            globalControl.addEventListener('change', function() {
+                const dashboardId = this.id.replace('global-', 'dashboard-');
+                const dashboardControl = document.getElementById(dashboardId);
+
+                if (dashboardControl && dashboardControl.disabled) {
+                    if (this.type === 'checkbox') {
+                        dashboardControl.checked = this.checked;
+                    } else {
+                        dashboardControl.value = this.value;
+                    }
+                }
+            });
+        });
+
+        // Reset All Overrides button
+        document.querySelector('.btn-secondary').addEventListener('click', function() {
+            if (this.textContent.includes('Reset')) {
+                const confirmed = confirm('Reset all dashboard-specific overrides to global defaults?');
+                if (confirmed) {
+                    document.querySelectorAll('.override-checkbox:checked').forEach(checkbox => {
+                        checkbox.checked = false;
+                        checkbox.dispatchEvent(new Event('change'));
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>

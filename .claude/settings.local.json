@@ -58,7 +58,9 @@
       "Bash(vercel:*)",
       "Bash(claude mcp add:*)",
       "mcp__vercel__list_deployments",
-      "mcp__vercel__get_deployment_build_logs"
+      "mcp__vercel__get_deployment_build_logs",
+      "mcp__vercel__deploy_to_vercel",
+      "Bash(npx supabase db push:*)"
     ],
     "deny": [],
     "ask": []
