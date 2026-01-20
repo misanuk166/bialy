@@ -44,17 +44,20 @@ export function CSVUpload({ onSeriesLoaded }: CSVUploadProps) {
             setUploadProgress('Uploading to storage...');
             const uploadResult = await uploadCSVFile(file, user.id);
             filePath = uploadResult.path;
+            console.log(`[CSV UPLOAD] ✓ Upload successful: ${filePath}`);
             setUploadProgress('Upload complete!');
           } catch (uploadError) {
-            console.error('[CSV UPLOAD] Upload failed:', uploadError);
-            console.warn('Failed to upload file to storage, continuing without storage:', uploadError);
+            console.error('[CSV UPLOAD] ❌ Upload failed:', uploadError);
+            console.warn('[CSV UPLOAD] ⚠️ Continuing without storage - metric will have no filePath');
+            console.warn('[CSV UPLOAD] ⚠️ This may cause issues when saving multiple metrics');
             // Continue without storage - file will work locally
           }
         } else {
-          console.warn('[CSV UPLOAD] No user logged in, skipping upload');
+          console.warn('[CSV UPLOAD] ⚠️ No user logged in, skipping upload - metric will have no filePath');
         }
 
         // Step 4: Return series and file path
+        console.log(`[CSV UPLOAD] Loading series "${series.metadata.name}" with filePath: ${filePath || '(none)'}`);
         onSeriesLoaded(series, filePath);
       }
     } catch (error) {

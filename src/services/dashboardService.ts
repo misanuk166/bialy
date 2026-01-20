@@ -453,21 +453,52 @@ export async function saveDashboardData(
       (existingMetrics || []).map(m => [m.data_file_path, m])
     );
 
+    // Check for duplicate file paths in existing metrics (data integrity issue)
+    const existingPathCounts = new Map<string, number>();
+    (existingMetrics || []).forEach(m => {
+      const count = existingPathCounts.get(m.data_file_path) || 0;
+      existingPathCounts.set(m.data_file_path, count + 1);
+    });
+    existingPathCounts.forEach((count, path) => {
+      if (count > 1) {
+        console.warn(`[SAVE] ⚠️ Database has ${count} metrics with same path: "${path}"`);
+        console.warn('[SAVE] ⚠️ This indicates a data integrity issue - metrics should have unique paths');
+      }
+    });
+
     // Step 3: Categorize metrics into update, insert, and delete
     const metricsToUpdate: Array<{ id: string; metric: MetricConfig; index: number }> = [];
     const metricsToInsert: Array<{ metric: MetricConfig; index: number }> = [];
     const currentFilePaths = new Set<string>();
 
+    // Check for duplicate file paths in current metrics
+    const currentPathCounts = new Map<string, number>();
+    metrics.forEach(metric => {
+      const filePath = metric.series.filePath || '';
+      const count = currentPathCounts.get(filePath) || 0;
+      currentPathCounts.set(filePath, count + 1);
+    });
+    currentPathCounts.forEach((count, path) => {
+      if (count > 1) {
+        console.error(`[SAVE] ❌ Current metrics have ${count} with same path: "${path}"`);
+        console.error('[SAVE] ❌ This will cause save conflicts - each metric needs a unique file path');
+      }
+    });
+
     metrics.forEach((metric, index) => {
       const filePath = metric.series.filePath || '';
       currentFilePaths.add(filePath);
 
+      console.log(`[SAVE] Processing metric ${index}: "${metric.series.metadata.name}" (path: "${filePath}")`);
+
       const existing = existingByPath.get(filePath);
       if (existing) {
         // Metric exists - update it
+        console.log(`[SAVE]   → UPDATE (matched to existing id: ${existing.id})`);
         metricsToUpdate.push({ id: existing.id, metric, index });
       } else {
         // New metric - insert it
+        console.log(`[SAVE]   → INSERT (new metric)`);
         metricsToInsert.push({ metric, index });
       }
     });
@@ -502,7 +533,8 @@ export async function saveDashboardData(
       const { error: updateError } = await supabase
         .from('metrics')
         .update({
-          name: metric.series.metadata.name,
+          // NOTE: NOT updating name - database is source of truth for metric name
+          // The CSV filename should not overwrite user-edited metric names
           unit: metric.series.metadata.numeratorLabel || '',
           order_index: index
           // NOTE: NOT updating data_file_path - it stays the same!
