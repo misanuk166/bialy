@@ -8,25 +8,17 @@ import type { SettingValue } from '../services/settingsService';
  */
 export function applyDashboardSettings(
   baseSettings: GlobalSettings,
-  dashboardSettings: Map<string, SettingValue>
+  _dashboardSettings: Map<string, SettingValue>
 ): GlobalSettings {
   const updatedSettings = { ...baseSettings };
 
-  // Apply date range setting
-  const dateRange = dashboardSettings.get('dateRange') as string | undefined;
-  if (dateRange) {
-    switch (dateRange) {
-      case 'all':
-        updatedSettings.dateRange = { preset: 'all' };
-        break;
-      case 'qtd':
-        updatedSettings.dateRange = { preset: 'QTD' };
-        break;
-      case 'ytd':
-        updatedSettings.dateRange = { preset: 'YTD' };
-        break;
-    }
-  }
+  // NOTE: Date range is NOT applied from dashboard settings
+  // Date range is part of the dashboard's working state (saved in global_settings)
+  // and should not be overridden by preference settings.
+  // Only UI preferences (decimal places, colors, etc.) are applied here.
+  //
+  // Future preference settings (like display options) can be applied here
+  // by reading from _dashboardSettings
 
   return updatedSettings;
 }

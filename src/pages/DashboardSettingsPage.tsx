@@ -52,17 +52,7 @@ const SETTINGS: Record<string, { section: string; settings: SettingConfig[] }> =
         description: 'Color for the main metric line in charts',
         type: 'color',
       },
-      {
-        id: 'dateRange',
-        label: 'Default Date Range',
-        description: 'Initial time period shown when loading dashboard',
-        type: 'select',
-        options: [
-          { value: 'all', label: 'All Data' },
-          { value: 'qtd', label: 'QTD (Quarter to Date)' },
-          { value: 'ytd', label: 'YTD (Year to Date)' },
-        ],
-      },
+      // NOTE: dateRange was removed - it's part of dashboard working state, not a preference
     ],
   },
 };
@@ -71,7 +61,6 @@ const SETTINGS: Record<string, { section: string; settings: SettingConfig[] }> =
 const DEFAULT_SETTINGS: Record<string, any> = {
   decimalPlaces: '2',
   seriesColor: '#2563eb',
-  dateRange: 'ytd',
 };
 
 export function DashboardSettingsPage() {
