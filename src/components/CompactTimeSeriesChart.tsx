@@ -614,7 +614,7 @@ export function CompactTimeSeriesChart({
           if (closestActualPoint) {
             const actualX = xScale(closestActualPoint.date);
             const actualY = yScale(closestActualPoint.value);
-            const actualText = closestActualPoint.value.toFixed(precision);
+            const actualText = closestActualPoint.value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision });
             const actualTextWidth = actualText.length * 6 + 4;
 
             hoverCircle
@@ -651,7 +651,7 @@ export function CompactTimeSeriesChart({
             if (closestGoal) {
               const goalValue = closestGoal.numerator / closestGoal.denominator;
               const goalY = yScale(goalValue);
-              const goalText = goalValue.toFixed(precision);
+              const goalText = goalValue.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision });
               const goalTextWidth = goalText.length * 6 + 4;
 
               hoverCircleGoal
@@ -726,7 +726,7 @@ export function CompactTimeSeriesChart({
 
           if (shadowValue !== undefined && shadowExists) {
             const shadowY = yScale(shadowValue);
-            const shadowText = shadowValue.toFixed(precision);
+            const shadowText = shadowValue.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision });
             const shadowTextWidth = shadowText.length * 6 + 4;
 
             hoverCircleShadow
@@ -763,7 +763,7 @@ export function CompactTimeSeriesChart({
           if (forecastPoint) {
             const forecastX = xScale(forecastPoint.date);
             const forecastY = yScale(forecastPoint.value);
-            const forecastText = forecastPoint.value.toFixed(precision);
+            const forecastText = forecastPoint.value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision });
             const forecastTextWidth = forecastText.length * 6 + 4;
 
             hoverCircleForecast
@@ -950,7 +950,7 @@ export function CompactTimeSeriesChart({
           if (closestActualPoint) {
             const actualX = xScale(closestActualPoint.date);
             const actualY = yScale(closestActualPoint.value);
-            const actualText = closestActualPoint.value.toFixed(precision);
+            const actualText = closestActualPoint.value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision });
             const actualTextWidth = actualText.length * 6 + 4;
 
             hoverCircle.attr('cx', actualX).attr('cy', actualY);
@@ -977,7 +977,7 @@ export function CompactTimeSeriesChart({
               if (closestGoal) {
                 const goalValue = closestGoal.numerator / closestGoal.denominator;
                 const goalY = yScale(goalValue);
-                const goalText = goalValue.toFixed(precision);
+                const goalText = goalValue.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision });
                 const goalTextWidth = goalText.length * 6 + 4;
 
                 hoverCircleGoal.attr('cx', x).attr('cy', goalY).attr('fill', firstGoalData.color);
@@ -1036,7 +1036,7 @@ export function CompactTimeSeriesChart({
 
             if (shadowValue !== undefined && shadowExists) {
               const shadowY = yScale(shadowValue);
-              const shadowText = shadowValue.toFixed(precision);
+              const shadowText = shadowValue.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision });
               const shadowTextWidth = shadowText.length * 6 + 4;
 
               hoverCircleShadow.attr('cx', x).attr('cy', shadowY);
@@ -1060,7 +1060,7 @@ export function CompactTimeSeriesChart({
             if (forecastPoint) {
               const forecastX = xScale(forecastPoint.date);
               const forecastY = yScale(forecastPoint.value);
-              const forecastText = forecastPoint.value.toFixed(precision);
+              const forecastText = forecastPoint.value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision });
               const forecastTextWidth = forecastText.length * 6 + 4;
 
               hoverCircleForecast.attr('cx', forecastX).attr('cy', forecastY);
