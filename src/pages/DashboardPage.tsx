@@ -515,8 +515,8 @@ export function DashboardPage() {
                           ✕
                         </button>
                       </div>
-                      <CSVUpload onSeriesLoaded={(series) => {
-                        handleSeriesLoaded(series);
+                      <CSVUpload onSeriesLoaded={(series, filePath) => {
+                        handleSeriesLoaded(series, filePath);
                         setShowAddMetricModal(false);
                       }} />
                       <div className="mt-4 text-center">
