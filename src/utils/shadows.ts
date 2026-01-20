@@ -30,7 +30,7 @@ export function calculateDayOfWeekAlignment(targetDate: Date, shadowDate: Date):
 export function createShadowData(
   data: TimeSeriesPoint[],
   shadow: Shadow,
-  referenceDate?: Date // Current selection date for day-of-week alignment
+  referenceDate?: Date // Optional reference date for alignment (unused - kept for backward compatibility)
 ): TimeSeriesPoint[] {
   if (!shadow.enabled) return [];
 
@@ -39,10 +39,12 @@ export function createShadowData(
 
   // Calculate day-of-week alignment offset if enabled
   let alignmentOffset = 0;
-  if (shadow.alignDayOfWeek && referenceDate && data.length > 0) {
-    // Use first data point as reference for calculating alignment
+  if (shadow.alignDayOfWeek && data.length > 0) {
+    // Use first data point in current series as reference
+    // Compare the shadow's first date (after offset) with the current data's first date
+    const firstCurrentDate = data[0].date;
     const firstShadowDate = new Date(data[0].date.getTime() + baseOffset);
-    const alignmentDays = calculateDayOfWeekAlignment(referenceDate, firstShadowDate);
+    const alignmentDays = calculateDayOfWeekAlignment(firstCurrentDate, firstShadowDate);
     alignmentOffset = alignmentDays * 24 * 60 * 60 * 1000; // Convert days to milliseconds
   }
 
