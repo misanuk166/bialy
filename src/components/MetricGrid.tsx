@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { MetricRow } from './MetricRow';
 import { ColumnResizeHandle } from './ColumnResizeHandle';
+import { RowResizeHandle } from './RowResizeHandle';
 import {
   DndContext,
   closestCenter,
@@ -45,6 +46,8 @@ interface MetricGridProps {
   readOnly?: boolean;
   precision?: number;
   seriesColor?: string;
+  shadowColor?: string;
+  shadowLineStyle?: 'solid' | 'dashed' | 'dotted' | 'dashdot';
   onMetricsReorder?: (metrics: MetricConfig[]) => void;
   onMetricUpdate: (metric: MetricConfig) => void;
   onMetricRemove: (metricId: string) => void;
@@ -125,6 +128,8 @@ export function MetricGrid({
   readOnly = false,
   precision = 2,
   seriesColor = '#2563eb',
+  shadowColor = '#9ca3af',
+  shadowLineStyle = 'dashed',
   onMetricsReorder,
   onMetricUpdate,
   onMetricRemove,
@@ -214,6 +219,9 @@ export function MetricGrid({
   const [isEditingGroupSet, setIsEditingGroupSet] = useState(false);
   const [groupSetInputValue, setGroupSetInputValue] = useState('');
 
+  // Row height for all metrics (shared unless individually expanded)
+  const [rowHeight, setRowHeight] = useState(60); // Default 60px, min 40px, max 320px
+
   // Column widths for resizable columns
   const [columnWidths, setColumnWidths] = useState({
     dragHandle: 30,
@@ -294,6 +302,15 @@ export function MetricGrid({
           forecastEndDate.setDate(forecastEndDate.getDate() + m.forecast.horizon);
           allDates.push(forecastEndDate);
         }
+      }
+
+      // Include goal end dates if goals are enabled
+      if (m.goalsEnabled && m.goals) {
+        m.goals.forEach(goal => {
+          if (goal.enabled && goal.type === 'end-of-period' && goal.endDate) {
+            allDates.push(goal.endDate);
+          }
+        });
       }
     });
 
@@ -1274,56 +1291,20 @@ export function MetricGrid({
         {readOnly ? (
           <div className="divide-y divide-gray-200 border-b border-gray-200">
             {sortedMetrics.map(({ metric, values }) => (
-              <MetricRow
-                key={metric.id}
-                metric={metric}
-                globalSettings={globalSettings}
-                rowValues={values}
-                selectionDate={selectionDate || undefined}
-                precision={precision}
-                seriesColor={seriesColor}
-                currentHoverDate={currentHoverDate || undefined}
-                xDomain={xDomain}
-                chartWidth={columnWidths.chart}
-                onMetricUpdate={onMetricUpdate}
-                onExpand={() => onMetricExpand(metric.id)}
-                onRemove={() => onMetricRemove(metric.id)}
-                onHover={handleHover}
-                onSelectionChange={onSelectionDateChange}
-                isSelected={selectedMetricIds.has(metric.id)}
-                onSelect={(selected) => handleSelectMetric(metric.id, selected)}
-                onMoveGroup={(direction) => handleMoveGroup(metric.groupIndex, direction)}
-                onMoveMetric={(direction) => handleMoveMetric(metric.id, direction)}
-                isEditMode={isEditMode}
-                readOnly={readOnly}
-                colorScaling={colorScaling}
-                columnWidths={columnWidths}
-              />
-            ))}
-          </div>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={sortedMetrics.map(m => m.metric.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="divide-y divide-gray-200 border-b border-gray-200">
-              {sortedMetrics.map(({ metric, values }) => (
+              <div key={metric.id} className="relative">
                 <MetricRow
-                  key={metric.id}
                   metric={metric}
                   globalSettings={globalSettings}
                   rowValues={values}
                   selectionDate={selectionDate || undefined}
                   precision={precision}
                   seriesColor={seriesColor}
+                  shadowColor={shadowColor}
+                  shadowLineStyle={shadowLineStyle}
                   currentHoverDate={currentHoverDate || undefined}
                   xDomain={xDomain}
                   chartWidth={columnWidths.chart}
+                  rowHeight={rowHeight}
                   onMetricUpdate={onMetricUpdate}
                   onExpand={() => onMetricExpand(metric.id)}
                   onRemove={() => onMetricRemove(metric.id)}
@@ -1338,6 +1319,62 @@ export function MetricGrid({
                   colorScaling={colorScaling}
                   columnWidths={columnWidths}
                 />
+                <RowResizeHandle
+                  onResize={setRowHeight}
+                  currentHeight={rowHeight}
+                  minHeight={40}
+                  maxHeight={320}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={sortedMetrics.map(m => m.metric.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="divide-y divide-gray-200 border-b border-gray-200">
+              {sortedMetrics.map(({ metric, values }) => (
+                <div key={metric.id} className="relative">
+                  <MetricRow
+                    metric={metric}
+                    globalSettings={globalSettings}
+                    rowValues={values}
+                    selectionDate={selectionDate || undefined}
+                    precision={precision}
+                    seriesColor={seriesColor}
+                    shadowColor={shadowColor}
+                    shadowLineStyle={shadowLineStyle}
+                    currentHoverDate={currentHoverDate || undefined}
+                    xDomain={xDomain}
+                    chartWidth={columnWidths.chart}
+                    rowHeight={rowHeight}
+                    onMetricUpdate={onMetricUpdate}
+                    onExpand={() => onMetricExpand(metric.id)}
+                    onRemove={() => onMetricRemove(metric.id)}
+                    onHover={handleHover}
+                    onSelectionChange={onSelectionDateChange}
+                    isSelected={selectedMetricIds.has(metric.id)}
+                    onSelect={(selected) => handleSelectMetric(metric.id, selected)}
+                    onMoveGroup={(direction) => handleMoveGroup(metric.groupIndex, direction)}
+                    onMoveMetric={(direction) => handleMoveMetric(metric.id, direction)}
+                    isEditMode={isEditMode}
+                    readOnly={readOnly}
+                    colorScaling={colorScaling}
+                    columnWidths={columnWidths}
+                  />
+                  <RowResizeHandle
+                    onResize={setRowHeight}
+                    currentHeight={rowHeight}
+                    minHeight={40}
+                    maxHeight={320}
+                  />
+                </div>
               ))}
             </div>
           </SortableContext>

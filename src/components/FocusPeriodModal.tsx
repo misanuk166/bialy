@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { FocusPeriod } from '../types/focusPeriod';
+import { DateInput } from './DateInput';
 
 interface FocusPeriodModalProps {
   focusPeriod: FocusPeriod;
@@ -50,22 +51,22 @@ export function FocusPeriodModal({
     return '';
   });
 
-  const [startDate, setStartDate] = useState(() => {
-    if (focusPeriod.startDate) return focusPeriod.startDate.toISOString().split('T')[0];
+  const [startDate, setStartDate] = useState<Date | undefined>(() => {
+    if (focusPeriod.startDate) return focusPeriod.startDate;
     if (dataExtent && dataExtent[1]) {
       const quarter = calculateCurrentQuarter(dataExtent[1]);
-      return quarter.startDate.toISOString().split('T')[0];
+      return quarter.startDate;
     }
-    return '';
+    return undefined;
   });
 
-  const [endDate, setEndDate] = useState(() => {
-    if (focusPeriod.endDate) return focusPeriod.endDate.toISOString().split('T')[0];
+  const [endDate, setEndDate] = useState<Date | undefined>(() => {
+    if (focusPeriod.endDate) return focusPeriod.endDate;
     if (dataExtent && dataExtent[1]) {
       const quarter = calculateCurrentQuarter(dataExtent[1]);
-      return quarter.endDate.toISOString().split('T')[0];
+      return quarter.endDate;
     }
-    return '';
+    return undefined;
   });
 
   const popupRef = useRef<HTMLDivElement>(null);
@@ -87,8 +88,8 @@ export function FocusPeriodModal({
     onSave({
       enabled: hasData,
       label: label.trim() || undefined,
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined
+      startDate: startDate,
+      endDate: endDate
     });
     onClose();
   };
@@ -126,13 +127,12 @@ export function FocusPeriodModal({
           <label className="block text-xs font-medium text-gray-700 mb-1">
             Start Date
           </label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            min={dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined}
-            max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
-            className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+          <DateInput
+            selected={startDate}
+            onChange={(date) => setStartDate(date || undefined)}
+            minDate={dataExtent ? dataExtent[0] : undefined}
+            maxDate={dataExtent ? dataExtent[1] : undefined}
+            placeholderText="Select start date"
           />
         </div>
 
@@ -140,13 +140,12 @@ export function FocusPeriodModal({
           <label className="block text-xs font-medium text-gray-700 mb-1">
             End Date
           </label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            min={startDate || (dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined)}
-            max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
-            className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+          <DateInput
+            selected={endDate}
+            onChange={(date) => setEndDate(date || undefined)}
+            minDate={startDate || (dataExtent ? dataExtent[0] : undefined)}
+            maxDate={dataExtent ? dataExtent[1] : undefined}
+            placeholderText="Select end date"
           />
         </div>
 

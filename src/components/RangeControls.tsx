@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { DateInput } from './DateInput';
 
 export type RangePreset = 'QTD' | 'YTD' | 'all' | 'custom';
 
@@ -15,18 +15,6 @@ interface RangeControlsProps {
 }
 
 export function RangeControls({ range, onChange, dataExtent }: RangeControlsProps) {
-  const [localStartDate, setLocalStartDate] = useState(
-    range.startDate ? range.startDate.toISOString().split('T')[0] : ''
-  );
-  const [localEndDate, setLocalEndDate] = useState(
-    range.endDate ? range.endDate.toISOString().split('T')[0] : ''
-  );
-
-  // 🔧 FIX: Sync internal state when range prop changes (e.g., when switching dashboards)
-  useEffect(() => {
-    setLocalStartDate(range.startDate ? range.startDate.toISOString().split('T')[0] : '');
-    setLocalEndDate(range.endDate ? range.endDate.toISOString().split('T')[0] : '');
-  }, [range.startDate, range.endDate]);
 
   const getEndOfQuarter = (date: Date): Date => {
     const quarter = Math.floor(date.getMonth() / 3);
@@ -46,10 +34,6 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
       // All Data - use data extent if available
       const startDate = dataExtent ? dataExtent[0] : undefined;
       const endDate = dataExtent ? dataExtent[1] : undefined;
-
-      // Update local state
-      setLocalStartDate(startDate ? startDate.toISOString().split('T')[0] : '');
-      setLocalEndDate(endDate ? endDate.toISOString().split('T')[0] : '');
 
       onChange({
         preset: 'all',
@@ -86,10 +70,6 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
 
       startDate.setHours(0, 0, 0, 0);
 
-      // Update local state
-      setLocalStartDate(startDate.toISOString().split('T')[0]);
-      setLocalEndDate(endDate.toISOString().split('T')[0]);
-
       onChange({
         preset,
         startDate,
@@ -98,29 +78,26 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
     }
   };
 
-  const handleCustomDateChange = (type: 'start' | 'end', value: string) => {
-    if (!value) return;
-
-    const date = new Date(value);
-
-    if (type === 'start') {
-      setLocalStartDate(value);
+  const handleStartDateChange = (date: Date | null) => {
+    if (date) {
       date.setHours(0, 0, 0, 0);
-      onChange({
-        preset: 'custom',
-        startDate: date,
-        endDate: range.endDate
-      });
-    } else {
-      setLocalEndDate(value);
-      // Extend end date to end of quarter
-      const endDate = getEndOfQuarter(date);
-      onChange({
-        preset: 'custom',
-        startDate: range.startDate,
-        endDate: endDate
-      });
     }
+    onChange({
+      preset: 'custom',
+      startDate: date || undefined,
+      endDate: range.endDate
+    });
+  };
+
+  const handleEndDateChange = (date: Date | null) => {
+    if (date) {
+      date.setHours(23, 59, 59, 999); // Set to end of day
+    }
+    onChange({
+      preset: 'custom',
+      startDate: range.startDate,
+      endDate: date || undefined
+    });
   };
 
   return (
@@ -180,26 +157,24 @@ export function RangeControls({ range, onChange, dataExtent }: RangeControlsProp
           <label className="block text-xs font-medium text-gray-700 mb-1">
             Start Date
           </label>
-          <input
-            type="date"
-            value={localStartDate}
-            onChange={(e) => handleCustomDateChange('start', e.target.value)}
-            min={dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined}
-            max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
-            className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
+          <DateInput
+            selected={range.startDate}
+            onChange={handleStartDateChange}
+            minDate={dataExtent ? dataExtent[0] : undefined}
+            maxDate={dataExtent ? dataExtent[1] : undefined}
+            placeholderText="Select start date"
           />
         </div>
         <div className="flex-1">
           <label className="block text-xs font-medium text-gray-700 mb-1">
             End Date
           </label>
-          <input
-            type="date"
-            value={localEndDate}
-            onChange={(e) => handleCustomDateChange('end', e.target.value)}
-            min={dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined}
-            max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
-            className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
+          <DateInput
+            selected={range.endDate}
+            onChange={handleEndDateChange}
+            minDate={dataExtent ? dataExtent[0] : undefined}
+            maxDate={dataExtent ? dataExtent[1] : undefined}
+            placeholderText="Select end date"
           />
         </div>
       </div>

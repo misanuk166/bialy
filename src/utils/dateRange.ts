@@ -30,8 +30,7 @@ export function calculateDateRange(range: DateRange | undefined, dataExtent?: [D
     if (range.startDate && range.endDate) {
       startDate = new Date(range.startDate);
       endDate = new Date(range.endDate);
-      // Extend custom end date to end of quarter
-      endDate = getEndOfQuarter(endDate);
+      // Keep the exact dates selected by the user
     } else {
       return dataExtent; // Fallback to full extent if custom dates not set
     }

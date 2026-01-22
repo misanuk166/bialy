@@ -16,12 +16,56 @@ import { generateShadowsData, calculateShadowAverage } from '../utils/shadows';
 import { generateGoalsData } from '../utils/goals';
 import { generateAnnotationData, mergeAnnotations } from '../utils/annotations';
 
+// Helper function to convert line style to SVG strokeDasharray
+function getStrokeDashArray(style: 'solid' | 'dashed' | 'dotted' | 'dashdot'): string | undefined {
+  switch (style) {
+    case 'solid':
+      return undefined; // No dash array for solid lines
+    case 'dashed':
+      return '5,5';
+    case 'dotted':
+      return '1,3';
+    case 'dashdot':
+      return '5,3,1,3';
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Lighten a hex color by a percentage (0-100)
+ * @param hex - Hex color (e.g., '#2563eb' or '2563eb')
+ * @param percent - Percentage to lighten (0 = no change, 100 = white)
+ * @returns Lightened hex color
+ */
+function lightenColor(hex: string, percent: number): string {
+  // Remove # if present
+  const cleanHex = hex.replace('#', '');
+
+  // Parse RGB
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+
+  // Lighten by moving toward white (255)
+  const factor = percent / 100;
+  const newR = Math.round(r + (255 - r) * factor);
+  const newG = Math.round(g + (255 - g) * factor);
+  const newB = Math.round(b + (255 - b) * factor);
+
+  // Convert back to hex
+  const toHex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${toHex(newR)}${toHex(newG)}${toHex(newB)}`;
+}
+
 interface CompactTimeSeriesChartProps {
   series: Series;
   aggregationConfig?: AggregationConfig;
   shadows?: Shadow[];
   shadowsEnabled?: boolean;
   averageShadows?: boolean;
+  shadowColor?: string;
+  shadowLineStyle?: 'solid' | 'dashed' | 'dotted' | 'dashdot';
   forecastConfig?: ForecastConfig;
   forecastSnapshot?: ForecastSnapshot;
   focusPeriod?: FocusPeriod;
@@ -48,6 +92,8 @@ export function CompactTimeSeriesChart({
   shadows,
   shadowsEnabled = true,
   averageShadows,
+  shadowColor = '#9ca3af',
+  shadowLineStyle = 'dashed',
   forecastConfig,
   forecastSnapshot,
   focusPeriod,
@@ -173,7 +219,8 @@ export function CompactTimeSeriesChart({
 
     if (forecastData.length > 0) {
       allValues.push(...forecastData.map(d => d.value));
-      if (confidenceIntervals) {
+      // Only include confidence intervals in scale if height > 60px (when they're visible)
+      if (confidenceIntervals && height > 60) {
         allValues.push(...confidenceIntervals.upper, ...confidenceIntervals.lower);
       }
     }
@@ -302,8 +349,8 @@ export function CompactTimeSeriesChart({
         });
     }
 
-    // Draw confidence interval
-    if (confidenceIntervals && forecastData.length > 0) {
+    // Draw confidence interval (only when height > 60px for better visibility)
+    if (confidenceIntervals && forecastData.length > 0 && height > 60) {
       const areaGenerator = d3Area<{ date: Date; upper: number; lower: number }>()
         .x(d => xScale(d.date))
         .y0(d => yScale(d.lower))
@@ -329,6 +376,7 @@ export function CompactTimeSeriesChart({
       .curve(curveLinear);
 
     // Draw shadows or averaged shadow (drawn first so they appear behind main line)
+    const shadowStrokeDashArray = getStrokeDashArray(shadowLineStyle);
     if (averageShadows && averagedShadowData.length > 0) {
       // Draw shaded area for standard deviation
       const areaGenerator = d3Area<typeof averagedShadowData[0]>()
@@ -340,7 +388,7 @@ export function CompactTimeSeriesChart({
 
       g.append('path')
         .datum(averagedShadowData)
-        .attr('fill', '#9ca3af')
+        .attr('fill', shadowColor)
         .attr('opacity', 0.3)
         .attr('d', areaGenerator);
 
@@ -351,25 +399,45 @@ export function CompactTimeSeriesChart({
         .defined(d => d.mean != null && !isNaN(d.mean) && isFinite(d.mean))
         .curve(curveLinear);
 
-      g.append('path')
+      const meanPath = g.append('path')
         .datum(averagedShadowData)
         .attr('fill', 'none')
-        .attr('stroke', '#6b7280')
+        .attr('stroke', shadowColor)
         .attr('stroke-width', 1)
         .attr('opacity', 0.8)
         .attr('d', meanLine);
+
+      if (shadowStrokeDashArray) {
+        meanPath.attr('stroke-dasharray', shadowStrokeDashArray);
+      }
     } else {
-      // Draw individual shadows in reverse order (oldest first)
+      // Draw individual shadows with fading effect
+      // Shadows are ordered newest first (index 0), so we apply progressive lightening to older shadows
+      const totalShadows = shadowsDataWithValues.length;
+
+      // Draw in reverse order (oldest first, so they appear in back)
       const reversedShadows = [...shadowsDataWithValues].reverse();
-      reversedShadows.forEach(shadowData => {
+      reversedShadows.forEach((shadowData, reversedIndex) => {
+        // Calculate original index (0 = newest, higher = older)
+        const originalIndex = totalShadows - 1 - reversedIndex;
+
+        // Apply progressive lightening: newest shadow (index 0) gets full color,
+        // older shadows get progressively lighter (10% per shadow, capped at 50%)
+        const lightenPercent = Math.min(originalIndex * 10, 50);
+        const fadedColor = lightenColor(shadowColor, lightenPercent);
+
         if (shadowData.data.length > 0) {
-          g.append('path')
+          const shadowPath = g.append('path')
             .datum(shadowData.data)
             .attr('fill', 'none')
-            .attr('stroke', shadowData.color)
+            .attr('stroke', fadedColor)
             .attr('stroke-width', 1)
             .attr('opacity', 0.7)
             .attr('d', line);
+
+          if (shadowStrokeDashArray) {
+            shadowPath.attr('stroke-dasharray', shadowStrokeDashArray);
+          }
         }
       });
     }

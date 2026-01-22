@@ -11,7 +11,7 @@ import { loadSyntheticMetrics } from '../utils/generateSyntheticData';
 import { fetchDashboard, saveDashboardData, updateDashboard, updateDashboardViewTime } from '../services/dashboardService';
 import { saveSeriesAsCSV } from '../services/storageService';
 import { fetchDashboardSettingsForDashboard } from '../services/settingsService';
-import { applyDashboardSettings, getDecimalPlaces, getSeriesColor } from '../utils/applyDashboardSettings';
+import { applyDashboardSettings, getDecimalPlaces, getSeriesColor, getShadowColor, getShadowLineStyle } from '../utils/applyDashboardSettings';
 import { useAuth } from '../contexts/AuthContext';
 import type { Dashboard } from '../types/dashboard';
 import type { Series } from '../types/series';
@@ -128,6 +128,9 @@ export function DashboardPage() {
   // ❌ REMOVED localStorage fallback - was loading stale data with broken file paths
   // Now using database persistence exclusively via fetchDashboard() above
 
+  // Track pending changes for immediate save on page unload
+  const pendingSaveRef = useRef<{ metrics: MetricConfig[], globalSettings: GlobalSettings, dashboardId: string } | null>(null);
+
   // Save dashboard data to database when it changes (debounced)
   useEffect(() => {
     if (!currentDashboardId || metrics.length === 0) return;
@@ -139,18 +142,57 @@ export function DashboardPage() {
       return;
     }
 
+    // Store pending changes
+    pendingSaveRef.current = { metrics, globalSettings, dashboardId: currentDashboardId };
+
     const timeoutId = setTimeout(() => {
       saveDashboardData(currentDashboardId, metrics, globalSettings)
         .then(() => {
           console.log('Dashboard data saved');
+          pendingSaveRef.current = null; // Clear pending changes after save
         })
         .catch((error) => {
           console.error('Failed to save dashboard data:', error);
         });
-    }, 1000); // Debounce for 1 second
+    }, 300); // Debounce for 300ms - short enough to prevent data loss on refresh
 
     return () => clearTimeout(timeoutId);
   }, [currentDashboardId, metrics, globalSettings, isLoadingDashboard]);
+
+  // Save immediately when tab becomes hidden or page is about to unload
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && pendingSaveRef.current) {
+        const { metrics, globalSettings, dashboardId } = pendingSaveRef.current;
+        console.log('Tab hidden - saving pending changes immediately');
+        saveDashboardData(dashboardId, metrics, globalSettings)
+          .then(() => {
+            console.log('Pending changes saved on visibility change');
+            pendingSaveRef.current = null;
+          })
+          .catch((error) => {
+            console.error('Failed to save on visibility change:', error);
+          });
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      if (pendingSaveRef.current) {
+        const { metrics, globalSettings, dashboardId } = pendingSaveRef.current;
+        console.log('Page unloading - attempting to save pending changes');
+        // Best effort save - might not complete before page unloads
+        saveDashboardData(dashboardId, metrics, globalSettings);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   const handleSeriesLoaded = (series: Series, filePath?: string) => {
     setMetrics(prevMetrics => {
@@ -336,12 +378,31 @@ export function DashboardPage() {
     }
   };
 
-  // Get data extent for focus period controls (primary series data only)
+  // Get data extent for date controls (includes primary series data, forecasts, and goals)
   const dataExtent = metrics.length > 0 ? (() => {
     const allDates: Date[] = [];
     metrics.forEach(m => {
-      // Only include primary series data (no forecasts, shadows, or goals)
+      // Include primary series data
       m.series.data.forEach(d => allDates.push(d.date));
+
+      // Include forecast extent if forecast is enabled
+      if (m.forecast?.enabled && m.forecast.horizon > 0) {
+        const lastDataDate = m.series.data[m.series.data.length - 1]?.date;
+        if (lastDataDate) {
+          const forecastEndDate = new Date(lastDataDate);
+          forecastEndDate.setDate(forecastEndDate.getDate() + m.forecast.horizon);
+          allDates.push(forecastEndDate);
+        }
+      }
+
+      // Include goal end dates if goals are enabled
+      if (m.goalsEnabled && m.goals) {
+        m.goals.forEach(goal => {
+          if (goal.enabled && goal.type === 'end-of-period' && goal.endDate) {
+            allDates.push(goal.endDate);
+          }
+        });
+      }
     });
     const extent = allDates.length > 0 ? [
       new Date(Math.min(...allDates.map(d => d.getTime()))),
@@ -401,6 +462,8 @@ export function DashboardPage() {
             <SingleMetricView
               metric={expandedMetric}
               globalSettings={globalSettings}
+              shadowColor={getShadowColor(dashboardSettings)}
+              shadowLineStyle={getShadowLineStyle(dashboardSettings)}
               onClose={handleCloseExpandedView}
               onMetricUpdate={handleMetricUpdate}
             />
@@ -444,6 +507,8 @@ export function DashboardPage() {
                   readOnly={readOnly}
                   precision={getDecimalPlaces(dashboardSettings)}
                   seriesColor={getSeriesColor(dashboardSettings)}
+                  shadowColor={getShadowColor(dashboardSettings)}
+                  shadowLineStyle={getShadowLineStyle(dashboardSettings)}
                   onMetricsReorder={setMetrics}
                   onMetricUpdate={handleMetricUpdate}
                   onMetricRemove={handleMetricRemove}

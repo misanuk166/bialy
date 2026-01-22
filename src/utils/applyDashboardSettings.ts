@@ -44,3 +44,26 @@ export function getSeriesColor(dashboardSettings: Map<string, SettingValue>): st
   }
   return '#2563eb'; // Default blue
 }
+
+/**
+ * Get the shadow line color setting for charts
+ */
+export function getShadowColor(dashboardSettings: Map<string, SettingValue>): string {
+  const shadowColor = dashboardSettings.get('shadowColor');
+  if (typeof shadowColor === 'string') {
+    return shadowColor;
+  }
+  return '#9ca3af'; // Default gray
+}
+
+/**
+ * Get the shadow line style setting for charts
+ */
+export function getShadowLineStyle(dashboardSettings: Map<string, SettingValue>): 'solid' | 'dashed' | 'dotted' | 'dashdot' {
+  const shadowLineStyle = dashboardSettings.get('shadowLineStyle');
+  if (typeof shadowLineStyle === 'string' &&
+      ['solid', 'dashed', 'dotted', 'dashdot'].includes(shadowLineStyle)) {
+    return shadowLineStyle as 'solid' | 'dashed' | 'dotted' | 'dashdot';
+  }
+  return 'dashed'; // Default
+}

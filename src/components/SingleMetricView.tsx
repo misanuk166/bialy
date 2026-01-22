@@ -7,6 +7,8 @@ import type { MetricConfig, GlobalSettings } from '../types/appState';
 interface SingleMetricViewProps {
   metric: MetricConfig;
   globalSettings: GlobalSettings;
+  shadowColor?: string;
+  shadowLineStyle?: 'solid' | 'dashed' | 'dotted' | 'dashdot';
   onClose: () => void;
   onMetricUpdate: (metric: MetricConfig) => void;
 }
@@ -14,6 +16,8 @@ interface SingleMetricViewProps {
 export function SingleMetricView({
   metric,
   globalSettings,
+  shadowColor = '#9ca3af',
+  shadowLineStyle = 'dashed',
   onClose,
   onMetricUpdate
 }: SingleMetricViewProps) {
@@ -78,6 +82,8 @@ export function SingleMetricView({
                 shadows={globalSettings.shadows}
                 shadowsEnabled={globalSettings.shadowsEnabled}
                 averageShadows={globalSettings.averageShadows}
+                shadowColor={shadowColor}
+                shadowLineStyle={shadowLineStyle}
                 goals={metric.goalsEnabled ? metric.goals : []}
                 forecastConfig={metric.forecast}
                 forecastSnapshot={metric.forecastSnapshot}

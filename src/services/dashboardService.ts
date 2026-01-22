@@ -506,8 +506,7 @@ export async function saveDashboardData(
       const { error: updateError } = await supabase
         .from('metrics')
         .update({
-          // NOTE: NOT updating name - database is source of truth for metric name
-          // The CSV filename should not overwrite user-edited metric names
+          name: metric.series.metadata.name, // Save user-edited metric name
           unit: metric.series.metadata.numeratorLabel || '',
           order_index: index
           // NOTE: NOT updating data_file_path - it stays the same!

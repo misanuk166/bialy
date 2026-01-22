@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { DateInput } from './DateInput';
 
 interface SelectionPeriodModalProps {
   selectionDate: Date;
@@ -19,13 +20,8 @@ export function SelectionPeriodModal({
   onClose,
   anchorElement
 }: SelectionPeriodModalProps) {
-  const [dateValue, setDateValue] = useState(selectionDate.toISOString().split('T')[0]);
+  const [dateValue, setDateValue] = useState(selectionDate);
   const popupRef = useRef<HTMLDivElement>(null);
-
-  // 🔧 FIX: Sync internal state when selectionDate prop changes (e.g., when switching dashboards)
-  useEffect(() => {
-    setDateValue(selectionDate.toISOString().split('T')[0]);
-  }, [selectionDate]);
 
   // Close on click outside
   useEffect(() => {
@@ -41,7 +37,7 @@ export function SelectionPeriodModal({
 
   const handleApply = () => {
     if (dateValue) {
-      onSelectionDateChange(new Date(dateValue));
+      onSelectionDateChange(dateValue);
     }
     onClose();
   };
@@ -61,13 +57,12 @@ export function SelectionPeriodModal({
           <label className="block text-xs font-medium text-gray-700 mb-1">
             Selection Date
           </label>
-          <input
-            type="date"
-            value={dateValue}
-            onChange={(e) => setDateValue(e.target.value)}
-            min={dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined}
-            max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
-            className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+          <DateInput
+            selected={dateValue}
+            onChange={(date) => setDateValue(date || selectionDate)}
+            minDate={dataExtent ? dataExtent[0] : undefined}
+            maxDate={dataExtent ? dataExtent[1] : undefined}
+            placeholderText="Select date"
           />
         </div>
 

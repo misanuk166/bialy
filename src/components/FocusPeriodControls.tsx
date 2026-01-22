@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { FocusPeriod } from '../types/focusPeriod';
+import { DateInput } from './DateInput';
 
 interface FocusPeriodControlsProps {
   focusPeriod: FocusPeriod;
@@ -19,25 +20,17 @@ export function FocusPeriodControls({ focusPeriod, onChange, dataExtent }: Focus
     onChange({ ...focusPeriod, enabled: newEnabled });
   };
 
-  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const startDate = e.target.value ? new Date(e.target.value) : undefined;
-    onChange({ ...focusPeriod, startDate });
+  const handleStartDateChange = (date: Date | null) => {
+    onChange({ ...focusPeriod, startDate: date || undefined });
   };
 
-  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const endDate = e.target.value ? new Date(e.target.value) : undefined;
-    onChange({ ...focusPeriod, endDate });
+  const handleEndDateChange = (date: Date | null) => {
+    onChange({ ...focusPeriod, endDate: date || undefined });
   };
 
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const label = e.target.value || undefined;
     onChange({ ...focusPeriod, label });
-  };
-
-  // Format date for input field (YYYY-MM-DD) - same as GoalControls
-  const formatDateForInput = (date?: Date): string => {
-    if (!date) return '';
-    return date.toISOString().split('T')[0];
   };
 
   return (
@@ -96,13 +89,12 @@ export function FocusPeriodControls({ focusPeriod, onChange, dataExtent }: Focus
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Start Date
             </label>
-            <input
-              type="date"
-              value={formatDateForInput(focusPeriod.startDate)}
+            <DateInput
+              selected={focusPeriod.startDate}
               onChange={handleStartDateChange}
-              min={dataExtent ? formatDateForInput(dataExtent[0]) : undefined}
-              max={dataExtent ? formatDateForInput(dataExtent[1]) : undefined}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              minDate={dataExtent ? dataExtent[0] : undefined}
+              maxDate={dataExtent ? dataExtent[1] : undefined}
+              placeholderText="Select start date"
             />
           </div>
 
@@ -111,13 +103,12 @@ export function FocusPeriodControls({ focusPeriod, onChange, dataExtent }: Focus
             <label className="block text-sm font-medium text-gray-700 mb-1">
               End Date
             </label>
-            <input
-              type="date"
-              value={formatDateForInput(focusPeriod.endDate)}
+            <DateInput
+              selected={focusPeriod.endDate}
               onChange={handleEndDateChange}
-              min={dataExtent ? formatDateForInput(dataExtent[0]) : undefined}
-              max={dataExtent ? formatDateForInput(dataExtent[1]) : undefined}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              minDate={dataExtent ? dataExtent[0] : undefined}
+              maxDate={dataExtent ? dataExtent[1] : undefined}
+              placeholderText="Select end date"
             />
           </div>
 

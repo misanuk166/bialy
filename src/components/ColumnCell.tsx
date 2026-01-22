@@ -120,12 +120,14 @@ export function MeanRangeCell({
   min,
   max,
   precision = 2,
+  rowHeight = 60,
   className = ''
 }: {
   mean?: number;
   min?: number;
   max?: number;
   precision?: number;
+  rowHeight?: number;
   className?: string;
 }) {
   if (mean === undefined || min === undefined || max === undefined) {
@@ -143,12 +145,16 @@ export function MeanRangeCell({
 
   const rangeValue = `${min.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })} - ${max.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}`;
 
+  // Use smaller font sizes when row height is below 60px
+  const meanSizeClass = rowHeight < 60 ? 'text-xs' : 'text-sm';
+  const rangeSizeClass = rowHeight < 60 ? 'text-[10px]' : 'text-xs';
+
   return (
     <div className={`text-right px-0.5 py-0.5 leading-tight flex flex-col justify-center ${className}`}>
-      <div className="text-sm font-medium text-gray-900">
+      <div className={`${meanSizeClass} font-medium text-gray-900`}>
         {meanValue}
       </div>
-      <div className="text-xs text-gray-600 mt-0.5">
+      <div className={`${rangeSizeClass} text-gray-600 mt-0.5`}>
         {rangeValue}
       </div>
     </div>
@@ -166,6 +172,7 @@ export function PercentAbsCell({
   maxPositivePct,
   maxNegativePct,
   isExtreme = false,
+  rowHeight = 60,
   className = ''
 }: {
   percentValue?: number;
@@ -178,6 +185,7 @@ export function PercentAbsCell({
   maxPositivePct?: number;
   maxNegativePct?: number;
   isExtreme?: boolean;
+  rowHeight?: number;
   className?: string;
 }) {
   if (isEmpty || percentValue === undefined || absValue === undefined) {
@@ -212,16 +220,20 @@ export function PercentAbsCell({
     maximumFractionDigits: precision
   });
 
+  // Use smaller font sizes when row height is below 60px
+  const percentSizeClass = rowHeight < 60 ? 'text-xs' : 'text-sm';
+  const absSizeClass = rowHeight < 60 ? 'text-[10px]' : 'text-xs';
+
   return (
     <div className={`text-right px-0.5 py-0.5 leading-tight flex flex-col justify-center ${className}`}>
       <div
-        className={`text-sm ${isExtreme ? 'font-bold' : 'font-medium'} ${textColorClass}`}
+        className={`${percentSizeClass} ${isExtreme ? 'font-bold' : 'font-medium'} ${textColorClass}`}
         style={textColorStyle ? { color: textColorStyle } : undefined}
       >
         {displayPercent}
       </div>
       <div
-        className={`text-xs mt-0.5 ${textColorClass}`}
+        className={`${absSizeClass} mt-0.5 ${textColorClass}`}
         style={textColorStyle ? { color: textColorStyle } : undefined}
       >
         {displayAbs}

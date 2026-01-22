@@ -38,8 +38,11 @@ interface MetricRowProps {
   currentHoverDate?: Date;
   xDomain: [Date, Date];
   chartWidth: number;
+  rowHeight?: number; // Height of the row (60-400px)
   precision?: number;
   seriesColor?: string;
+  shadowColor?: string;
+  shadowLineStyle?: 'solid' | 'dashed' | 'dotted' | 'dashdot';
   onMetricUpdate: (metric: MetricConfig) => void;
   onExpand: () => void;
   onRemove: () => void;
@@ -63,8 +66,11 @@ export const MetricRow = memo(function MetricRow({
   currentHoverDate,
   xDomain,
   chartWidth,
+  rowHeight = 60,
   precision = 2,
   seriesColor = '#2563eb',
+  shadowColor = '#9ca3af',
+  shadowLineStyle = 'dashed',
   onMetricUpdate,
   onExpand,
   onRemove,
@@ -103,6 +109,12 @@ export const MetricRow = memo(function MetricRow({
   const [isEditingGroup, setIsEditingGroup] = useState(false);
   const [editedGroup, setEditedGroup] = useState(metric.group || '');
   const [isChartExpanded, setIsChartExpanded] = useState(false);
+
+  // Determine effective row height: locked expanded state overrides global rowHeight
+  const effectiveRowHeight = isChartExpanded ? 320 : rowHeight;
+
+  // Determine if expanded features should be shown based on effective row height
+  const showExpandedFeatures = effectiveRowHeight > 160;
 
   // Helper function to get default forecast config
   const getDefaultForecastConfig = () => {
@@ -387,7 +399,7 @@ export const MetricRow = memo(function MetricRow({
           <div className="text-xs text-gray-500 mt-1 leading-tight text-left">{metric.series.metadata.description}</div>
 
           {/* Forecast and Goals buttons (shown when expanded) */}
-          {isChartExpanded && (
+          {showExpandedFeatures && (
             <div className="flex gap-2 mt-2">
               <button
                 onClick={() => {
@@ -460,24 +472,26 @@ export const MetricRow = memo(function MetricRow({
         </div>
 
         {/* Compact Chart - spans Aggregation, Shadow, and Range columns */}
-        <div className="border-r border-gray-300 relative px-1.5 overflow-hidden" style={{ gridColumn: 'span 3', height: isChartExpanded ? '400px' : '60px' }}>
+        <div className="border-r border-gray-300 relative px-1.5 overflow-hidden" style={{ gridColumn: 'span 3', height: `${effectiveRowHeight}px` }}>
           <CompactTimeSeriesChart
             series={metric.series}
             aggregationConfig={globalSettings.aggregation}
             shadows={globalSettings.shadows}
             shadowsEnabled={globalSettings.shadowsEnabled}
             averageShadows={globalSettings.averageShadows}
+            shadowColor={shadowColor}
+            shadowLineStyle={shadowLineStyle}
             forecastConfig={metric.forecast}
             forecastSnapshot={metric.forecastSnapshot}
             focusPeriod={globalSettings.focusPeriod}
-            goals={isChartExpanded && (metric.goalsEnabled !== false) ? (metric.goals || []) : []}
+            goals={showExpandedFeatures && (metric.goalsEnabled !== false) ? (metric.goals || []) : []}
             annotations={globalSettings.annotations}
             annotationsEnabled={globalSettings.annotationsEnabled}
             metricAnnotations={metric.annotations}
             xDomain={xDomain}
             width={chartWidth - 8}
-            height={isChartExpanded ? 380 : 58}
-            showXAxis={isChartExpanded}
+            height={effectiveRowHeight - 2}
+            showXAxis={showExpandedFeatures}
             selectionDate={selectionDate}
             precision={precision}
             seriesColor={seriesColor}
@@ -485,11 +499,11 @@ export const MetricRow = memo(function MetricRow({
             onHover={onHover}
             onClick={onSelectionChange}
           />
-          {/* Expand in Grid Icon */}
+          {/* Expand/Collapse button to lock this row at full height */}
           <button
             onClick={() => setIsChartExpanded(!isChartExpanded)}
             className="absolute top-1 left-1 text-xs font-bold text-black bg-gray-100 hover:bg-gray-200 px-1 py-0.5 rounded"
-            title={isChartExpanded ? "Collapse Chart" : "Expand in Grid"}
+            title={isChartExpanded ? "Unlock row height" : "Lock row at full height"}
           >
             {isChartExpanded ? '⤡' : '⤢'}
           </button>
@@ -501,6 +515,7 @@ export const MetricRow = memo(function MetricRow({
           min={rowValues.selectionRange?.min}
           max={rowValues.selectionRange?.max}
           precision={precision}
+          rowHeight={effectiveRowHeight}
           className={selectionComparisons.length === 0 ? "border-r border-gray-300" : ""}
         />
 
@@ -528,6 +543,7 @@ export const MetricRow = memo(function MetricRow({
                   result.percentDifference === scaling.min
                 )
               }
+              rowHeight={effectiveRowHeight}
               className={isLast ? "border-r border-gray-300" : ""}
             />
           );
@@ -539,6 +555,7 @@ export const MetricRow = memo(function MetricRow({
           min={rowValues.focusPeriodRange?.min}
           max={rowValues.focusPeriodRange?.max}
           precision={precision}
+          rowHeight={effectiveRowHeight}
         />
 
         {/* Dynamic Focus Comparisons */}
@@ -564,6 +581,7 @@ export const MetricRow = memo(function MetricRow({
                   result.percentDifference === scaling.min
                 )
               }
+              rowHeight={effectiveRowHeight}
             />
           );
         })}

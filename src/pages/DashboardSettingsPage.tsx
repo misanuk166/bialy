@@ -52,6 +52,24 @@ const SETTINGS: Record<string, { section: string; settings: SettingConfig[] }> =
         description: 'Color for the main metric line in charts',
         type: 'color',
       },
+      {
+        id: 'shadowColor',
+        label: 'Shadow Line Color',
+        description: 'Color for shadow comparison lines in charts',
+        type: 'color',
+      },
+      {
+        id: 'shadowLineStyle',
+        label: 'Shadow Line Style',
+        description: 'Line style for shadow comparison lines',
+        type: 'select',
+        options: [
+          { value: 'solid', label: 'Solid' },
+          { value: 'dashed', label: 'Dashed' },
+          { value: 'dotted', label: 'Dotted' },
+          { value: 'dashdot', label: 'Dash-Dot' },
+        ],
+      },
       // NOTE: dateRange was removed - it's part of dashboard working state, not a preference
     ],
   },
@@ -61,6 +79,8 @@ const SETTINGS: Record<string, { section: string; settings: SettingConfig[] }> =
 const DEFAULT_SETTINGS: Record<string, any> = {
   decimalPlaces: '2',
   seriesColor: '#2563eb',
+  shadowColor: '#9ca3af',
+  shadowLineStyle: 'dashed',
 };
 
 export function DashboardSettingsPage() {

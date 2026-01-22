@@ -27,18 +27,27 @@ Bialy is a web-based tool that makes it easy to:
 
 ## Recent Updates (January 2026)
 
+### New Features
+- ✨ **Resizable Row Heights** - Drag the gray separator between rows to resize chart heights (40px-320px)
+- ✨ **Shadow Line Customization** - Configure shadow line colors and styles (solid/dashed/dotted/dash-dot) with automatic fading for older shadows
+- ✨ **Improved Date Pickers** - Migrated to react-datepicker for better date input handling
+- ✨ **Adaptive UI** - Table values automatically scale font size at compact heights (<60px)
+- ✨ **Per-Row Expansion** - Lock individual rows at full height (320px) while keeping others compact
+
 ### Bug Fixes & Improvements
 - ✅ **Multi-CSV Upload** - Fixed issue where only first CSV saved when uploading multiple metrics
 - ✅ **Metric Name Persistence** - Database names now override CSV filenames (user edits preserved)
 - ✅ **Date Range Persistence** - Date range selections now save correctly across page refreshes
-- ✅ **Dashboard Settings** - Added configurable decimal places and series line colors
+- ✅ **Dashboard Settings** - Added configurable decimal places, series line colors, and shadow styles
 - ✅ **Shadow Day-of-Week Alignment** - Shadows can align by weekday (up to 3 days shift)
+- ✅ **Date Input Reliability** - Fixed timezone issues causing date auto-correction
 
 ### Technical Improvements
 - Improved filename parsing to remove timestamps from metric names
 - Fixed filePath parameter passing in Add Metric modal
 - Removed date range from preferences (now part of dashboard state)
 - Enhanced error logging for troubleshooting
+- Optimized forecast confidence interval rendering based on chart height
 
 ## Features
 

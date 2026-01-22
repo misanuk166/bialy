@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { ComparisonConfig, ComparisonType, ComparisonPeriodType } from '../types/comparison';
 import type { Shadow } from '../types/shadow';
 import type { Goal } from '../types/goal';
 import type { FocusPeriod } from '../types/focusPeriod';
 import { generateShadowPeriodLabel } from '../utils/shadowLabels';
+import { DateInput } from './DateInput';
 
 interface ComparisonControlsProps {
   comparisons: ComparisonConfig[];
@@ -67,36 +68,23 @@ export function ComparisonControls({
     return '';
   });
 
-  const [focusStartDate, setFocusStartDate] = useState(() => {
-    if (focusPeriod?.startDate) return focusPeriod.startDate.toISOString().split('T')[0];
+  const [focusStartDate, setFocusStartDate] = useState<Date | undefined>(() => {
+    if (focusPeriod?.startDate) return focusPeriod.startDate;
     if (dataExtent && dataExtent[1]) {
       const quarter = calculateCurrentQuarter(dataExtent[1]);
-      return quarter.startDate.toISOString().split('T')[0];
+      return quarter.startDate;
     }
-    return '';
+    return undefined;
   });
 
-  const [focusEndDate, setFocusEndDate] = useState(() => {
-    if (focusPeriod?.endDate) return focusPeriod.endDate.toISOString().split('T')[0];
+  const [focusEndDate, setFocusEndDate] = useState<Date | undefined>(() => {
+    if (focusPeriod?.endDate) return focusPeriod.endDate;
     if (dataExtent && dataExtent[1]) {
       const quarter = calculateCurrentQuarter(dataExtent[1]);
-      return quarter.endDate.toISOString().split('T')[0];
+      return quarter.endDate;
     }
-    return '';
+    return undefined;
   });
-
-  // 🔧 FIX: Sync internal state when focusPeriod prop changes (e.g., when switching dashboards)
-  useEffect(() => {
-    if (focusPeriod?.label !== undefined) {
-      setFocusLabel(focusPeriod.label || '');
-    }
-    if (focusPeriod?.startDate !== undefined) {
-      setFocusStartDate(focusPeriod.startDate ? focusPeriod.startDate.toISOString().split('T')[0] : '');
-    }
-    if (focusPeriod?.endDate !== undefined) {
-      setFocusEndDate(focusPeriod.endDate ? focusPeriod.endDate.toISOString().split('T')[0] : '');
-    }
-  }, [focusPeriod]);
 
   const resetForm = () => {
     setFormLabel('');
@@ -211,8 +199,8 @@ export function ComparisonControls({
     onFocusPeriodChange({
       enabled: hasData,
       label: focusLabel.trim() || undefined,
-      startDate: focusStartDate ? new Date(focusStartDate) : undefined,
-      endDate: focusEndDate ? new Date(focusEndDate) : undefined
+      startDate: focusStartDate,
+      endDate: focusEndDate
     });
   };
 
@@ -220,8 +208,8 @@ export function ComparisonControls({
     if (!onFocusPeriodChange) return;
     onFocusPeriodChange({ enabled: false });
     setFocusLabel('');
-    setFocusStartDate('');
-    setFocusEndDate('');
+    setFocusStartDate(undefined);
+    setFocusEndDate(undefined);
   };
 
   // Sort comparisons by order for display
@@ -338,13 +326,12 @@ export function ComparisonControls({
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Start Date
                 </label>
-                <input
-                  type="date"
-                  value={focusStartDate}
-                  onChange={(e) => setFocusStartDate(e.target.value)}
-                  min={dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined}
-                  max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
-                  className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+                <DateInput
+                  selected={focusStartDate}
+                  onChange={(date) => setFocusStartDate(date || undefined)}
+                  minDate={dataExtent ? dataExtent[0] : undefined}
+                  maxDate={dataExtent ? dataExtent[1] : undefined}
+                  placeholderText="Select start date"
                 />
               </div>
 
@@ -352,13 +339,12 @@ export function ComparisonControls({
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   End Date
                 </label>
-                <input
-                  type="date"
-                  value={focusEndDate}
-                  onChange={(e) => setFocusEndDate(e.target.value)}
-                  min={focusStartDate || (dataExtent ? dataExtent[0].toISOString().split('T')[0] : undefined)}
-                  max={dataExtent ? dataExtent[1].toISOString().split('T')[0] : undefined}
-                  className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+                <DateInput
+                  selected={focusEndDate}
+                  onChange={(date) => setFocusEndDate(date || undefined)}
+                  minDate={focusStartDate || (dataExtent ? dataExtent[0] : undefined)}
+                  maxDate={dataExtent ? dataExtent[1] : undefined}
+                  placeholderText="Select end date"
                 />
               </div>
             </div>

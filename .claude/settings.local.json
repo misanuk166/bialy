@@ -61,7 +61,9 @@
       "mcp__vercel__get_deployment_build_logs",
       "mcp__vercel__deploy_to_vercel",
       "Bash(npx supabase db push:*)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npx supabase:*)"
     ],
     "deny": [],
     "ask": []

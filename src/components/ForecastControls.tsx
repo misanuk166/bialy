@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ForecastConfig } from '../types/forecast';
+import { DateInput } from './DateInput';
 
 interface ForecastControlsProps {
   config: ForecastConfig;
@@ -54,9 +55,8 @@ export function ForecastControls({ config, onChange, onRefreshSnapshot, snapshot
     onChange({ ...config, interpolation });
   };
 
-  const handleStartDateChange = (value: string) => {
-    const startDate = value ? new Date(value) : undefined;
-    onChange({ ...config, startDate });
+  const handleStartDateChange = (date: Date | null) => {
+    onChange({ ...config, startDate: date || undefined });
   };
 
   // Calculate days to end of quarter, end of year, and 1 year from start date
@@ -158,11 +158,10 @@ export function ForecastControls({ config, onChange, onRefreshSnapshot, snapshot
             <label className="block text-xs font-medium text-gray-700 mb-1">
               Start Date
             </label>
-            <input
-              type="date"
-              value={config.startDate ? config.startDate.toISOString().split('T')[0] : ''}
-              onChange={(e) => handleStartDateChange(e.target.value)}
-              className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
+            <DateInput
+              selected={config.startDate}
+              onChange={handleStartDateChange}
+              placeholderText="Select start date"
             />
           </div>
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Goal, GoalType } from '../types/goal';
+import { DateInput } from './DateInput';
 
 interface GoalControlsProps {
   goals: Goal[];
@@ -25,8 +26,8 @@ export function GoalControls({
 
   // End-of-period goal fields
   const [endValue, setEndValue] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [startDate, setStartDate] = useState<Date | undefined>();
 
   const handleToggleGoal = (goalId: string) => {
     onChange(
@@ -49,8 +50,8 @@ export function GoalControls({
       setTargetValue(goal.targetValue?.toString() || '');
     } else if (goal.type === 'end-of-period') {
       setEndValue(goal.endValue?.toString() || '');
-      setEndDate(goal.endDate ? goal.endDate.toISOString().split('T')[0] : '');
-      setStartDate(goal.startDate ? goal.startDate.toISOString().split('T')[0] : '');
+      setEndDate(goal.endDate);
+      setStartDate(goal.startDate);
     }
   };
 
@@ -77,8 +78,8 @@ export function GoalControls({
                 ...g,
                 type: 'end-of-period',
                 endValue: parseFloat(endValue),
-                endDate: new Date(endDate),
-                startDate: new Date(startDate),
+                endDate: endDate,
+                startDate: startDate,
                 interpolation: 'linear' as const,
                 label
               }
@@ -92,8 +93,8 @@ export function GoalControls({
     setLabel('');
     setTargetValue('');
     setEndValue('');
-    setEndDate('');
-    setStartDate('');
+    setEndDate(undefined);
+    setStartDate(undefined);
   };
 
   const handleCreateGoal = () => {
@@ -117,8 +118,8 @@ export function GoalControls({
         enabled: true,
         type: 'end-of-period',
         endValue: parseFloat(endValue),
-        endDate: new Date(endDate),
-        startDate: new Date(startDate),
+        endDate: endDate,
+        startDate: startDate,
         interpolation: 'linear',
         label
       };
@@ -130,8 +131,8 @@ export function GoalControls({
     setLabel('');
     setTargetValue('');
     setEndValue('');
-    setEndDate('');
-    setStartDate('');
+    setEndDate(undefined);
+    setStartDate(undefined);
     setIsCreating(false);
   };
 
@@ -139,8 +140,8 @@ export function GoalControls({
     setLabel('');
     setTargetValue('');
     setEndValue('');
-    setEndDate('');
-    setStartDate('');
+    setEndDate(undefined);
+    setStartDate(undefined);
     setIsCreating(false);
     setEditingGoalId(null);
   };
@@ -251,11 +252,10 @@ export function GoalControls({
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Start Date
                     </label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
+                    <DateInput
+                      selected={startDate}
+                      onChange={(date) => setStartDate(date || undefined)}
+                      placeholderText="Select start date"
                     />
                   </div>
 
@@ -263,11 +263,11 @@ export function GoalControls({
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       End Date
                     </label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
+                    <DateInput
+                      selected={endDate}
+                      onChange={(date) => setEndDate(date || undefined)}
+                      minDate={startDate}
+                      placeholderText="Select end date"
                     />
                   </div>
                 </>
