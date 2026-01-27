@@ -4,20 +4,16 @@ import { DateInput } from './DateInput';
 
 interface FocusPeriodModalProps {
   focusPeriod: FocusPeriod;
-  includesForecast?: boolean;
   dataExtent?: [Date, Date];
   onSave: (focusPeriod: FocusPeriod) => void;
-  onIncludesForecastChange?: (includesForecast: boolean) => void;
   onClose: () => void;
   anchorElement?: HTMLElement;
 }
 
 export function FocusPeriodModal({
   focusPeriod,
-  includesForecast = false,
   dataExtent,
   onSave,
-  onIncludesForecastChange,
   onClose,
   anchorElement
 }: FocusPeriodModalProps) {
@@ -147,18 +143,6 @@ export function FocusPeriodModal({
             maxDate={dataExtent ? dataExtent[1] : undefined}
             placeholderText="Select end date"
           />
-        </div>
-
-        <div>
-          <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={includesForecast}
-              onChange={(e) => onIncludesForecastChange?.(e.target.checked)}
-              className="cursor-pointer"
-            />
-            <span>Include forecast in comparisons</span>
-          </label>
         </div>
       </div>
 

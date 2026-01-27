@@ -47,8 +47,6 @@ export function DashboardPage() {
       preset: 'all'
     },
     comparisons: [...DEFAULT_SELECTION_COMPARISONS, ...DEFAULT_FOCUS_COMPARISONS],
-    selectionIncludesForecast: false,
-    focusIncludesForecast: false,
     annotations: [],
     annotationsEnabled: false
   });
@@ -102,6 +100,9 @@ export function DashboardPage() {
           setMetrics(dashboard.metrics);
           setDashboardSettings(dashboardSettings);
 
+          // Mark that these metrics belong to this dashboard
+          metricsOwnerDashboardRef.current = currentDashboardId;
+
           // Apply dashboard settings to override defaults
           const settingsWithOverrides = applyDashboardSettings(
             dashboard.global_settings,
@@ -114,9 +115,19 @@ export function DashboardPage() {
 
           // Update last viewed timestamp
           updateDashboardViewTime(currentDashboardId);
+        } else {
+          // Dashboard not found - clear state
+          console.log('[DASHBOARD] Dashboard not found');
+          setCurrentDashboard(null);
+          setMetrics([]);
+          metricsOwnerDashboardRef.current = null;
         }
       } catch (error) {
         console.error('Failed to load dashboard:', error);
+        // Clear state on error
+        setCurrentDashboard(null);
+        setMetrics([]);
+        metricsOwnerDashboardRef.current = null;
       } finally {
         setIsLoadingDashboard(false);
       }
@@ -131,9 +142,12 @@ export function DashboardPage() {
   // Track pending changes for immediate save on page unload
   const pendingSaveRef = useRef<{ metrics: MetricConfig[], globalSettings: GlobalSettings, dashboardId: string } | null>(null);
 
+  // Track which dashboard the current metrics belong to
+  const metricsOwnerDashboardRef = useRef<string | null>(null);
+
   // Save dashboard data to database when it changes (debounced)
   useEffect(() => {
-    if (!currentDashboardId || metrics.length === 0) return;
+    if (!currentDashboardId) return;
 
     // CRITICAL: Don't save while loading a dashboard
     // This prevents saving stale metrics from the previous dashboard
@@ -142,10 +156,18 @@ export function DashboardPage() {
       return;
     }
 
+    // CRITICAL: Only save if metrics belong to the current dashboard
+    // This prevents saving Dashboard A's metrics to Dashboard B when switching
+    if (metricsOwnerDashboardRef.current !== currentDashboardId) {
+      console.log('[DASHBOARD] Skipping save - metrics belong to different dashboard');
+      return;
+    }
+
     // Store pending changes
     pendingSaveRef.current = { metrics, globalSettings, dashboardId: currentDashboardId };
 
     const timeoutId = setTimeout(() => {
+      // Allow saving even if metrics array is empty (for new/cleared dashboards)
       saveDashboardData(currentDashboardId, metrics, globalSettings)
         .then(() => {
           console.log('Dashboard data saved');
@@ -194,16 +216,19 @@ export function DashboardPage() {
     };
   }, []);
 
-  const handleSeriesLoaded = (series: Series, filePath?: string) => {
+  const handleSeriesLoaded = (seriesArray: Series[], filePath?: string) => {
     setMetrics(prevMetrics => {
-      const newMetric: MetricConfig = {
+      const wasEmpty = prevMetrics.length === 0;
+
+      // Create a MetricConfig for each series
+      const newMetrics: MetricConfig[] = seriesArray.map((series, index) => ({
         id: series.id,
         series: {
           ...series,
           filePath // Store file path with series for later retrieval
         },
-        order: prevMetrics.length,
-        metricIndex: prevMetrics.length,
+        order: prevMetrics.length + index,
+        metricIndex: prevMetrics.length + index,
         goals: [],
         goalsEnabled: false,
         forecast: {
@@ -213,10 +238,10 @@ export function DashboardPage() {
           showConfidenceIntervals: true,
           confidenceLevel: 95
         }
-      };
+      }));
 
-      // Add default shadow (1 year ago) when adding the first metric
-      if (prevMetrics.length === 0) {
+      // Add default shadow (1 year ago) when adding the first metric(s)
+      if (wasEmpty && newMetrics.length > 0) {
         setGlobalSettings(prev => ({
           ...prev,
           shadows: [{
@@ -229,7 +254,12 @@ export function DashboardPage() {
         }));
       }
 
-      return [...prevMetrics, newMetric];
+      // Mark that these metrics belong to the current dashboard
+      if (currentDashboardId) {
+        metricsOwnerDashboardRef.current = currentDashboardId;
+      }
+
+      return [...prevMetrics, ...newMetrics];
     });
   };
 
@@ -285,20 +315,16 @@ export function DashboardPage() {
     setGlobalSettings(prev => ({ ...prev, comparisons }));
   };
 
-  const handleForecastInclusionChange = (selectionIncludes: boolean, focusIncludes: boolean) => {
-    setGlobalSettings(prev => ({
-      ...prev,
-      selectionIncludesForecast: selectionIncludes,
-      focusIncludesForecast: focusIncludes
-    }));
-  };
-
   const handleAddMetric = () => {
     setShowAddMetricModal(true);
   };
 
   const handleClearAllMetrics = () => {
     setMetrics([]);
+    // Mark that the (empty) metrics belong to the current dashboard
+    if (currentDashboardId) {
+      metricsOwnerDashboardRef.current = currentDashboardId;
+    }
   };
 
   const handleLoadSyntheticMetrics = async () => {
@@ -325,8 +351,8 @@ export function DashboardPage() {
             filePath: uploadResult.path
           } as Series;
 
-          // Pass to the normal handler
-          handleSeriesLoaded(seriesWithPath, uploadResult.path);
+          // Pass to the normal handler (as array since it accepts multiple series)
+          handleSeriesLoaded([seriesWithPath], uploadResult.path);
           successCount++;
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -519,7 +545,6 @@ export function DashboardPage() {
                   onDateRangeChange={handleDateRangeChange}
                   onSelectionDateChange={handleSelectionDateChange}
                   onComparisonsChange={handleComparisonsChange}
-                  onForecastInclusionChange={handleForecastInclusionChange}
                   onAnnotationsChange={handleAnnotationsChange}
                   onAddMetric={handleAddMetric}
                   onClearAllMetrics={handleClearAllMetrics}

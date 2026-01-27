@@ -3,20 +3,16 @@ import { DateInput } from './DateInput';
 
 interface SelectionPeriodModalProps {
   selectionDate: Date;
-  includesForecast?: boolean;
   dataExtent?: [Date, Date];
   onSelectionDateChange: (date: Date) => void;
-  onIncludesForecastChange?: (includesForecast: boolean) => void;
   onClose: () => void;
   anchorElement?: HTMLElement;
 }
 
 export function SelectionPeriodModal({
   selectionDate,
-  includesForecast = false,
   dataExtent,
   onSelectionDateChange,
-  onIncludesForecastChange,
   onClose,
   anchorElement
 }: SelectionPeriodModalProps) {
@@ -64,18 +60,6 @@ export function SelectionPeriodModal({
             maxDate={dataExtent ? dataExtent[1] : undefined}
             placeholderText="Select date"
           />
-        </div>
-
-        <div>
-          <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={includesForecast}
-              onChange={(e) => onIncludesForecastChange?.(e.target.checked)}
-              className="cursor-pointer"
-            />
-            <span>Include forecast in comparisons</span>
-          </label>
         </div>
       </div>
 

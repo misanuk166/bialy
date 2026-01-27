@@ -27,8 +27,7 @@ export function calculateMetricRowValues(
   goals?: Goal[],
   focusPeriod?: FocusPeriod,
   forecastConfig?: ForecastConfig,
-  forecastSnapshot?: ForecastSnapshot,
-  selectionIncludesForecast?: boolean
+  forecastSnapshot?: ForecastSnapshot
 ): MetricRowValues {
   // Prepare data (needed for both selection and focus period calculations)
   const dataWithValues = series.data.map(d => ({
@@ -69,6 +68,18 @@ export function calculateMetricRowValues(
         min: Math.min(...values),
         max: Math.max(...values)
       };
+
+      // DEBUG: Log focus period data
+      console.log('[FOCUS PERIOD DATA]', {
+        focusPeriodLabel: focusPeriod.label,
+        focusPeriodStart: focusPeriod.startDate,
+        focusPeriodEnd: focusPeriod.endDate,
+        dataPoints: focusData.length,
+        mean: focusPeriodMean,
+        range: focusPeriodRange,
+        firstDate: focusData[0]?.date,
+        lastDate: focusData[focusData.length - 1]?.date
+      });
     }
   }
 
@@ -124,8 +135,8 @@ export function calculateMetricRowValues(
   let isForecastPoint = false;
   let forecastPointIndex = -1;
 
-  // If not found in display data, check forecast data (only if selectionIncludesForecast is true)
-  if (!currentPoint && forecastData.length > 0 && selectionIncludesForecast) {
+  // If not found in display data, check forecast data
+  if (!currentPoint && forecastData.length > 0) {
     forecastPointIndex = forecastData.findIndex(p => {
       const diff = Math.abs(p.date.getTime() - dateTime);
       return diff < 24 * 60 * 60 * 1000; // 1 day tolerance
@@ -352,9 +363,23 @@ export function calculateMetricRowValues(
       // Get shadow data within focus period and calculate mean
       if (averageShadows && aggregatedShadowsData.length > 1) {
         const averagedShadowData = calculateShadowAverage(aggregatedShadowsData);
-        const focusShadowData = averagedShadowData.filter(p =>
-          p.date >= focusPeriod.startDate! && p.date <= focusPeriod.endDate!
+
+        // CRITICAL FIX: Only include shadow data for dates that exist in the current focus period
+        const actualFocusData = displayData.filter(d =>
+          d.date >= focusPeriod.startDate! && d.date <= focusPeriod.endDate!
         );
+        // Use date strings (YYYY-MM-DD) for comparison to avoid timestamp precision issues
+        const availableDateStrings = new Set(
+          actualFocusData.map(d => d.date.toISOString().split('T')[0])
+        );
+
+        const focusShadowData = averagedShadowData.filter(p => {
+          const dateStr = p.date.toISOString().split('T')[0];
+          return p.date >= focusPeriod.startDate! &&
+                 p.date <= focusPeriod.endDate! &&
+                 availableDateStrings.has(dateStr);
+        });
+
         if (focusShadowData.length > 0) {
           const focusShadowMean = focusShadowData.reduce((sum, p) => sum + p.mean, 0) / focusShadowData.length;
           focusPeriodVsShadowAbs = focusPeriodMean - focusShadowMean;
@@ -365,13 +390,42 @@ export function calculateMetricRowValues(
           date: d.date,
           value: d.numerator / d.denominator
         }));
-        const focusShadowData = shadowDataWithValues.filter(p =>
-          p.date >= focusPeriod.startDate! && p.date <= focusPeriod.endDate!
+
+        // CRITICAL FIX: Only include shadow data for dates that exist in the current focus period
+        // This ensures we're comparing the same date ranges (e.g., Jan 1-20 vs Jan 1-20 last year)
+        // rather than partial current period vs full shadow period
+        const actualFocusData = displayData.filter(d =>
+          d.date >= focusPeriod.startDate! && d.date <= focusPeriod.endDate!
         );
+        // Use date strings (YYYY-MM-DD) for comparison to avoid timestamp precision issues
+        const availableDateStrings = new Set(
+          actualFocusData.map(d => d.date.toISOString().split('T')[0])
+        );
+
+        const focusShadowData = shadowDataWithValues.filter(p => {
+          const dateStr = p.date.toISOString().split('T')[0];
+          return p.date >= focusPeriod.startDate! &&
+                 p.date <= focusPeriod.endDate! &&
+                 availableDateStrings.has(dateStr);
+        });
+
         if (focusShadowData.length > 0) {
           const focusShadowMean = focusShadowData.reduce((sum, p) => sum + p.value, 0) / focusShadowData.length;
           focusPeriodVsShadowAbs = focusPeriodMean - focusShadowMean;
           focusPeriodVsShadowPct = (focusPeriodVsShadowAbs / focusShadowMean) * 100;
+
+          // DEBUG: Log focus period comparison details
+          console.log('[FOCUS PERIOD DEBUG]', {
+            focusPeriodLabel: focusPeriod.label,
+            focusPeriodStart: focusPeriod.startDate,
+            focusPeriodEnd: focusPeriod.endDate,
+            currentMean: focusPeriodMean,
+            currentDataPoints: actualFocusData.length,
+            shadowMean: focusShadowMean,
+            shadowDataPoints: focusShadowData.length,
+            percentDiff: focusPeriodVsShadowPct,
+            shadowLabel: aggregatedShadowsData[0].shadow.label
+          });
         }
       }
     }
@@ -470,24 +524,39 @@ function calculateComparison(
 
       if (isFocusPeriodComparison && focusPeriod?.enabled && focusPeriod.startDate && focusPeriod.endDate) {
         // For focus period comparisons, calculate average over the focus period range
+        // CRITICAL FIX: Only include shadow data for dates that exist in the current focus period
+        const actualFocusData = _displayData.filter(d =>
+          d.date >= focusPeriod.startDate! && d.date <= focusPeriod.endDate!
+        );
+        // Use date strings (YYYY-MM-DD) for comparison to avoid timestamp precision issues
+        const availableDateStrings = new Set(
+          actualFocusData.map(d => d.date.toISOString().split('T')[0])
+        );
+
         if (comparison.targetIndex !== undefined && comparison.targetIndex < aggregatedShadowsData.length) {
           const shadowData = aggregatedShadowsData[comparison.targetIndex];
           const shadowDataWithValues = shadowData.data.map(d => ({
             date: d.date,
             value: d.numerator / d.denominator
           }));
-          const focusShadowData = shadowDataWithValues.filter(p =>
-            p.date >= focusPeriod.startDate! && p.date <= focusPeriod.endDate!
-          );
+          const focusShadowData = shadowDataWithValues.filter(p => {
+            const dateStr = p.date.toISOString().split('T')[0];
+            return p.date >= focusPeriod.startDate! &&
+                   p.date <= focusPeriod.endDate! &&
+                   availableDateStrings.has(dateStr);
+          });
           if (focusShadowData.length > 0) {
             targetValue = focusShadowData.reduce((sum, p) => sum + p.value, 0) / focusShadowData.length;
           }
           targetLabel = shadowData.shadow.label;
         } else if (averageShadows && aggregatedShadowsData.length > 1) {
           const averagedShadowData = calculateShadowAverage(aggregatedShadowsData);
-          const focusShadowData = averagedShadowData.filter(p =>
-            p.date >= focusPeriod.startDate! && p.date <= focusPeriod.endDate!
-          );
+          const focusShadowData = averagedShadowData.filter(p => {
+            const dateStr = p.date.toISOString().split('T')[0];
+            return p.date >= focusPeriod.startDate! &&
+                   p.date <= focusPeriod.endDate! &&
+                   availableDateStrings.has(dateStr);
+          });
           if (focusShadowData.length > 0) {
             targetValue = focusShadowData.reduce((sum, p) => sum + p.mean, 0) / focusShadowData.length;
           }
@@ -498,9 +567,12 @@ function calculateComparison(
             date: d.date,
             value: d.numerator / d.denominator
           }));
-          const focusShadowData = shadowDataWithValues.filter(p =>
-            p.date >= focusPeriod.startDate! && p.date <= focusPeriod.endDate!
-          );
+          const focusShadowData = shadowDataWithValues.filter(p => {
+            const dateStr = p.date.toISOString().split('T')[0];
+            return p.date >= focusPeriod.startDate! &&
+                   p.date <= focusPeriod.endDate! &&
+                   availableDateStrings.has(dateStr);
+          });
           if (focusShadowData.length > 0) {
             targetValue = focusShadowData.reduce((sum, p) => sum + p.value, 0) / focusShadowData.length;
           }
@@ -655,8 +727,6 @@ export function calculateComparisons(
   forecastConfig: ForecastConfig | undefined,
   forecastSnapshot: ForecastSnapshot | undefined,
   comparisons: ComparisonConfig[] | undefined,
-  selectionIncludesForecast?: boolean,
-  focusIncludesForecast?: boolean,
   focusPeriod?: FocusPeriod
 ): Map<string, ComparisonResult> {
   const results = new Map<string, ComparisonResult>();
@@ -685,14 +755,6 @@ export function calculateComparisons(
   // Calculate each comparison
   for (const comparison of comparisons) {
     if (!comparison.enabled) continue;
-
-    // Skip forecast comparisons if not included for this period type
-    if (comparison.type === 'forecast') {
-      const includesForecast = comparison.periodType === 'selection'
-        ? selectionIncludesForecast
-        : focusIncludesForecast;
-      if (!includesForecast) continue;
-    }
 
     const actualValue = comparison.periodType === 'selection' ? selectionValue : focusPeriodMean;
     if (actualValue === undefined) continue;

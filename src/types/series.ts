@@ -32,6 +32,15 @@ export interface CSVRow {
   denominator: string;
 }
 
+export interface MultiMetricCSVRow {
+  date: string;
+  metric_name: string;
+  numerator: string;
+  denominator: string;
+}
+
+export type CSVFormat = 'single' | 'multi';
+
 export interface CSVValidationError {
   type: 'column_count' | 'header' | 'date_format' | 'numeric' | 'denominator_invalid';
   message: string;

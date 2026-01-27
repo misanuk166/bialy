@@ -1,11 +1,11 @@
 import React, { useState, useRef } from 'react';
-import { parseCSVToTimeSeries, createSeries } from '../utils/csvParser';
+import { parseCSVToTimeSeries, createSeries, detectCSVFormat, parseMultiMetricCSV } from '../utils/csvParser';
 import { uploadCSVFile } from '../services/storageService';
 import { useAuth } from '../contexts/AuthContext';
 import type { Series, CSVValidationResult } from '../types/series';
 
 interface CSVUploadProps {
-  onSeriesLoaded: (series: Series, filePath?: string) => void;
+  onSeriesLoaded: (seriesArray: Series[], filePath?: string) => void;
 }
 
 export function CSVUpload({ onSeriesLoaded }: CSVUploadProps) {
@@ -22,21 +22,54 @@ export function CSVUpload({ onSeriesLoaded }: CSVUploadProps) {
     setUploadProgress('');
 
     try {
-      // Step 1: Parse and validate CSV
+      // Step 1: Read CSV and detect format
       setUploadProgress('Parsing CSV...');
       const text = await file.text();
-      const { data, validation: result } = await parseCSVToTimeSeries(text);
 
-      setValidation(result);
+      // Parse headers to detect format
+      const lines = text.split('\n');
+      const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
 
-      if (result.valid && data.length > 0) {
-        // Step 2: Create series object
-        const series = createSeries(data, {
-          name: file.name.replace('.csv', ''),
-          numeratorLabel: 'value',
-          denominatorLabel: '1'
-        });
+      let format: 'single' | 'multi';
+      try {
+        format = detectCSVFormat(headers);
+      } catch (error) {
+        throw new Error(error instanceof Error ? error.message : 'Invalid CSV format');
+      }
 
+      let seriesArray: Series[];
+      let validation: CSVValidationResult;
+
+      if (format === 'multi') {
+        // Multi-metric CSV
+        setUploadProgress(`Parsing multi-metric CSV...`);
+        const result = await parseMultiMetricCSV(text);
+        seriesArray = result.series;
+        validation = result.validation;
+
+        if (validation.valid && seriesArray.length > 0) {
+          setUploadProgress(`Found ${seriesArray.length} metrics`);
+        }
+      } else {
+        // Single-metric CSV (existing behavior)
+        const result = await parseCSVToTimeSeries(text);
+        validation = result.validation;
+
+        if (validation.valid && result.data.length > 0) {
+          const series = createSeries(result.data, {
+            name: file.name.replace('.csv', ''),
+            numeratorLabel: 'value',
+            denominatorLabel: '1'
+          });
+          seriesArray = [series];
+        } else {
+          seriesArray = [];
+        }
+      }
+
+      setValidation(validation);
+
+      if (validation.valid && seriesArray.length > 0) {
         // Step 3: Upload file to Supabase Storage (if user is authenticated)
         let filePath: string | undefined;
         if (user) {
@@ -54,8 +87,8 @@ export function CSVUpload({ onSeriesLoaded }: CSVUploadProps) {
           console.warn('[CSV UPLOAD] No user logged in, skipping upload');
         }
 
-        // Step 4: Return series and file path
-        onSeriesLoaded(series, filePath);
+        // Step 4: Return series array and file path
+        onSeriesLoaded(seriesArray, filePath);
       }
     } catch (error) {
       setValidation({
@@ -158,15 +191,33 @@ export function CSVUpload({ onSeriesLoaded }: CSVUploadProps) {
       </div>
 
       <div className="mt-4 text-sm text-gray-600">
-        <p className="font-medium">Required CSV format:</p>
-        <pre className="bg-gray-100 p-3 rounded mt-2 text-xs overflow-x-auto">
+        <p className="font-medium mb-2">Supported CSV formats:</p>
+
+        <div className="space-y-4">
+          <div>
+            <p className="text-xs font-semibold text-gray-700 mb-1">Single Metric:</p>
+            <pre className="bg-gray-100 p-3 rounded text-xs overflow-x-auto">
 {`date,numerator,denominator
 2024-01-01,5000,1
 2024-01-02,5200,1`}
-        </pre>
+            </pre>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold text-gray-700 mb-1">Multiple Metrics:</p>
+            <pre className="bg-gray-100 p-3 rounded text-xs overflow-x-auto">
+{`date,metric_name,numerator,denominator
+2024-01-01,sales,5000,1
+2024-01-01,conversion_rate,50,5000
+2024-01-02,sales,5200,1
+2024-01-02,conversion_rate,55,5200`}
+            </pre>
+          </div>
+        </div>
+
         <button
           onClick={downloadSampleCSV}
-          className="mt-2 text-blue-600 hover:text-blue-800 underline text-xs"
+          className="mt-3 text-blue-600 hover:text-blue-800 underline text-xs"
         >
           Download sample CSV
         </button>

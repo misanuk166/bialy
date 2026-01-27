@@ -57,7 +57,6 @@ interface MetricGridProps {
   onFocusPeriodChange: (focusPeriod: FocusPeriod) => void;
   onDateRangeChange: (range: DateRange) => void;
   onComparisonsChange: (comparisons: ComparisonConfig[]) => void;
-  onForecastInclusionChange: (selectionIncludes: boolean, focusIncludes: boolean) => void;
   onAnnotationsChange: (annotations: Annotation[], annotationsEnabled: boolean) => void;
   onSelectionDateChange: (date: Date | null) => void;
   onAddMetric: () => void;
@@ -139,7 +138,6 @@ export function MetricGrid({
   onFocusPeriodChange,
   onDateRangeChange,
   onComparisonsChange,
-  onForecastInclusionChange,
   onAnnotationsChange,
   onSelectionDateChange,
   onAddMetric,
@@ -405,8 +403,7 @@ export function MetricGrid({
         metric.goals,
         globalSettings.focusPeriod,
         metric.forecast,
-        metric.forecastSnapshot,
-        globalSettings.selectionIncludesForecast
+        metric.forecastSnapshot
       );
 
       // Calculate dynamic comparisons
@@ -422,8 +419,6 @@ export function MetricGrid({
         metric.forecast,
         metric.forecastSnapshot,
         globalSettings.comparisons,
-        globalSettings.selectionIncludesForecast,
-        globalSettings.focusIncludesForecast,
         globalSettings.focusPeriod
       );
 
@@ -966,9 +961,9 @@ export function MetricGrid({
   ].filter(Boolean).join(' ');
 
   return (
-    <div className="w-full px-0 mt-6 mb-8">
+    <div className="w-full px-0 mt-6 mb-8 overflow-x-auto">
       {/* Column Headers - Sticky wrapper */}
-      <div className="sticky top-0 bg-white border-b-2 border-gray-300 z-50 shadow-sm overflow-x-auto">
+      <div className="sticky top-0 bg-white border-b-2 border-gray-300 z-50 shadow-sm">
         <div className="w-full">
           {/* Group Headers Row */}
           <div className="grid py-1 border-b border-gray-200" style={{
@@ -1287,7 +1282,7 @@ export function MetricGrid({
       </div>
 
       {/* Metric Rows */}
-      <div className="w-full overflow-x-auto">
+      <div className="w-full">
         {readOnly ? (
           <div className="divide-y divide-gray-200 border-b border-gray-200">
             {sortedMetrics.map(({ metric, values }) => (
@@ -1386,12 +1381,8 @@ export function MetricGrid({
       {showSelectionPeriodModal && selectionDate && (
         <SelectionPeriodModal
           selectionDate={selectionDate}
-          includesForecast={globalSettings.selectionIncludesForecast}
           dataExtent={dataExtent}
           onSelectionDateChange={onSelectionDateChange}
-          onIncludesForecastChange={(includesForecast) => {
-            onForecastInclusionChange(includesForecast, globalSettings.focusIncludesForecast || false);
-          }}
           onClose={() => setShowSelectionPeriodModal(false)}
           anchorElement={selectionPeriodEditButtonRef.current || undefined}
         />
@@ -1401,12 +1392,8 @@ export function MetricGrid({
       {showFocusPeriodModal && (
         <FocusPeriodModal
           focusPeriod={globalSettings.focusPeriod || { enabled: false }}
-          includesForecast={globalSettings.focusIncludesForecast}
           dataExtent={dataExtent}
           onSave={onFocusPeriodChange}
-          onIncludesForecastChange={(includesForecast) => {
-            onForecastInclusionChange(globalSettings.selectionIncludesForecast || false, includesForecast);
-          }}
           onClose={() => setShowFocusPeriodModal(false)}
           anchorElement={focusPeriodEditButtonRef.current || undefined}
         />
@@ -1541,20 +1528,6 @@ export function MetricGrid({
             goals={metrics.flatMap(m => m.goals || [])}
             onChange={onComparisonsChange}
             filterPeriodType={comparisonModalPeriodType || undefined}
-            includesForecast={
-              comparisonModalPeriodType === 'selection'
-                ? globalSettings.selectionIncludesForecast
-                : comparisonModalPeriodType === 'focus'
-                ? globalSettings.focusIncludesForecast
-                : false
-            }
-            onIncludesForecastChange={(includesForecast) => {
-              if (comparisonModalPeriodType === 'selection') {
-                onForecastInclusionChange(includesForecast, globalSettings.focusIncludesForecast || false);
-              } else if (comparisonModalPeriodType === 'focus') {
-                onForecastInclusionChange(globalSettings.selectionIncludesForecast || false, includesForecast);
-              }
-            }}
             focusPeriod={comparisonModalPeriodType === 'focus' ? globalSettings.focusPeriod : undefined}
             onFocusPeriodChange={comparisonModalPeriodType === 'focus' ? onFocusPeriodChange : undefined}
             dataExtent={dataExtent}
