@@ -131,8 +131,6 @@ export function Sidebar({ currentDashboardId, onCollapseChange }: SidebarProps) 
     }
   };
 
-  const currentDashboard = dashboards.find(d => d.id === currentDashboardId);
-
   return (
     <div className={`fixed left-0 top-0 h-screen bg-gradient-to-b from-slate-800 to-slate-900 border-r border-gray-700 flex flex-col z-50 shadow-xl transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'}`}>
       {/* App Logo/Header */}

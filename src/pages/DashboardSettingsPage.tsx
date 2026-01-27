@@ -450,7 +450,7 @@ export function DashboardSettingsPage() {
 
   return (
     <>
-      <Sidebar currentDashboardId={null} onShareDashboard={() => {}} />
+      <Sidebar currentDashboardId={null} />
 
       <div className="ml-64 min-h-screen bg-gray-50">
         {/* Page Header */}
