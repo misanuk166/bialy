@@ -250,20 +250,6 @@ export function Sidebar({ currentDashboardId, onCollapseChange }: SidebarProps) 
                   <span className="text-lg">👥</span>
                   <span>Shared with Me</span>
                 </button>
-                <button
-                  onClick={() => {
-                    navigate('/dashboards');
-                    // Will be filtered by Favorites tab
-                    setTimeout(() => {
-                      const favoritesButton = document.querySelector('[data-filter="favorites"]') as HTMLButtonElement;
-                      favoritesButton?.click();
-                    }, 100);
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm"
-                >
-                  <span className="text-lg">⭐</span>
-                  <span>Favorites</span>
-                </button>
               </div>
             </div>
 
