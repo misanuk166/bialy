@@ -313,8 +313,15 @@ export function MetricGrid({
     });
 
     if (allDates.length > 0) {
-      const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
-      const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
+      let minTime = Infinity;
+      let maxTime = -Infinity;
+      for (const date of allDates) {
+        const time = date.getTime();
+        if (time < minTime) minTime = time;
+        if (time > maxTime) maxTime = time;
+      }
+      const minDate = new Date(minTime);
+      const maxDate = new Date(maxTime);
       const dataExtent: [Date, Date] = [minDate, maxDate];
 
       // Apply date range filter if set
@@ -482,12 +489,13 @@ export function MetricGrid({
 
     const getMinMax = (values: number[]) => {
       if (values.length === 0) return { max: 0, min: 0 };
-      const positives = values.filter(v => v > 0);
-      const negatives = values.filter(v => v < 0);
-      return {
-        max: positives.length > 0 ? Math.max(...positives) : 0,
-        min: negatives.length > 0 ? Math.min(...negatives) : 0
-      };
+      let max = 0;
+      let min = 0;
+      for (const value of values) {
+        if (value > 0 && value > max) max = value;
+        if (value < 0 && value < min) min = value;
+      }
+      return { max, min };
     };
 
     // Calculate scales for each comparison

@@ -11,8 +11,15 @@ export function getFullDateRange(data: Array<{ date: Date }>): [Date, Date] {
   }
 
   const dates = data.map(d => d.date);
-  const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
-  const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+  let minTime = Infinity;
+  let maxTime = -Infinity;
+  for (const date of dates) {
+    const time = date.getTime();
+    if (time < minTime) minTime = time;
+    if (time > maxTime) maxTime = time;
+  }
+  const minDate = new Date(minTime);
+  const maxDate = new Date(maxTime);
 
   return [minDate, maxDate];
 }

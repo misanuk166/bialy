@@ -4,11 +4,13 @@ interface DashboardHeaderProps {
   dashboardName: string;
   dashboardDescription?: string;
   readOnly: boolean;
+  isFavorite: boolean;
   onShowRangeModal: () => void;
   onShowAggregationModal: () => void;
   onShowShadowModal: () => void;
   onShowAnnotationModal: () => void;
-  onAddMetric: () => void;
+  onShareDashboard: () => void;
+  onToggleFavorite: () => void;
   onUpdateDashboard: (updates: { name?: string; description?: string }) => void;
   rangeButtonRef?: React.RefObject<HTMLButtonElement | null>;
   aggregationButtonRef?: React.RefObject<HTMLButtonElement | null>;
@@ -20,11 +22,13 @@ export function DashboardHeader({
   dashboardName,
   dashboardDescription,
   readOnly,
+  isFavorite,
   onShowRangeModal,
   onShowAggregationModal,
   onShowShadowModal,
   onShowAnnotationModal,
-  onAddMetric,
+  onShareDashboard,
+  onToggleFavorite,
   onUpdateDashboard,
   rangeButtonRef,
   aggregationButtonRef,
@@ -73,13 +77,22 @@ export function DashboardHeader({
               className="text-xl font-semibold text-gray-900 border-b-2 border-blue-500 bg-transparent outline-none w-full"
             />
           ) : (
-            <h1
-              className={`text-xl font-semibold text-gray-900 block ${!readOnly ? 'cursor-pointer hover:bg-gray-50 px-2 -mx-2 rounded' : ''}`}
-              onClick={() => !readOnly && setIsEditingName(true)}
-              title={!readOnly ? 'Click to edit title' : ''}
-            >
-              {dashboardName}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1
+                className={`text-xl font-semibold text-gray-900 ${!readOnly ? 'cursor-pointer hover:bg-gray-50 px-2 -mx-2 rounded' : ''}`}
+                onClick={() => !readOnly && setIsEditingName(true)}
+                title={!readOnly ? 'Click to edit title' : ''}
+              >
+                {dashboardName}
+              </h1>
+              <button
+                onClick={onToggleFavorite}
+                className="text-xl hover:scale-110 transition-transform flex-shrink-0"
+                title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+              >
+                {isFavorite ? '⭐' : '☆'}
+              </button>
+            </div>
           )}
 
           {/* Description */}
@@ -156,12 +169,12 @@ export function DashboardHeader({
             <div className="w-px h-6 bg-gray-300 mx-1" />
 
             <button
-              onClick={onAddMetric}
+              onClick={onShareDashboard}
               className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center gap-1.5"
-              title="Add a new metric"
+              title="Share dashboard and manage permissions"
             >
-              <span>+</span>
-              <span>Add Metric</span>
+              <span>🔗</span>
+              <span>Sharing</span>
             </button>
           </div>
         )}

@@ -14,6 +14,7 @@ export interface Dashboard {
   name: string;
   description?: string;
   permission_level: PermissionLevel;
+  is_favorite?: boolean;
   created_at: string;
   updated_at: string;
   last_viewed_at: string;
@@ -43,6 +44,7 @@ export interface UpdateDashboardInput {
   name?: string;
   description?: string;
   permission_level?: PermissionLevel;
+  is_favorite?: boolean;
 }
 
 /**

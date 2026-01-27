@@ -535,8 +535,12 @@ export function TimeSeriesChart({
       if (allFocusData.length > 0) {
         const values = allFocusData.map(d => d.value);
         const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
-        const min = Math.min(...values);
-        const max = Math.max(...values);
+        let min = Infinity;
+        let max = -Infinity;
+        for (const value of values) {
+          if (value < min) min = value;
+          if (value > max) max = value;
+        }
 
         // Track if this includes forecast data
         const isForecast = focusForecastData.length > 0;

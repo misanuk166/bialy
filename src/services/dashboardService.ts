@@ -200,7 +200,8 @@ export async function fetchDashboard(dashboardId: string): Promise<DashboardWith
           console.log(`[LOAD] ✓ File exists, downloading...`);
 
           // Download and parse CSV
-          series = await downloadCSVFile(metric.data_file_path);
+          // Pass metric name to filter multi-metric CSVs
+          series = await downloadCSVFile(metric.data_file_path, metric.name);
           series.filePath = metric.data_file_path;
 
           // Override CSV-derived name with database name (user may have edited it)

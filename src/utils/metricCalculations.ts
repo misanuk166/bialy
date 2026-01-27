@@ -64,10 +64,13 @@ export function calculateMetricRowValues(
     if (focusData.length > 0) {
       const values = focusData.map(d => d.value);
       focusPeriodMean = values.reduce((sum, v) => sum + v, 0) / values.length;
-      focusPeriodRange = {
-        min: Math.min(...values),
-        max: Math.max(...values)
-      };
+      let min = Infinity;
+      let max = -Infinity;
+      for (const value of values) {
+        if (value < min) min = value;
+        if (value > max) max = value;
+      }
+      focusPeriodRange = { min, max };
 
       // DEBUG: Log focus period data
       console.log('[FOCUS PERIOD DATA]', {
@@ -199,10 +202,13 @@ export function calculateMetricRowValues(
     if (periodForecastData.length > 0) {
       const values = periodForecastData.map(d => d.value);
       selectionValue = values.reduce((sum, v) => sum + v, 0) / values.length;
-      selectionRange = {
-        min: Math.min(...values),
-        max: Math.max(...values)
-      };
+      let min = Infinity;
+      let max = -Infinity;
+      for (const value of values) {
+        if (value < min) min = value;
+        if (value > max) max = value;
+      }
+      selectionRange = { min, max };
     } else {
       // Fallback to aggregated value
       selectionValue = currentPoint.value;
@@ -264,10 +270,13 @@ export function calculateMetricRowValues(
 
       // Calculate range from individual values
       const values = periodRawData.map(d => d.numerator / d.denominator);
-      selectionRange = {
-        min: Math.min(...values),
-        max: Math.max(...values)
-      };
+      let min = Infinity;
+      let max = -Infinity;
+      for (const value of values) {
+        if (value < min) min = value;
+        if (value > max) max = value;
+      }
+      selectionRange = { min, max };
     } else {
       selectionValue = currentPoint.value;
     }

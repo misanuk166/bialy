@@ -404,6 +404,20 @@ export function DashboardPage() {
     }
   };
 
+  const handleToggleFavorite = async () => {
+    if (!currentDashboard) return;
+
+    try {
+      const updatedDashboard = await updateDashboard(currentDashboard.id, {
+        is_favorite: !(currentDashboard.is_favorite || false)
+      });
+      setCurrentDashboard(updatedDashboard);
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+      alert('Failed to update favorite status');
+    }
+  };
+
   // Get data extent for date controls (includes primary series data, forecasts, and goals)
   const dataExtent = metrics.length > 0 ? (() => {
     const allDates: Date[] = [];
@@ -430,10 +444,17 @@ export function DashboardPage() {
         });
       }
     });
-    const extent = allDates.length > 0 ? [
-      new Date(Math.min(...allDates.map(d => d.getTime()))),
-      new Date(Math.max(...allDates.map(d => d.getTime())))
-    ] as [Date, Date] : undefined;
+    let extent: [Date, Date] | undefined = undefined;
+    if (allDates.length > 0) {
+      let minTime = Infinity;
+      let maxTime = -Infinity;
+      for (const date of allDates) {
+        const time = date.getTime();
+        if (time < minTime) minTime = time;
+        if (time > maxTime) maxTime = time;
+      }
+      extent = [new Date(minTime), new Date(maxTime)];
+    }
     return extent;
   })() : undefined;
 
@@ -448,7 +469,6 @@ export function DashboardPage() {
       {/* Sidebar Navigation */}
       <Sidebar
         currentDashboardId={currentDashboardId}
-        onShareDashboard={handleShareDashboard}
         onCollapseChange={setIsSidebarCollapsed}
       />
 
@@ -460,11 +480,13 @@ export function DashboardPage() {
             dashboardName={currentDashboard.name}
             dashboardDescription={currentDashboard.description}
             readOnly={readOnly}
+            isFavorite={currentDashboard.is_favorite || false}
             onShowRangeModal={() => setShowRangeModal(true)}
             onShowAggregationModal={() => setShowAggregationModal(true)}
             onShowShadowModal={() => setShowShadowModal(true)}
             onShowAnnotationModal={() => setShowAnnotationModal(true)}
-            onAddMetric={handleAddMetric}
+            onShareDashboard={() => handleShareDashboard(currentDashboard)}
+            onToggleFavorite={handleToggleFavorite}
             onUpdateDashboard={handleDashboardMetadataUpdate}
             rangeButtonRef={rangeButtonRef}
             aggregationButtonRef={aggregationButtonRef}

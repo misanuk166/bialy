@@ -80,8 +80,11 @@ export async function uploadCSVFile(file: File, userId: string): Promise<UploadR
 /**
  * Download and parse a CSV file from Supabase Storage
  * Returns the parsed Series object
+ *
+ * @param filePath - Path to CSV file in storage
+ * @param metricName - Optional metric name to filter for multi-metric CSVs
  */
-export async function downloadCSVFile(filePath: string): Promise<Series> {
+export async function downloadCSVFile(filePath: string, metricName?: string): Promise<Series> {
   try {
     const { data, error } = await supabase.storage
       .from(STORAGE_BUCKET)
@@ -107,8 +110,29 @@ export async function downloadCSVFile(filePath: string): Promise<Series> {
         skipEmptyLines: true,
         complete: (results) => {
           try {
-            const series = parseCSVToSeries(results.data, filePath);
-            resolve(series);
+            // Check if this is a multi-metric CSV
+            const headers = results.meta.fields || [];
+            const isMultiMetric = headers.includes('metric_name');
+
+            if (isMultiMetric && metricName) {
+              // Filter rows by metric_name
+              const filteredData = results.data.filter((row: any) =>
+                row.metric_name?.trim() === metricName
+              );
+
+              if (filteredData.length === 0) {
+                console.warn(`No data found for metric "${metricName}" in multi-metric CSV`);
+              }
+
+              // Parse as single-metric CSV using filtered data
+              const series = parseCSVToSeries(filteredData, filePath);
+              series.metadata.name = metricName; // Ensure correct metric name
+              resolve(series);
+            } else {
+              // Single-metric CSV or no metric name specified
+              const series = parseCSVToSeries(results.data, filePath);
+              resolve(series);
+            }
           } catch (err) {
             reject(err);
           }

@@ -26,11 +26,17 @@ export function ShadowControls({
   const [count, setCount] = React.useState(1);
 
   const generateShadows = (p: number, u: ShadowPeriodUnit, c: number) => {
+    // Preserve the current alignDayOfWeek setting
+    const currentAlignDayOfWeek = shadows.length > 0 ? shadows[0].alignDayOfWeek : false;
+
     const newShadows: Shadow[] = [];
     for (let i = 1; i <= c; i++) {
       const totalPeriods = p * i;
       const label = `${totalPeriods} ${u}${totalPeriods > 1 ? 's' : ''} ago`;
-      newShadows.push(createShadow(totalPeriods, u, label));
+      const shadow = createShadow(totalPeriods, u, label);
+      // Apply the preserved alignDayOfWeek setting
+      shadow.alignDayOfWeek = currentAlignDayOfWeek;
+      newShadows.push(shadow);
     }
     onChange(newShadows);
   };

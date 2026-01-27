@@ -6,7 +6,6 @@ import type { Dashboard } from '../types/dashboard';
 
 interface SidebarProps {
   currentDashboardId: string | null;
-  onShareDashboard: (dashboard: Dashboard) => void;
   onCollapseChange?: (collapsed: boolean) => void;
 }
 
@@ -57,7 +56,7 @@ function getDashboardColor(id: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-export function Sidebar({ currentDashboardId, onShareDashboard, onCollapseChange }: SidebarProps) {
+export function Sidebar({ currentDashboardId, onCollapseChange }: SidebarProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
@@ -253,7 +252,17 @@ export function Sidebar({ currentDashboardId, onShareDashboard, onCollapseChange
                   <span className="text-lg">👥</span>
                   <span>Shared with Me</span>
                 </button>
-                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm">
+                <button
+                  onClick={() => {
+                    navigate('/dashboards');
+                    // Will be filtered by Favorites tab
+                    setTimeout(() => {
+                      const favoritesButton = document.querySelector('[data-filter="favorites"]') as HTMLButtonElement;
+                      favoritesButton?.click();
+                    }, 100);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm"
+                >
                   <span className="text-lg">⭐</span>
                   <span>Favorites</span>
                 </button>
@@ -272,18 +281,6 @@ export function Sidebar({ currentDashboardId, onShareDashboard, onCollapseChange
                 >
                   <span className="text-lg">⚙️</span>
                   <span>Dashboard Settings</span>
-                </button>
-                <button
-                  onClick={() => {
-                    if (currentDashboard) {
-                      onShareDashboard(currentDashboard);
-                    }
-                  }}
-                  disabled={!currentDashboard}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="text-lg">🔗</span>
-                  <span>Share & Permissions</span>
                 </button>
                 <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all text-left text-sm">
                   <span className="text-lg">📤</span>

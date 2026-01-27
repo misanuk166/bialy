@@ -2,12 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Sidebar } from '../components/Sidebar';
-import { fetchDashboardsWithMetricsCount, deleteDashboard, createDashboard } from '../services/dashboardService';
+import { fetchDashboardsWithMetricsCount, deleteDashboard, createDashboard, updateDashboard } from '../services/dashboardService';
 import type { DashboardWithMetricsCount } from '../types/dashboard';
 
 // Extended dashboard type with UI-specific fields
 interface DashboardListItem extends DashboardWithMetricsCount {
-  favorited: boolean;
   saves: number;
   views: number;
   owner_name: string;
@@ -107,7 +106,6 @@ export function MyDashboardsPage() {
       // Transform to DashboardListItem with mock data for UI-specific fields
       const listItems: DashboardListItem[] = data.map(d => ({
         ...d,
-        favorited: false, // TODO: Load from user preferences
         saves: Math.floor(Math.random() * 50), // Mock data
         views: Math.floor(Math.random() * 500), // Mock data
         owner_name: user?.email?.split('@')[0] || 'Unknown' // TODO: Join with users table
@@ -135,7 +133,7 @@ export function MyDashboardsPage() {
 
     // Apply category filter
     if (activeFilter === 'favorites') {
-      filtered = filtered.filter(d => d.favorited);
+      filtered = filtered.filter(d => d.is_favorite);
     } else if (activeFilter === 'recent') {
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
@@ -197,11 +195,27 @@ export function MyDashboardsPage() {
     }
   };
 
-  const handleToggleFavorite = (dashboardId: string) => {
-    setDashboards(prev => prev.map(d =>
-      d.id === dashboardId ? { ...d, favorited: !d.favorited } : d
-    ));
-    // TODO: Persist to database
+  const handleToggleFavorite = async (dashboardId: string) => {
+    const dashboard = dashboards.find(d => d.id === dashboardId);
+    if (!dashboard) return;
+
+    try {
+      // Optimistically update UI
+      const newFavoriteState = !dashboard.is_favorite;
+      setDashboards(prev => prev.map(d =>
+        d.id === dashboardId ? { ...d, is_favorite: newFavoriteState } : d
+      ));
+
+      // Persist to database
+      await updateDashboard(dashboardId, { is_favorite: newFavoriteState });
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+      // Revert on error
+      setDashboards(prev => prev.map(d =>
+        d.id === dashboardId ? { ...d, is_favorite: dashboard.is_favorite } : d
+      ));
+      alert('Failed to update favorite status');
+    }
   };
 
   const handleToggleRow = (dashboardId: string) => {
@@ -234,7 +248,6 @@ export function MyDashboardsPage() {
       {/* Sidebar Navigation */}
       <Sidebar
         currentDashboardId={currentDashboardId}
-        onShareDashboard={() => {}}
       />
 
       {/* Main Content Area */}
@@ -286,6 +299,7 @@ export function MyDashboardsPage() {
               </button>
               <button
                 onClick={() => setActiveFilter('favorites')}
+                data-filter="favorites"
                 className={`px-4 py-2 border rounded-lg text-sm font-medium transition-all ${
                   activeFilter === 'favorites'
                     ? 'bg-blue-50 border-blue-500 text-blue-700'
@@ -401,11 +415,11 @@ export function MyDashboardsPage() {
                           <button
                             onClick={() => handleToggleFavorite(dashboard.id)}
                             className={`text-xl transition-all hover:scale-110 ${
-                              dashboard.favorited ? 'text-amber-500' : 'text-gray-300'
+                              dashboard.is_favorite ? 'text-amber-500' : 'text-gray-300'
                             }`}
-                            title={dashboard.favorited ? 'Remove from favorites' : 'Add to favorites'}
+                            title={dashboard.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
                           >
-                            {dashboard.favorited ? '★' : '☆'}
+                            {dashboard.is_favorite ? '★' : '☆'}
                           </button>
                         </td>
 
