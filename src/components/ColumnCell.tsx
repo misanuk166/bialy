@@ -147,7 +147,7 @@ export function MeanRangeCell({
 
   // Use smaller font sizes when row height is below 60px
   const meanSizeClass = rowHeight < 60 ? 'text-xs' : 'text-sm';
-  const rangeSizeClass = rowHeight < 60 ? 'text-[10px]' : 'text-xs';
+  const rangeSizeClass = rowHeight < 60 ? 'text-[8px]' : 'text-[10px]';
 
   return (
     <div className={`text-right px-0.5 py-0.5 leading-tight flex flex-col justify-center ${className}`}>
@@ -222,7 +222,7 @@ export function PercentAbsCell({
 
   // Use smaller font sizes when row height is below 60px
   const percentSizeClass = rowHeight < 60 ? 'text-xs' : 'text-sm';
-  const absSizeClass = rowHeight < 60 ? 'text-[10px]' : 'text-xs';
+  const absSizeClass = rowHeight < 60 ? 'text-[8px]' : 'text-[10px]';
 
   return (
     <div className={`text-right px-0.5 py-0.5 leading-tight flex flex-col justify-center ${className}`}>
