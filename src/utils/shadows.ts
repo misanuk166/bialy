@@ -63,28 +63,6 @@ export function createShadowData(
 }
 
 /**
- * Get time offset in milliseconds using calendar-aware date arithmetic
- */
-function getTimeOffset(periods: number, unit: ShadowPeriodUnit): number {
-  const msPerDay = 24 * 60 * 60 * 1000;
-
-  switch (unit) {
-    case 'day':
-      return periods * msPerDay;
-    case 'week':
-      return periods * 7 * msPerDay;
-    case 'month':
-      // For months, quarters, and years, we can't use fixed offsets
-      // These will be handled differently in createShadowData
-      return periods * 30 * msPerDay; // Approximate (used as fallback)
-    case 'quarter':
-      return periods * 90 * msPerDay; // Approximate (used as fallback)
-    case 'year':
-      return periods * 365 * msPerDay; // Approximate (used as fallback)
-  }
-}
-
-/**
  * Apply calendar-aware date offset for month/quarter/year periods
  * IMPORTANT: periods should be ADDED (shift forward in time) to display historical data at current positions
  * Uses UTC methods to avoid timezone-related off-by-one errors
