@@ -55,13 +55,6 @@ export function ShadowControls({
     }
   }, [shadows]);
 
-  // Auto-add 1-year shadow on component mount if no shadows exist
-  React.useEffect(() => {
-    if (shadows.length === 0) {
-      generateShadows(1, 'year', 1);
-    }
-  }, []); // Empty dependency array = run only on mount
-
   const handlePeriodChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newPeriod = Math.max(1, Math.min(99, parseInt(e.target.value) || 1));
     setPeriod(newPeriod);
