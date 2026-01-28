@@ -80,7 +80,7 @@ const DEFAULT_SETTINGS: Record<string, any> = {
   decimalPlaces: '2',
   seriesColor: '#2563eb',
   shadowColor: '#9ca3af',
-  shadowLineStyle: 'dashed',
+  shadowLineStyle: 'solid',
 };
 
 export function DashboardSettingsPage() {
