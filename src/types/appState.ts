@@ -9,6 +9,21 @@ import type { ComparisonConfig, ComparisonResult } from './comparison';
 import type { Annotation } from './annotation';
 
 /**
+ * Column widths for resizable columns in MetricGrid
+ */
+export interface ColumnWidths {
+  dragHandle: number;
+  groupIndex: number;
+  group: number;
+  metricIndex: number;
+  name: number;
+  chart: number;
+  selectionMean: number;
+  comparison: number;
+  focusMean: number;
+}
+
+/**
  * Global settings applied to all metrics
  */
 export interface GlobalSettings {
@@ -22,6 +37,8 @@ export interface GlobalSettings {
   annotations?: Annotation[]; // Global annotations displayed on all metrics
   annotationsEnabled?: boolean; // Master toggle for all annotations
   selectionDate?: Date; // Locked selection date for calculations (dashed line in charts)
+  rowHeight?: number; // Row height for metric grid (default 60px)
+  columnWidths?: ColumnWidths; // Column widths for resizable columns
 }
 
 /**

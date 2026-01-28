@@ -61,6 +61,8 @@ interface MetricGridProps {
   onSelectionDateChange: (date: Date | null) => void;
   onAddMetric: () => void;
   onClearAllMetrics: () => void;
+  onRowHeightChange?: (height: number) => void;
+  onColumnWidthsChange?: (widths: import('../types/appState').ColumnWidths) => void;
   // Modal state props (controlled from DashboardHeader)
   showRangeModal?: boolean;
   onCloseRangeModal?: () => void;
@@ -142,6 +144,8 @@ export function MetricGrid({
   onSelectionDateChange,
   onAddMetric,
   onClearAllMetrics,
+  onRowHeightChange,
+  onColumnWidthsChange,
   // Modal state props (controlled from DashboardHeader)
   showRangeModal: externalShowRangeModal,
   onCloseRangeModal,
@@ -217,11 +221,8 @@ export function MetricGrid({
   const [isEditingGroupSet, setIsEditingGroupSet] = useState(false);
   const [groupSetInputValue, setGroupSetInputValue] = useState('');
 
-  // Row height for all metrics (shared unless individually expanded)
-  const [rowHeight, setRowHeight] = useState(60); // Default 60px, min 40px, max 320px
-
-  // Column widths for resizable columns
-  const [columnWidths, setColumnWidths] = useState({
+  // Default column widths
+  const DEFAULT_COLUMN_WIDTHS = {
     dragHandle: 30,
     groupIndex: 20,
     group: 74,
@@ -231,7 +232,29 @@ export function MetricGrid({
     selectionMean: 120,
     focusMean: 120,
     comparison: 100
-  });
+  };
+
+  // Row height for all metrics (shared unless individually expanded)
+  // Initialize from globalSettings or use default
+  const [rowHeight, setRowHeight] = useState(globalSettings.rowHeight || 60);
+
+  // Column widths for resizable columns
+  // Initialize from globalSettings or use defaults
+  const [columnWidths, setColumnWidths] = useState(globalSettings.columnWidths || DEFAULT_COLUMN_WIDTHS);
+
+  // Sync rowHeight with globalSettings when dashboard changes
+  useEffect(() => {
+    if (globalSettings.rowHeight !== undefined) {
+      setRowHeight(globalSettings.rowHeight);
+    }
+  }, [globalSettings.rowHeight]);
+
+  // Sync columnWidths with globalSettings when dashboard changes
+  useEffect(() => {
+    if (globalSettings.columnWidths) {
+      setColumnWidths(globalSettings.columnWidths);
+    }
+  }, [globalSettings.columnWidths]);
 
   const selectionPeriodEditButtonRef = useRef<HTMLButtonElement>(null);
   const focusPeriodEditButtonRef = useRef<HTMLButtonElement>(null);
@@ -681,11 +704,22 @@ export function MetricGrid({
   };
 
   const handleColumnResize = useCallback((columnKey: string, newWidth: number) => {
-    setColumnWidths(prev => ({
-      ...prev,
+    const newWidths = {
+      ...columnWidths,
       [columnKey]: newWidth
-    }));
-  }, []);
+    };
+    setColumnWidths(newWidths);
+    // Persist to globalSettings
+    onColumnWidthsChange?.(newWidths);
+  }, [columnWidths, onColumnWidthsChange]);
+
+  const handleRowHeightChange = useCallback((newHeight: number) => {
+    setRowHeight(newHeight);
+    // Persist to globalSettings
+    if (onRowHeightChange) {
+      onRowHeightChange(newHeight);
+    }
+  }, [onRowHeightChange]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -1323,7 +1357,7 @@ export function MetricGrid({
                   columnWidths={columnWidths}
                 />
                 <RowResizeHandle
-                  onResize={setRowHeight}
+                  onResize={handleRowHeightChange}
                   currentHeight={rowHeight}
                   minHeight={40}
                   maxHeight={320}
@@ -1372,7 +1406,7 @@ export function MetricGrid({
                     columnWidths={columnWidths}
                   />
                   <RowResizeHandle
-                    onResize={setRowHeight}
+                    onResize={handleRowHeightChange}
                     currentHeight={rowHeight}
                     minHeight={40}
                     maxHeight={320}

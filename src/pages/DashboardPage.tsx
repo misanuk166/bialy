@@ -315,6 +315,14 @@ export function DashboardPage() {
     setGlobalSettings(prev => ({ ...prev, comparisons }));
   };
 
+  const handleRowHeightChange = (rowHeight: number) => {
+    setGlobalSettings(prev => ({ ...prev, rowHeight }));
+  };
+
+  const handleColumnWidthsChange = (columnWidths: import('../types/appState').ColumnWidths) => {
+    setGlobalSettings(prev => ({ ...prev, columnWidths }));
+  };
+
   const handleAddMetric = () => {
     setShowAddMetricModal(true);
   };
@@ -570,6 +578,8 @@ export function DashboardPage() {
                   onAnnotationsChange={handleAnnotationsChange}
                   onAddMetric={handleAddMetric}
                   onClearAllMetrics={handleClearAllMetrics}
+                  onRowHeightChange={handleRowHeightChange}
+                  onColumnWidthsChange={handleColumnWidthsChange}
                   // Pass modal state handlers for header controls
                   showRangeModal={showRangeModal}
                   onCloseRangeModal={() => setShowRangeModal(false)}
