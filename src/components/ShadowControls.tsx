@@ -180,7 +180,7 @@ export function ShadowControls({
               Align day-of-week
             </label>
             <span className="text-[10px] text-gray-500">
-              Shift by up to 3 days to match weekday
+              Shift by up to 4 days to match weekday
             </span>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">

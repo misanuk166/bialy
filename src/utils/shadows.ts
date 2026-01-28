@@ -3,11 +3,12 @@ import type { Shadow, ShadowData, ShadowPeriodUnit } from '../types/shadow';
 
 /**
  * Calculate the minimum number of days to shift to align day-of-week
- * Returns offset in days (-3 to +3) to align shadowDate with targetDate's day-of-week
+ * Returns offset in days (-4 to +4) to align shadowDate with targetDate's day-of-week
+ * Uses UTC to avoid timezone issues
  */
 export function calculateDayOfWeekAlignment(targetDate: Date, shadowDate: Date): number {
-  const targetDay = targetDate.getDay(); // 0 (Sunday) to 6 (Saturday)
-  const shadowDay = shadowDate.getDay();
+  const targetDay = targetDate.getUTCDay(); // 0 (Sunday) to 6 (Saturday)
+  const shadowDay = shadowDate.getUTCDay();
 
   const diff = targetDay - shadowDay;
 
@@ -17,7 +18,8 @@ export function calculateDayOfWeekAlignment(targetDate: Date, shadowDate: Date):
   const forwardShift = diff > 0 ? diff : diff + 7;
   const backwardShift = diff < 0 ? diff : diff - 7;
 
-  // Choose minimum absolute value (maximum 3 days)
+  // Choose minimum absolute value (maximum 4 days allowed)
+  // This means we prefer the direction that requires fewer days, up to 4 days
   return Math.abs(forwardShift) <= Math.abs(backwardShift) ? forwardShift : backwardShift;
 }
 
@@ -25,38 +27,35 @@ export function calculateDayOfWeekAlignment(targetDate: Date, shadowDate: Date):
  * Apply temporal transform to create shadow data
  * Shifts dates forward by the specified period so historical data
  * appears aligned with current data on the time axis
- * If alignDayOfWeek is enabled, also shifts by up to 3 days to align day-of-week
+ * If alignDayOfWeek is enabled, also shifts by up to 4 days to align day-of-week
  */
 export function createShadowData(
   data: TimeSeriesPoint[],
   shadow: Shadow,
-  _referenceDate?: Date // Optional reference date (unused - alignment based on first date in data)
+  _referenceDate?: Date // Optional reference date (unused - alignment based on each date point)
 ): TimeSeriesPoint[] {
   if (!shadow.enabled) return [];
 
-  // Calculate base time offset for the shadow period
-  const baseOffset = getTimeOffset(shadow.periods, shadow.unit);
-
-  // Calculate day-of-week alignment offset if enabled
-  let alignmentOffset = 0;
-  if (shadow.alignDayOfWeek && data.length > 0) {
-    // Use first data point in current series as reference
-    // Compare the shadow's first date (after offset) with the current data's first date
-    const firstCurrentDate = data[0].date;
-    const firstShadowDate = new Date(data[0].date.getTime() + baseOffset);
-    const alignmentDays = calculateDayOfWeekAlignment(firstCurrentDate, firstShadowDate);
-    alignmentOffset = alignmentDays * 24 * 60 * 60 * 1000; // Convert days to milliseconds
-  }
-
-  return data.map(point => {
-    // Normalize to midnight to avoid time-of-day issues
+  return data.map((point) => {
+    // Normalize to midnight UTC to avoid timezone issues
     const normalizedDate = new Date(point.date);
-    normalizedDate.setHours(0, 0, 0, 0);
+    normalizedDate.setUTCHours(0, 0, 0, 0);
+
+    // Apply calendar-aware offset to get the historical date
+    const historicalDate = applyCalendarOffset(new Date(normalizedDate), shadow.periods, shadow.unit);
+
+    // Calculate day-of-week alignment for THIS specific data point
+    let alignmentOffsetMs = 0;
+    if (shadow.alignDayOfWeek) {
+      const alignmentDays = calculateDayOfWeekAlignment(normalizedDate, historicalDate);
+      alignmentOffsetMs = alignmentDays * 24 * 60 * 60 * 1000; // Convert days to milliseconds
+    }
+
+    // Apply day-of-week alignment to the historical date
+    const shiftedDate = new Date(historicalDate.getTime() + alignmentOffsetMs);
 
     return {
-      date: new Date(
-        normalizedDate.getTime() + baseOffset + alignmentOffset
-      ),
+      date: shiftedDate,
       numerator: point.numerator,
       denominator: point.denominator
     };
@@ -64,7 +63,7 @@ export function createShadowData(
 }
 
 /**
- * Get time offset in milliseconds
+ * Get time offset in milliseconds using calendar-aware date arithmetic
  */
 function getTimeOffset(periods: number, unit: ShadowPeriodUnit): number {
   const msPerDay = 24 * 60 * 60 * 1000;
@@ -75,12 +74,43 @@ function getTimeOffset(periods: number, unit: ShadowPeriodUnit): number {
     case 'week':
       return periods * 7 * msPerDay;
     case 'month':
-      return periods * 30 * msPerDay; // Approximate
+      // For months, quarters, and years, we can't use fixed offsets
+      // These will be handled differently in createShadowData
+      return periods * 30 * msPerDay; // Approximate (used as fallback)
     case 'quarter':
-      return periods * 90 * msPerDay; // Approximate
+      return periods * 90 * msPerDay; // Approximate (used as fallback)
     case 'year':
-      return periods * 365 * msPerDay; // Approximate
+      return periods * 365 * msPerDay; // Approximate (used as fallback)
   }
+}
+
+/**
+ * Apply calendar-aware date offset for month/quarter/year periods
+ * IMPORTANT: periods should be ADDED (shift forward in time) to display historical data at current positions
+ * Uses UTC methods to avoid timezone-related off-by-one errors
+ */
+function applyCalendarOffset(date: Date, periods: number, unit: ShadowPeriodUnit): Date {
+  const result = new Date(date);
+
+  switch (unit) {
+    case 'day':
+      result.setUTCDate(result.getUTCDate() + periods);
+      break;
+    case 'week':
+      result.setUTCDate(result.getUTCDate() + (periods * 7));
+      break;
+    case 'month':
+      result.setUTCMonth(result.getUTCMonth() + periods);
+      break;
+    case 'quarter':
+      result.setUTCMonth(result.getUTCMonth() + (periods * 3));
+      break;
+    case 'year':
+      result.setUTCFullYear(result.getUTCFullYear() + periods);
+      break;
+  }
+
+  return result;
 }
 
 /**
@@ -151,9 +181,9 @@ export function calculateShadowAverage(
 
   shadowsData.forEach(shadowData => {
     shadowData.data.forEach(point => {
-      // Normalize to midnight to ensure consistent grouping by day
+      // Normalize to midnight UTC to ensure consistent grouping by day
       const normalizedDate = new Date(point.date);
-      normalizedDate.setHours(0, 0, 0, 0);
+      normalizedDate.setUTCHours(0, 0, 0, 0);
       const dateKey = normalizedDate.getTime();
 
       const value = point.numerator / point.denominator;
