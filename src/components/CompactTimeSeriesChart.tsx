@@ -33,32 +33,6 @@ function getStrokeDashArray(style: 'solid' | 'dashed' | 'dotted' | 'dashdot'): s
 }
 
 /**
- * Lighten a hex color by a percentage (0-100)
- * @param hex - Hex color (e.g., '#2563eb' or '2563eb')
- * @param percent - Percentage to lighten (0 = no change, 100 = white)
- * @returns Lightened hex color
- */
-function lightenColor(hex: string, percent: number): string {
-  // Remove # if present
-  const cleanHex = hex.replace('#', '');
-
-  // Parse RGB
-  const r = parseInt(cleanHex.substring(0, 2), 16);
-  const g = parseInt(cleanHex.substring(2, 4), 16);
-  const b = parseInt(cleanHex.substring(4, 6), 16);
-
-  // Lighten by moving toward white (255)
-  const factor = percent / 100;
-  const newR = Math.round(r + (255 - r) * factor);
-  const newG = Math.round(g + (255 - g) * factor);
-  const newB = Math.round(b + (255 - b) * factor);
-
-  // Convert back to hex
-  const toHex = (n: number) => n.toString(16).padStart(2, '0');
-  return `#${toHex(newR)}${toHex(newG)}${toHex(newB)}`;
-}
-
-/**
  * Desaturate a hex color by a percentage (0-100)
  * Used for Option 5: Progressive Saturation Fade
  * @param hex - Hex color (e.g., '#2563eb' or '2563eb')
