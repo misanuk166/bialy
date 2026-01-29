@@ -1,4 +1,4 @@
-import { useState, memo, useEffect } from 'react';
+import { useState, memo, useEffect, useRef } from 'react';
 import { CompactTimeSeriesChart } from './CompactTimeSeriesChart';
 import { MeanRangeCell, PercentAbsCell } from './ColumnCell';
 import { GoalControls } from './GoalControls';
@@ -110,6 +110,8 @@ export const MetricRow = memo(function MetricRow({
   const [editedGroup, setEditedGroup] = useState(metric.group || '');
   const [isChartExpanded, setIsChartExpanded] = useState(false);
 
+  const actionMenuRef = useRef<HTMLDivElement>(null);
+
   // Determine effective row height: locked expanded state overrides global rowHeight
   const effectiveRowHeight = isChartExpanded ? 320 : rowHeight;
 
@@ -163,6 +165,20 @@ export const MetricRow = memo(function MetricRow({
     });
     setIsEditingGroup(false);
   };
+
+  // Close action menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(event.target as Node)) {
+        setShowActionMenu(false);
+      }
+    };
+
+    if (showActionMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showActionMenu]);
 
   // Generate and save forecast snapshot
   const generateAndSaveForecastSnapshot = () => {
@@ -358,7 +374,7 @@ export const MetricRow = memo(function MetricRow({
             )}
 
             {/* Edit Menu Button */}
-            <div className="relative flex-shrink-0 -mt-1">
+            <div className="relative flex-shrink-0 -mt-1" ref={actionMenuRef}>
               <button
                 onClick={() => setShowActionMenu(!showActionMenu)}
                 className="text-xs font-bold text-black hover:text-gray-700"
@@ -380,6 +396,22 @@ export const MetricRow = memo(function MetricRow({
                     <span>⤢</span>
                     <span>View Details</span>
                   </button>
+                  {!readOnly && (
+                    <button
+                      onClick={() => {
+                        const newMode = metric.displayMode === 'sum' ? 'ratio' : 'sum';
+                        onMetricUpdate({
+                          ...metric,
+                          displayMode: newMode
+                        });
+                        setShowActionMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 border-t border-gray-200"
+                    >
+                      <span>{metric.displayMode === 'sum' ? '÷' : '∑'}</span>
+                      <span>{metric.displayMode === 'sum' ? 'Show as Ratio' : 'Show as Sum'}</span>
+                    </button>
+                  )}
                   {!readOnly && (
                     <button
                       onClick={() => {
@@ -498,6 +530,7 @@ export const MetricRow = memo(function MetricRow({
             currentHoverDate={currentHoverDate}
             onHover={onHover}
             onClick={onSelectionChange}
+            displayMode={metric.displayMode || 'ratio'}
           />
           {/* Expand/Collapse button to lock this row at full height */}
           <button

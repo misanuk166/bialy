@@ -433,7 +433,8 @@ export function MetricGrid({
         metric.goals,
         globalSettings.focusPeriod,
         metric.forecast,
-        metric.forecastSnapshot
+        metric.forecastSnapshot,
+        metric.displayMode || 'ratio'
       );
 
       // Calculate dynamic comparisons
@@ -449,7 +450,8 @@ export function MetricGrid({
         metric.forecast,
         metric.forecastSnapshot,
         globalSettings.comparisons,
-        globalSettings.focusPeriod
+        globalSettings.focusPeriod,
+        metric.displayMode || 'ratio'
       );
 
       return {

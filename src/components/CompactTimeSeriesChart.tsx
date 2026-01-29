@@ -11,6 +11,7 @@ import type { FocusPeriod } from '../types/focusPeriod';
 import type { Shadow } from '../types/shadow';
 import type { Goal } from '../types/goal';
 import type { Annotation } from '../types/annotation';
+import type { DisplayMode } from '../types/appState';
 import { applyAggregation, normalizeSelectionDate } from '../utils/aggregation';
 import { generateShadowsData, calculateShadowAverage } from '../utils/shadows';
 import { generateGoalsData } from '../utils/goals';
@@ -119,6 +120,7 @@ interface CompactTimeSeriesChartProps {
   currentHoverDate?: Date;
   precision?: number;
   seriesColor?: string;
+  displayMode?: DisplayMode;
   onHover?: (date: Date | null) => void;
   onClick?: (date: Date) => void;
   onZoom?: (domain: [Date, Date]) => void;
@@ -147,6 +149,7 @@ export function CompactTimeSeriesChart({
   currentHoverDate,
   precision = 2,
   seriesColor = '#2563eb',
+  displayMode = 'ratio',
   onHover,
   onClick,
   onZoom
@@ -169,10 +172,15 @@ export function CompactTimeSeriesChart({
     const g = svg.append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
+    // Helper function to calculate value based on display mode
+    const getValue = (numerator: number, denominator: number) => {
+      return displayMode === 'sum' ? numerator : numerator / denominator;
+    };
+
     // Prepare data
     const dataWithValues = series.data.map(d => ({
       date: d.date,
-      value: d.numerator / d.denominator
+      value: getValue(d.numerator, d.denominator)
     }));
 
     // Apply aggregation if enabled
@@ -181,7 +189,7 @@ export function CompactTimeSeriesChart({
       const aggregated = applyAggregation(series.data, aggregationConfig);
       displayData = aggregated.map(d => ({
         date: d.date,
-        value: d.numerator / d.denominator
+        value: getValue(d.numerator, d.denominator)
       }));
     }
 
@@ -207,7 +215,7 @@ export function CompactTimeSeriesChart({
       data: sd.data
         .map(d => ({
           date: d.date,
-          value: d.numerator / d.denominator
+          value: getValue(d.numerator, d.denominator)
         }))
         .filter(d => d.date >= xDomain[0] && d.date <= xDomain[1]), // Filter shadow data to xDomain
       color: sd.color
@@ -518,7 +526,7 @@ export function CompactTimeSeriesChart({
         let goalValues = goalData.data
           .map(d => ({
             date: d.date,
-            value: d.numerator / d.denominator
+            value: getValue(d.numerator, d.denominator)
           }))
           .filter(d => !isNaN(d.value) && isFinite(d.value));
 

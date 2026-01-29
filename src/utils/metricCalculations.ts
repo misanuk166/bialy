@@ -4,7 +4,7 @@ import type { Shadow } from '../types/shadow';
 import type { Goal } from '../types/goal';
 import type { FocusPeriod } from '../types/focusPeriod';
 import type { ForecastConfig, ForecastSnapshot } from '../types/forecast';
-import type { MetricRowValues } from '../types/appState';
+import type { MetricRowValues, DisplayMode } from '../types/appState';
 import type { ComparisonConfig, ComparisonResult } from '../types/comparison';
 import { applyAggregation, normalizeSelectionDate } from './aggregation';
 import { generateShadowsData, calculateShadowAverage } from './shadows';
@@ -27,12 +27,18 @@ export function calculateMetricRowValues(
   goals?: Goal[],
   focusPeriod?: FocusPeriod,
   forecastConfig?: ForecastConfig,
-  forecastSnapshot?: ForecastSnapshot
+  forecastSnapshot?: ForecastSnapshot,
+  displayMode: DisplayMode = 'ratio'
 ): MetricRowValues {
+  // Helper function to calculate value based on display mode
+  const getValue = (numerator: number, denominator: number) => {
+    return displayMode === 'sum' ? numerator : numerator / denominator;
+  };
+
   // Prepare data (needed for both selection and focus period calculations)
   const dataWithValues = series.data.map(d => ({
     date: d.date,
-    value: d.numerator / d.denominator
+    value: getValue(d.numerator, d.denominator)
   }));
 
   // Calculate precision (currently unused but may be needed for future enhancements)
@@ -44,7 +50,7 @@ export function calculateMetricRowValues(
     const aggregated = applyAggregation(series.data, aggregationConfig);
     displayData = aggregated.map(d => ({
       date: d.date,
-      value: d.numerator / d.denominator
+      value: getValue(d.numerator, d.denominator)
     }));
   }
 
@@ -62,8 +68,15 @@ export function calculateMetricRowValues(
     );
 
     if (focusData.length > 0) {
+      // For SUM mode: sum all values (which are already numerators from getValue)
+      // For RATIO mode: calculate mean (weighted average)
       const values = focusData.map(d => d.value);
-      focusPeriodMean = values.reduce((sum, v) => sum + v, 0) / values.length;
+      if (displayMode === 'sum') {
+        focusPeriodMean = values.reduce((sum, v) => sum + v, 0);
+      } else {
+        focusPeriodMean = values.reduce((sum, v) => sum + v, 0) / values.length;
+      }
+
       let min = Infinity;
       let max = -Infinity;
       for (const value of values) {
@@ -80,6 +93,7 @@ export function calculateMetricRowValues(
         dataPoints: focusData.length,
         mean: focusPeriodMean,
         range: focusPeriodRange,
+        displayMode: displayMode,
         firstDate: focusData[0]?.date,
         lastDate: focusData[focusData.length - 1]?.date
       });
@@ -263,13 +277,16 @@ export function calculateMetricRowValues(
     );
 
     if (periodRawData.length > 0) {
-      // Use weighted average (sum numerators / sum denominators) for consistency with aggregation
+      // For ratio mode: Use weighted average (sum numerators / sum denominators)
+      // For sum mode: Sum all numerators in the period
       const totalNumerator = periodRawData.reduce((sum, d) => sum + d.numerator, 0);
       const totalDenominator = periodRawData.reduce((sum, d) => sum + d.denominator, 0);
-      selectionValue = totalDenominator > 0 ? totalNumerator / totalDenominator : currentPoint.value;
+      selectionValue = displayMode === 'sum'
+        ? totalNumerator
+        : (totalDenominator > 0 ? totalNumerator / totalDenominator : currentPoint.value);
 
       // Calculate range from individual values
-      const values = periodRawData.map(d => d.numerator / d.denominator);
+      const values = periodRawData.map(d => getValue(d.numerator, d.denominator));
       let min = Infinity;
       let max = -Infinity;
       for (const value of values) {
@@ -314,7 +331,7 @@ export function calculateMetricRowValues(
     } else if (aggregatedShadowsData.length > 0) {
       const shadowDataWithValues = aggregatedShadowsData[0].data.map(d => ({
         date: d.date,
-        value: d.numerator / d.denominator
+        value: getValue(d.numerator, d.denominator)
       }));
       const shadowPoint = shadowDataWithValues.find(p => {
         const diff = Math.abs(p.date.getTime() - dateTime);
@@ -335,7 +352,7 @@ export function calculateMetricRowValues(
       const goalData = enabledGoals[0];
       const goalDataWithValues = goalData.data.map(d => ({
         date: d.date,
-        value: d.numerator / d.denominator
+        value: getValue(d.numerator, d.denominator)
       }));
 
       if (goalData.goal.type === 'continuous' && goalDataWithValues.length === 2) {
@@ -390,14 +407,18 @@ export function calculateMetricRowValues(
         });
 
         if (focusShadowData.length > 0) {
-          const focusShadowMean = focusShadowData.reduce((sum, p) => sum + p.mean, 0) / focusShadowData.length;
+          // For SUM mode: sum all shadow values
+          // For RATIO mode: calculate mean
+          const focusShadowMean = displayMode === 'sum'
+            ? focusShadowData.reduce((sum, p) => sum + p.mean, 0)
+            : focusShadowData.reduce((sum, p) => sum + p.mean, 0) / focusShadowData.length;
           focusPeriodVsShadowAbs = focusPeriodMean - focusShadowMean;
           focusPeriodVsShadowPct = (focusPeriodVsShadowAbs / focusShadowMean) * 100;
         }
       } else if (aggregatedShadowsData.length > 0) {
         const shadowDataWithValues = aggregatedShadowsData[0].data.map(d => ({
           date: d.date,
-          value: d.numerator / d.denominator
+          value: getValue(d.numerator, d.denominator)
         }));
 
         // CRITICAL FIX: Only include shadow data for dates that exist in the current focus period
@@ -419,7 +440,11 @@ export function calculateMetricRowValues(
         });
 
         if (focusShadowData.length > 0) {
-          const focusShadowMean = focusShadowData.reduce((sum, p) => sum + p.value, 0) / focusShadowData.length;
+          // For SUM mode: sum all shadow values
+          // For RATIO mode: calculate mean
+          const focusShadowMean = displayMode === 'sum'
+            ? focusShadowData.reduce((sum, p) => sum + p.value, 0)
+            : focusShadowData.reduce((sum, p) => sum + p.value, 0) / focusShadowData.length;
           focusPeriodVsShadowAbs = focusPeriodMean - focusShadowMean;
           focusPeriodVsShadowPct = (focusPeriodVsShadowAbs / focusShadowMean) * 100;
 
@@ -447,14 +472,18 @@ export function calculateMetricRowValues(
         const goalData = enabledGoals[0];
         const goalDataWithValues = goalData.data.map(d => ({
           date: d.date,
-          value: d.numerator / d.denominator
+          value: getValue(d.numerator, d.denominator)
         }));
 
         const focusGoalData = goalDataWithValues.filter(p =>
           p.date >= focusPeriod.startDate! && p.date <= focusPeriod.endDate!
         );
         if (focusGoalData.length > 0) {
-          const focusGoalMean = focusGoalData.reduce((sum, p) => sum + p.value, 0) / focusGoalData.length;
+          // For SUM mode: sum all goal values
+          // For RATIO mode: calculate mean
+          const focusGoalMean = displayMode === 'sum'
+            ? focusGoalData.reduce((sum, p) => sum + p.value, 0)
+            : focusGoalData.reduce((sum, p) => sum + p.value, 0) / focusGoalData.length;
           focusPeriodVsGoalAbs = focusPeriodMean - focusGoalMean;
           focusPeriodVsGoalPct = (focusPeriodVsGoalAbs / focusGoalMean) * 100;
         }
@@ -509,10 +538,16 @@ function calculateComparison(
   aggregationConfig: AggregationConfig | undefined,
   currentDate: Date,
   seriesData: any,
-  focusPeriod?: FocusPeriod
+  focusPeriod: FocusPeriod | undefined,
+  displayMode: DisplayMode = 'ratio'
 ): ComparisonResult | null {
   const dateTime = currentDate.getTime();
   const isFocusPeriodComparison = comparison.periodType === 'focus';
+
+  // Helper function to calculate value based on display mode
+  const getValue = (numerator: number, denominator: number) => {
+    return displayMode === 'sum' ? numerator : numerator / denominator;
+  };
 
   let targetValue: number | undefined;
   let targetLabel: string | undefined;
@@ -546,7 +581,7 @@ function calculateComparison(
           const shadowData = aggregatedShadowsData[comparison.targetIndex];
           const shadowDataWithValues = shadowData.data.map(d => ({
             date: d.date,
-            value: d.numerator / d.denominator
+            value: getValue(d.numerator, d.denominator)
           }));
           const focusShadowData = shadowDataWithValues.filter(p => {
             const dateStr = p.date.toISOString().split('T')[0];
@@ -555,7 +590,11 @@ function calculateComparison(
                    availableDateStrings.has(dateStr);
           });
           if (focusShadowData.length > 0) {
-            targetValue = focusShadowData.reduce((sum, p) => sum + p.value, 0) / focusShadowData.length;
+            // For SUM mode: sum all shadow values
+            // For RATIO mode: calculate mean
+            targetValue = displayMode === 'sum'
+              ? focusShadowData.reduce((sum, p) => sum + p.value, 0)
+              : focusShadowData.reduce((sum, p) => sum + p.value, 0) / focusShadowData.length;
           }
           targetLabel = shadowData.shadow.label;
         } else if (averageShadows && aggregatedShadowsData.length > 1) {
@@ -567,14 +606,18 @@ function calculateComparison(
                    availableDateStrings.has(dateStr);
           });
           if (focusShadowData.length > 0) {
-            targetValue = focusShadowData.reduce((sum, p) => sum + p.mean, 0) / focusShadowData.length;
+            // For SUM mode: sum all shadow values
+            // For RATIO mode: calculate mean
+            targetValue = displayMode === 'sum'
+              ? focusShadowData.reduce((sum, p) => sum + p.mean, 0)
+              : focusShadowData.reduce((sum, p) => sum + p.mean, 0) / focusShadowData.length;
           }
           targetLabel = `avg of ${shadows.filter(s => s.enabled).length} periods`;
         } else if (aggregatedShadowsData.length > 0) {
           const shadowData = aggregatedShadowsData[0];
           const shadowDataWithValues = shadowData.data.map(d => ({
             date: d.date,
-            value: d.numerator / d.denominator
+            value: getValue(d.numerator, d.denominator)
           }));
           const focusShadowData = shadowDataWithValues.filter(p => {
             const dateStr = p.date.toISOString().split('T')[0];
@@ -583,7 +626,11 @@ function calculateComparison(
                    availableDateStrings.has(dateStr);
           });
           if (focusShadowData.length > 0) {
-            targetValue = focusShadowData.reduce((sum, p) => sum + p.value, 0) / focusShadowData.length;
+            // For SUM mode: sum all shadow values
+            // For RATIO mode: calculate mean
+            targetValue = displayMode === 'sum'
+              ? focusShadowData.reduce((sum, p) => sum + p.value, 0)
+              : focusShadowData.reduce((sum, p) => sum + p.value, 0) / focusShadowData.length;
           }
           targetLabel = shadowData.shadow.label;
         }
@@ -594,7 +641,7 @@ function calculateComparison(
           const shadowData = aggregatedShadowsData[comparison.targetIndex];
           const shadowDataWithValues = shadowData.data.map(d => ({
             date: d.date,
-            value: d.numerator / d.denominator
+            value: getValue(d.numerator, d.denominator)
           }));
           const shadowPoint = shadowDataWithValues.find(p => {
             const diff = Math.abs(p.date.getTime() - dateTime);
@@ -616,7 +663,7 @@ function calculateComparison(
           const shadowData = aggregatedShadowsData[0];
           const shadowDataWithValues = shadowData.data.map(d => ({
             date: d.date,
-            value: d.numerator / d.denominator
+            value: getValue(d.numerator, d.denominator)
           }));
           const shadowPoint = shadowDataWithValues.find(p => {
             const diff = Math.abs(p.date.getTime() - dateTime);
@@ -643,16 +690,20 @@ function calculateComparison(
       const goalData = enabledGoals[goalIndex];
       const goalDataWithValues = goalData.data.map(d => ({
         date: d.date,
-        value: d.numerator / d.denominator
+        value: getValue(d.numerator, d.denominator)
       }));
 
       if (isFocusPeriodComparison && focusPeriod?.enabled && focusPeriod.startDate && focusPeriod.endDate) {
-        // For focus period comparisons, calculate average over the focus period range
+        // For focus period comparisons, calculate sum or average over the focus period range
         const focusGoalData = goalDataWithValues.filter(p =>
           p.date >= focusPeriod.startDate! && p.date <= focusPeriod.endDate!
         );
         if (focusGoalData.length > 0) {
-          targetValue = focusGoalData.reduce((sum, p) => sum + p.value, 0) / focusGoalData.length;
+          // For SUM mode: sum all goal values
+          // For RATIO mode: calculate mean
+          targetValue = displayMode === 'sum'
+            ? focusGoalData.reduce((sum, p) => sum + p.value, 0)
+            : focusGoalData.reduce((sum, p) => sum + p.value, 0) / focusGoalData.length;
         }
       } else {
         // For selection comparisons, find value at specific date
@@ -682,13 +733,17 @@ function calculateComparison(
       const forecastValues = forecastSnapshot.values;
 
       if (isFocusPeriodComparison && focusPeriod?.enabled && focusPeriod.startDate && focusPeriod.endDate) {
-        // For focus period comparisons, calculate average over the focus period range
+        // For focus period comparisons, calculate sum or average over the focus period range
         const focusForecastData = forecastValues.filter(f => {
           const fDate = new Date(f.date);
           return fDate >= focusPeriod.startDate! && fDate <= focusPeriod.endDate!;
         });
         if (focusForecastData.length > 0) {
-          targetValue = focusForecastData.reduce((sum, f) => sum + f.value, 0) / focusForecastData.length;
+          // For SUM mode: sum all forecast values
+          // For RATIO mode: calculate mean
+          targetValue = displayMode === 'sum'
+            ? focusForecastData.reduce((sum, f) => sum + f.value, 0)
+            : focusForecastData.reduce((sum, f) => sum + f.value, 0) / focusForecastData.length;
         }
       } else {
         // For selection comparisons, find forecast value at the current date
@@ -736,7 +791,8 @@ export function calculateComparisons(
   forecastConfig: ForecastConfig | undefined,
   forecastSnapshot: ForecastSnapshot | undefined,
   comparisons: ComparisonConfig[] | undefined,
-  focusPeriod?: FocusPeriod
+  focusPeriod?: FocusPeriod,
+  displayMode: DisplayMode = 'ratio'
 ): Map<string, ComparisonResult> {
   const results = new Map<string, ComparisonResult>();
 
@@ -744,10 +800,15 @@ export function calculateComparisons(
     return results;
   }
 
+  // Helper function to calculate value based on display mode
+  const getValue = (numerator: number, denominator: number) => {
+    return displayMode === 'sum' ? numerator : numerator / denominator;
+  };
+
   // Prepare display data
   const dataWithValues = series.data.map(d => ({
     date: d.date,
-    value: d.numerator / d.denominator
+    value: getValue(d.numerator, d.denominator)
   }));
 
   let displayData = dataWithValues;
@@ -755,7 +816,7 @@ export function calculateComparisons(
     const aggregated = applyAggregation(series.data, aggregationConfig);
     displayData = aggregated.map(d => ({
       date: d.date,
-      value: d.numerator / d.denominator
+      value: getValue(d.numerator, d.denominator)
     }));
   }
 
@@ -780,7 +841,8 @@ export function calculateComparisons(
       aggregationConfig,
       normalizedDate,
       series.data,
-      focusPeriod
+      focusPeriod,
+      displayMode
     );
 
     if (result) {

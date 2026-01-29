@@ -42,12 +42,20 @@ export interface GlobalSettings {
 }
 
 /**
+ * Display mode for metric values
+ * - 'ratio': Show as percentage (numerator / denominator) - default
+ * - 'sum': Show total numerator sum (useful for quantities like revenue, exits, etc.)
+ */
+export type DisplayMode = 'ratio' | 'sum';
+
+/**
  * Individual metric configuration with local settings
  */
 export interface MetricConfig {
   id: string;
   series: Series;
   order: number;
+  displayMode?: DisplayMode; // How to display values (ratio or sum). Default: 'ratio'
   goals?: Goal[];
   goalsEnabled?: boolean;
   forecast?: ForecastConfig;

@@ -221,24 +221,31 @@ export function DashboardPage() {
       const wasEmpty = prevMetrics.length === 0;
 
       // Create a MetricConfig for each series
-      const newMetrics: MetricConfig[] = seriesArray.map((series, index) => ({
-        id: series.id,
-        series: {
-          ...series,
-          filePath // Store file path with series for later retrieval
-        },
-        order: prevMetrics.length + index,
-        metricIndex: prevMetrics.length + index,
-        goals: [],
-        goalsEnabled: false,
-        forecast: {
-          enabled: false,
-          horizon: 90,
-          seasonal: 'none',
-          showConfidenceIntervals: true,
-          confidenceLevel: 95
-        }
-      }));
+      const newMetrics: MetricConfig[] = seriesArray.map((series, index) => {
+        // Auto-detect display mode: if all denominators are 1, use 'sum', otherwise use 'ratio'
+        const allDenominatorsAreOne = series.data.every(d => d.denominator === 1);
+        const displayMode = allDenominatorsAreOne ? 'sum' : 'ratio';
+
+        return {
+          id: series.id,
+          series: {
+            ...series,
+            filePath // Store file path with series for later retrieval
+          },
+          order: prevMetrics.length + index,
+          metricIndex: prevMetrics.length + index,
+          displayMode, // Auto-detected based on denominator values
+          goals: [],
+          goalsEnabled: false,
+          forecast: {
+            enabled: false,
+            horizon: 90,
+            seasonal: 'none',
+            showConfidenceIntervals: true,
+            confidenceLevel: 95
+          }
+        };
+      });
 
       // Add default shadow (1 year ago) when adding the first metric(s)
       if (wasEmpty && newMetrics.length > 0) {
