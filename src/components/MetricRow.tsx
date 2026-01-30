@@ -7,7 +7,8 @@ import type { MetricConfig, GlobalSettings, MetricRowValues } from '../types/app
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { applyAggregation } from '../utils/aggregation';
-import { generateForecast, forecastResultToSnapshot } from '../utils/forecasting';
+import { forecastResultToSnapshot } from '../utils/forecasting';
+import { generateForecastWithFallback } from '../utils/forecastWithFallback';
 import { isForecastSnapshotValid } from '../utils/localStorage';
 
 interface ColorScaling {
@@ -181,7 +182,7 @@ export const MetricRow = memo(function MetricRow({
   }, [showActionMenu]);
 
   // Generate and save forecast snapshot
-  const generateAndSaveForecastSnapshot = () => {
+  const generateAndSaveForecastSnapshot = async () => {
     if (!metric.forecast?.enabled) return;
 
     try {
@@ -200,8 +201,9 @@ export const MetricRow = memo(function MetricRow({
         }));
       }
 
-      // Generate forecast
-      const forecastResult = generateForecast(data, metric.forecast);
+      // Generate forecast with API fallback
+      const { result: forecastResult, usingAPI, modelUsed, computationTime } =
+        await generateForecastWithFallback(data, metric.forecast);
 
       if (forecastResult) {
         // Convert to snapshot
@@ -213,7 +215,10 @@ export const MetricRow = memo(function MetricRow({
           forecastSnapshot: snapshot
         });
 
-        console.log(`Forecast snapshot saved for metric ${metric.series.metadata.name}`);
+        console.log(
+          `Forecast snapshot saved for metric ${metric.series.metadata.name}`,
+          usingAPI ? `[API: ${modelUsed}, ${computationTime?.toFixed(0)}ms]` : `[Client-side: ${modelUsed}]`
+        );
       }
     } catch (error) {
       console.error('Failed to generate forecast snapshot:', error);

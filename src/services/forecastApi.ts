@@ -66,14 +66,14 @@ interface BackendAnomalyResponse {
  * Generate forecast using StatsForecast backend
  */
 export async function generateForecast(
-  data: TimeSeriesPoint[],
+  data: Array<{ date: Date; value: number }>,
   config: ForecastConfig
 ): Promise<ForecastResult | null> {
   try {
     // Transform data to backend format
     const backendData: BackendDataPoint[] = data.map(point => ({
       date: point.date.toISOString().split('T')[0], // YYYY-MM-DD
-      value: point.numerator / (point.denominator || 1) // Calculate ratio
+      value: point.value
     }));
 
     // Build request
@@ -129,7 +129,7 @@ export async function generateForecast(
         alpha: 0, // StatsForecast doesn't expose these
         beta: 0
       },
-      method: result.modelUsed.includes('ETS') ? 'triple' : 'double'
+      method: result.modelUsed // Use actual API model name (AutoARIMA, AutoETS, etc.)
     };
 
   } catch (error) {
@@ -142,14 +142,14 @@ export async function generateForecast(
  * Detect anomalies using StatsForecast backend
  */
 export async function detectAnomalies(
-  data: TimeSeriesPoint[],
+  data: Array<{ date: Date; value: number }>,
   config: AnomalyConfig
 ): Promise<AnomalyResult | null> {
   try {
     // Transform data to backend format
     const backendData: BackendDataPoint[] = data.map(point => ({
       date: point.date.toISOString().split('T')[0],
-      value: point.numerator / (point.denominator || 1)
+      value: point.value
     }));
 
     // Build request

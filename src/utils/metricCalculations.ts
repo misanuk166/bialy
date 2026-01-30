@@ -84,19 +84,6 @@ export function calculateMetricRowValues(
         if (value > max) max = value;
       }
       focusPeriodRange = { min, max };
-
-      // DEBUG: Log focus period data
-      console.log('[FOCUS PERIOD DATA]', {
-        focusPeriodLabel: focusPeriod.label,
-        focusPeriodStart: focusPeriod.startDate,
-        focusPeriodEnd: focusPeriod.endDate,
-        dataPoints: focusData.length,
-        mean: focusPeriodMean,
-        range: focusPeriodRange,
-        displayMode: displayMode,
-        firstDate: focusData[0]?.date,
-        lastDate: focusData[focusData.length - 1]?.date
-      });
     }
   }
 
@@ -447,19 +434,6 @@ export function calculateMetricRowValues(
             : focusShadowData.reduce((sum, p) => sum + p.value, 0) / focusShadowData.length;
           focusPeriodVsShadowAbs = focusPeriodMean - focusShadowMean;
           focusPeriodVsShadowPct = (focusPeriodVsShadowAbs / focusShadowMean) * 100;
-
-          // DEBUG: Log focus period comparison details
-          console.log('[FOCUS PERIOD DEBUG]', {
-            focusPeriodLabel: focusPeriod.label,
-            focusPeriodStart: focusPeriod.startDate,
-            focusPeriodEnd: focusPeriod.endDate,
-            currentMean: focusPeriodMean,
-            currentDataPoints: actualFocusData.length,
-            shadowMean: focusShadowMean,
-            shadowDataPoints: focusShadowData.length,
-            percentDiff: focusPeriodVsShadowPct,
-            shadowLabel: aggregatedShadowsData[0].shadow.label
-          });
         }
       }
     }
