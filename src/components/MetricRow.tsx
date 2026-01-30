@@ -237,7 +237,7 @@ export const MetricRow = memo(function MetricRow({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [metric.forecast?.enabled, metric.forecast?.horizon, metric.forecast?.seasonal, metric.forecast?.type, metric.forecast?.targetValue, metric.series.data.length]);
+  }, [metric.forecast?.enabled, metric.forecast?.horizon, metric.forecast?.model, metric.forecast?.seasonLength, metric.series.data.length]);
 
   // Calculate snapshot age for display
   const getSnapshotAge = (): string | undefined => {

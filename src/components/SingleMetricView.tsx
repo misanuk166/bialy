@@ -66,7 +66,7 @@ export function SingleMetricView({
                 config={metric.forecast || {
                   enabled: false,
                   horizon: 90,
-                  seasonal: 'none',
+                  model: 'auto',
                   showConfidenceIntervals: true,
                   confidenceLevel: 95
                 }}

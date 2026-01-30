@@ -240,7 +240,7 @@ export function DashboardPage() {
           forecast: {
             enabled: false,
             horizon: 90,
-            seasonal: 'none',
+            model: 'auto',
             showConfidenceIntervals: true,
             confidenceLevel: 95
           }

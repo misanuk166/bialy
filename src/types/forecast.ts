@@ -24,7 +24,7 @@ export interface ForecastResult {
     beta: number;
     gamma?: number;
   };
-  method: 'simple' | 'double' | 'triple'; // Simple ES, Holt (double), Holt-Winters (triple)
+  method: string; // Model name (e.g., 'AutoARIMA', 'AutoETS', 'simple', 'double', 'triple')
 }
 
 /**
@@ -47,5 +47,5 @@ export interface ForecastSnapshot {
     beta: number;
     gamma?: number;
   };
-  method: 'simple' | 'double' | 'triple';
+  method: string; // Model name (e.g., 'AutoARIMA', 'AutoETS', 'simple', 'double', 'triple')
 }

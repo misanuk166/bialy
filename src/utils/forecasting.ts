@@ -295,11 +295,25 @@ function manualForecast(
 }
 
 /**
- * Main forecasting function
+ * Internal config type that includes old Holt-Winters parameters
+ * for backwards compatibility with client-side forecasting
+ */
+interface InternalForecastConfig extends ForecastConfig {
+  type?: 'auto' | 'manual';
+  targetValue?: number;
+  interpolation?: 'linear' | 'exponential';
+  alpha?: number;
+  beta?: number;
+  gamma?: number;
+  seasonal?: 'additive' | 'multiplicative' | 'none';
+}
+
+/**
+ * Main forecasting function (client-side Holt-Winters fallback)
  */
 export function generateForecast(
   data: Array<{ date: Date; value: number }>,
-  config: ForecastConfig
+  config: InternalForecastConfig
 ): ForecastResult | null {
   if (!config.enabled || data.length < 2) {
     return null;

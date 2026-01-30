@@ -3,7 +3,6 @@
  * Tries StatsForecast API first, falls back to client-side Holt-Winters
  */
 
-import type { TimeSeriesPoint } from '../types/series';
 import type { ForecastConfig, ForecastResult } from '../types/forecast';
 import { generateForecast as clientSideForecast } from './forecasting';
 import { generateForecast as apiForecast } from '../services/forecastApi';
@@ -23,7 +22,7 @@ export interface ForecastGenerationResult {
  * 2. If API fails, fall back to client-side (Holt-Winters - still good)
  */
 export async function generateForecastWithFallback(
-  data: TimeSeriesPoint[],
+  data: Array<{ date: Date; value: number }>,
   config: ForecastConfig
 ): Promise<ForecastGenerationResult> {
 
@@ -62,7 +61,7 @@ export async function generateForecastWithFallback(
     seasonal: 'none' as const, // Use simple exponential smoothing for fallback
   };
 
-  const clientResult = clientSideForecast(data, clientConfig as any);
+  const clientResult = clientSideForecast(data, clientConfig);
 
   const endTime = performance.now();
   const computationTime = endTime - startTime;

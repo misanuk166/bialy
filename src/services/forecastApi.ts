@@ -3,7 +3,6 @@
  * Handles forecasting and anomaly detection
  */
 
-import type { TimeSeriesPoint } from '../types/series';
 import type { ForecastConfig, ForecastResult, ForecastPoint } from '../types/forecast';
 import type { AnomalyConfig, AnomalyResult, AnomalyPoint, ConfidenceBand } from '../types/anomaly';
 
