@@ -205,8 +205,18 @@ export const MetricRow = memo(function MetricRow({
         await generateForecastWithFallback(data, metric.forecast);
 
       if (forecastResult) {
+        console.log('[FORECAST DEBUG] Generated forecast points:', forecastResult.forecast.length);
+        console.log('[FORECAST DEBUG] First forecast date:', forecastResult.forecast[0]?.date);
+        console.log('[FORECAST DEBUG] Last forecast date:', forecastResult.forecast[forecastResult.forecast.length - 1]?.date);
+        console.log('[FORECAST DEBUG] Config start date:', metric.forecast.startDate);
+        console.log('[FORECAST DEBUG] Last actual data date:', data[data.length - 1]?.date);
+
         // Convert to snapshot
         const snapshot = forecastResultToSnapshot(forecastResult, metric.forecast);
+
+        console.log('[FORECAST DEBUG] Snapshot has', snapshot.values.length, 'values');
+        console.log('[FORECAST DEBUG] Snapshot first date:', snapshot.values[0]?.date);
+        console.log('[FORECAST DEBUG] Snapshot last date:', snapshot.values[snapshot.values.length - 1]?.date);
 
         // Save snapshot to metric config
         onMetricUpdate({
