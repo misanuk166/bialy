@@ -63,7 +63,12 @@
       "Bash(npx supabase db push:*)",
       "Bash(psql:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(npx supabase:*)"
+      "Bash(npx supabase:*)",
+      "WebFetch(domain:nixtlaverse.nixtla.io)",
+      "Bash(cd:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []

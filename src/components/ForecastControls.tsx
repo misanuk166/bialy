@@ -7,9 +7,22 @@ interface ForecastControlsProps {
   onChange: (config: ForecastConfig) => void;
   onRefreshSnapshot?: () => void;
   snapshotAge?: string; // e.g., "2 hours ago"
+  isGenerating?: boolean; // Loading state when generating forecast
+  usingAPI?: boolean; // Whether API forecast is being used
+  modelUsed?: string; // Model name from API (e.g., "AutoETS")
+  computationTime?: number; // Computation time in ms
 }
 
-export function ForecastControls({ config, onChange, onRefreshSnapshot, snapshotAge }: ForecastControlsProps) {
+export function ForecastControls({
+  config,
+  onChange,
+  onRefreshSnapshot,
+  snapshotAge,
+  isGenerating = false,
+  usingAPI = false,
+  modelUsed,
+  computationTime
+}: ForecastControlsProps) {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const handleToggle = () => {
@@ -312,22 +325,59 @@ export function ForecastControls({ config, onChange, onRefreshSnapshot, snapshot
             </div>
           )}
 
-          {/* Refresh Forecast Button */}
-          {onRefreshSnapshot && (
-            <div className="pt-2 border-t border-gray-200">
-              <button
-                onClick={onRefreshSnapshot}
-                className="w-full px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-              >
-                Refresh Forecast Snapshot
-              </button>
-              {snapshotAge && (
-                <p className="text-xs text-gray-500 mt-1 text-center">
-                  Last updated: {snapshotAge}
-                </p>
-              )}
-            </div>
-          )}
+          {/* Forecast Status & Controls */}
+          <div className="pt-2 border-t border-gray-200 space-y-2">
+            {/* API Status Badge */}
+            {usingAPI && modelUsed && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500">Method:</span>
+                <div className="flex items-center gap-1">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-medium">
+                    API: {modelUsed}
+                  </span>
+                  {computationTime && (
+                    <span className="text-gray-400">({computationTime.toFixed(0)}ms)</span>
+                  )}
+                </div>
+              </div>
+            )}
+            {!usingAPI && config.enabled && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500">Method:</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-100 text-gray-700 font-medium">
+                  Client-side
+                </span>
+              </div>
+            )}
+
+            {/* Generate/Refresh Button */}
+            {onRefreshSnapshot && (
+              <div>
+                <button
+                  onClick={onRefreshSnapshot}
+                  disabled={isGenerating}
+                  className="w-full px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGenerating ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Generating...
+                    </span>
+                  ) : (
+                    'Generate Forecast'
+                  )}
+                </button>
+                {snapshotAge && !isGenerating && (
+                  <p className="text-xs text-gray-500 mt-1 text-center">
+                    Last updated: {snapshotAge}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

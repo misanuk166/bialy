@@ -45,9 +45,7 @@ WHERE schemaname = 'public'
 AND tablename = 'dashboard_settings';
 
 -- Check if policies exist
-SELECT policyname
-FROM pg_policies
-WHERE tablename = 'dashboard_settings';
+
 ```
 
 You should see:

@@ -34,3 +34,6 @@ playwright-report/
 test-results/
 test-data/
 .vercel
+
+# Environment files
+.env.local

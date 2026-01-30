@@ -7,6 +7,7 @@ import type { FocusPeriod } from './focusPeriod';
 import type { DateRange } from '../components/RangeControls';
 import type { ComparisonConfig, ComparisonResult } from './comparison';
 import type { Annotation } from './annotation';
+import type { AnomalyConfig, AnomalySnapshot } from './anomaly';
 
 /**
  * Column widths for resizable columns in MetricGrid
@@ -60,6 +61,8 @@ export interface MetricConfig {
   goalsEnabled?: boolean;
   forecast?: ForecastConfig;
   forecastSnapshot?: ForecastSnapshot; // Cached forecast values
+  anomalyDetection?: AnomalyConfig; // Anomaly detection configuration
+  anomalySnapshot?: AnomalySnapshot; // Cached anomaly detection results
   annotations?: Annotation[]; // Metric-specific annotations (supplement global)
   annotationsEnabled?: boolean; // Toggle for metric-specific annotations
   group?: string;
