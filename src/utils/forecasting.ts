@@ -481,9 +481,10 @@ function isForecastSnapshotValid(
 
   // Check if config matches (key parameters only)
   if (snapshot.config.horizon !== currentConfig.horizon) return false;
-  if (snapshot.config.seasonal !== currentConfig.seasonal) return false;
-  if (snapshot.config.type !== currentConfig.type) return false;
-  if (snapshot.config.targetValue !== currentConfig.targetValue) return false;
+  // Note: For backwards compatibility, snapshots may have old config structure
+  // Only compare fields that exist in current config
+  if ('model' in currentConfig && snapshot.config.model !== currentConfig.model) return false;
+  if (snapshot.config.seasonLength !== currentConfig.seasonLength) return false;
 
   return true;
 }

@@ -136,10 +136,9 @@ export const MetricRow = memo(function MetricRow({
       enabled: false,
       startDate: quarterStartDate,
       horizon: daysToEOQ,
-      seasonal: 'none' as const,
+      model: 'auto' as const,
       showConfidenceIntervals: true,
-      confidenceLevel: 95,
-      type: 'auto' as const
+      confidenceLevel: 95
     };
   };
 

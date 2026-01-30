@@ -252,9 +252,8 @@ export function isForecastSnapshotValid(
 
   // Check if config matches (key parameters only)
   if (snapshot.config.horizon !== currentConfig.horizon) return false;
-  if (snapshot.config.seasonal !== currentConfig.seasonal) return false;
-  if (snapshot.config.type !== currentConfig.type) return false;
-  if (snapshot.config.targetValue !== currentConfig.targetValue) return false;
+  if (snapshot.config.model !== currentConfig.model) return false;
+  if (snapshot.config.seasonLength !== currentConfig.seasonLength) return false;
 
   return true;
 }

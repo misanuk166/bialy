@@ -55,7 +55,14 @@ export async function generateForecastWithFallback(
   console.log('[Forecast] Using client-side forecast (Holt-Winters)');
   const startTime = performance.now();
 
-  const clientResult = clientSideForecast(data, config);
+  // Build client-side config with Holt-Winters defaults
+  const clientConfig = {
+    ...config,
+    type: 'auto' as const,
+    seasonal: 'none' as const, // Use simple exponential smoothing for fallback
+  };
+
+  const clientResult = clientSideForecast(data, clientConfig as any);
 
   const endTime = performance.now();
   const computationTime = endTime - startTime;

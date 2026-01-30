@@ -80,7 +80,7 @@ export async function generateForecast(
     const request: BackendForecastRequest = {
       data: backendData,
       horizon: config.horizon,
-      model: config.type === 'auto' ? 'auto' : 'ets', // Map types
+      model: config.model, // Use model directly from config
       seasonLength: config.seasonLength,
       confidenceLevels: config.showConfidenceIntervals ? [config.confidenceLevel] : []
     };

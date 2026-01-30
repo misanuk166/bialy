@@ -13,6 +13,8 @@ interface ForecastControlsProps {
   computationTime?: number; // Computation time in ms
 }
 
+type SeasonPreset = 'auto' | 'weekly' | 'monthly' | 'yearly' | 'custom';
+
 export function ForecastControls({
   config,
   onChange,
@@ -24,6 +26,17 @@ export function ForecastControls({
   computationTime
 }: ForecastControlsProps) {
   const [isExpanded, setIsExpanded] = useState(true);
+
+  // Determine current season preset based on config.seasonLength
+  const getCurrentSeasonPreset = (): SeasonPreset => {
+    if (!config.seasonLength) return 'auto';
+    if (config.seasonLength === 7) return 'weekly';
+    if (config.seasonLength === 30) return 'monthly';
+    if (config.seasonLength === 365) return 'yearly';
+    return 'custom';
+  };
+
+  const [seasonPreset, setSeasonPreset] = useState<SeasonPreset>(getCurrentSeasonPreset());
 
   const handleToggle = () => {
     const newEnabled = !config.enabled;
@@ -38,11 +51,25 @@ export function ForecastControls({
     onChange({ ...config, horizon });
   };
 
-  const handleSeasonalChange = (seasonal: 'additive' | 'multiplicative' | 'none') => {
-    onChange({ ...config, seasonal });
+  const handleModelChange = (model: 'auto' | 'arima' | 'ets' | 'theta') => {
+    onChange({ ...config, model });
   };
 
-  const handleSeasonLengthChange = (value: string) => {
+  const handleSeasonPresetChange = (preset: SeasonPreset) => {
+    setSeasonPreset(preset);
+
+    // Update config based on preset
+    let newSeasonLength: number | undefined;
+    if (preset === 'auto') newSeasonLength = undefined;
+    else if (preset === 'weekly') newSeasonLength = 7;
+    else if (preset === 'monthly') newSeasonLength = 30;
+    else if (preset === 'yearly') newSeasonLength = 365;
+    else newSeasonLength = config.seasonLength; // Keep current for custom
+
+    onChange({ ...config, seasonLength: newSeasonLength });
+  };
+
+  const handleCustomSeasonLengthChange = (value: string) => {
     const seasonLength = value ? parseInt(value, 10) : undefined;
     onChange({ ...config, seasonLength });
   };
@@ -53,19 +80,6 @@ export function ForecastControls({
 
   const handleConfidenceLevelChange = (confidenceLevel: number) => {
     onChange({ ...config, confidenceLevel });
-  };
-
-  const handleTypeChange = (type: 'auto' | 'manual') => {
-    onChange({ ...config, type });
-  };
-
-  const handleTargetValueChange = (value: string) => {
-    const targetValue = value ? parseFloat(value) : undefined;
-    onChange({ ...config, targetValue });
-  };
-
-  const handleInterpolationChange = (interpolation: 'linear' | 'exponential') => {
-    onChange({ ...config, interpolation });
   };
 
   const handleStartDateChange = (date: Date | null) => {
@@ -139,15 +153,15 @@ export function ForecastControls({
 
       {config.enabled && isExpanded && (
         <div className="space-y-2">
-          {/* Forecast Type */}
+          {/* Model Selection */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Forecast Type
+              Model
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               <button
-                onClick={() => handleTypeChange('auto')}
-                className={`px-2 py-1 text-xs rounded transition-colors ${config.type === 'auto'
+                onClick={() => handleModelChange('auto')}
+                className={`px-2 py-1 text-xs rounded transition-colors ${config.model === 'auto'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
@@ -155,13 +169,31 @@ export function ForecastControls({
                 Auto
               </button>
               <button
-                onClick={() => handleTypeChange('manual')}
-                className={`px-2 py-1 text-xs rounded transition-colors ${config.type === 'manual'
+                onClick={() => handleModelChange('arima')}
+                className={`px-2 py-1 text-xs rounded transition-colors ${config.model === 'arima'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
-                Manual
+                ARIMA
+              </button>
+              <button
+                onClick={() => handleModelChange('ets')}
+                className={`px-2 py-1 text-xs rounded transition-colors ${config.model === 'ets'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+              >
+                ETS
+              </button>
+              <button
+                onClick={() => handleModelChange('theta')}
+                className={`px-2 py-1 text-xs rounded transition-colors ${config.model === 'theta'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+              >
+                Theta
               </button>
             </div>
           </div>
@@ -206,90 +238,42 @@ export function ForecastControls({
             </div>
           </div>
 
-          {/* Manual Forecast Settings */}
-          {config.type === 'manual' && (
-            <>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Target Value
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  placeholder="e.g., 75"
-                  value={config.targetValue || ''}
-                  onChange={(e) => handleTargetValueChange(e.target.value)}
-                  className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
-                />
-              </div>
+          {/* Season Length */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Season Length
+            </label>
+            <select
+              value={seasonPreset}
+              onChange={(e) => handleSeasonPresetChange(e.target.value as SeasonPreset)}
+              className="w-full text-sm px-2 py-1 border border-gray-300 rounded bg-white"
+            >
+              <option value="auto">Auto</option>
+              <option value="weekly">Weekly (7)</option>
+              <option value="monthly">Monthly (30)</option>
+              <option value="yearly">Yearly (365)</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Interpolation
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => handleInterpolationChange('linear')}
-                    className={`px-2 py-1 text-xs rounded transition-colors ${config.interpolation === 'linear'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                  >
-                    Linear
-                  </button>
-                  <button
-                    onClick={() => handleInterpolationChange('exponential')}
-                    className={`px-2 py-1 text-xs rounded transition-colors ${config.interpolation === 'exponential'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                  >
-                    Exponential
-                  </button>
-                </div>
-              </div>
-            </>
+          {/* Custom Season Length Input */}
+          {seasonPreset === 'custom' && (
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Custom Season Length
+              </label>
+              <input
+                type="number"
+                min="2"
+                placeholder="e.g., 12"
+                value={config.seasonLength || ''}
+                onChange={(e) => handleCustomSeasonLengthChange(e.target.value)}
+                className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
+              />
+            </div>
           )}
 
-          {/* Auto Forecast Settings */}
-          {config.type === 'auto' && (
-            <>
-              {/* Seasonality */}
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Seasonality
-                </label>
-                <select
-                  value={config.seasonal}
-                  onChange={(e) => handleSeasonalChange(e.target.value as 'additive' | 'multiplicative' | 'none')}
-                  className="w-full text-sm px-2 py-1 border border-gray-300 rounded bg-white"
-                >
-                  <option value="none">None</option>
-                  <option value="additive">Additive</option>
-                  <option value="multiplicative">Multiplicative</option>
-                </select>
-              </div>
-
-              {/* Season Length (only show if seasonality is enabled) */}
-              {config.seasonal !== 'none' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Season Length (optional)
-                  </label>
-                  <input
-                    type="number"
-                    min="2"
-                    placeholder="Auto-detect"
-                    value={config.seasonLength || ''}
-                    onChange={(e) => handleSeasonLengthChange(e.target.value)}
-                    className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
-                  />
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Confidence Intervals (for all types) */}
+          {/* Confidence Intervals */}
           <div>
             <label className="flex items-center gap-2 text-xs font-medium text-gray-700">
               <input

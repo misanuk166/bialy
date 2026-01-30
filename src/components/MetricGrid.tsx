@@ -1050,10 +1050,9 @@ export function MetricGrid({
                       enabled: true,
                       startDate: quarterStartDate,
                       horizon: daysToEOQ,
-                      seasonal: 'none',
+                      model: 'auto',
                       showConfidenceIntervals: true,
-                      confidenceLevel: 95,
-                      type: 'auto'
+                      confidenceLevel: 95
                     });
                     setShowForecastAllModal(true);
                   }}

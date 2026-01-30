@@ -1,15 +1,9 @@
 export interface ForecastConfig {
   enabled: boolean;
-  type?: 'auto' | 'manual'; // Auto uses algorithms, manual uses target value
+  model: 'auto' | 'arima' | 'ets' | 'theta'; // StatsForecast model selection
   startDate?: Date; // Date at which the forecast begins (defaults to day after last data point)
   horizon: number; // Number of periods to forecast
-  targetValue?: number; // For manual forecast: the end target value
-  interpolation?: 'linear' | 'exponential'; // How to interpolate between current and target
-  alpha?: number; // Level smoothing parameter (0-1)
-  beta?: number; // Trend smoothing parameter (0-1)
-  gamma?: number; // Seasonal smoothing parameter (0-1)
-  seasonLength?: number; // Number of periods in a season (e.g., 7 for weekly)
-  seasonal: 'additive' | 'multiplicative' | 'none';
+  seasonLength?: number; // Number of periods in a season (e.g., 7 for weekly, 30 for monthly, 365 for yearly)
   showConfidenceIntervals: boolean;
   confidenceLevel: number; // e.g., 95 for 95% confidence
 }
