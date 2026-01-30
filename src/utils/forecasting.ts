@@ -389,7 +389,7 @@ export function generateForecast(
       params.beta,
       params.gamma ?? 0.1,
       seasonLength,
-      config.seasonal,
+      config.seasonal ?? 'additive', // Default to additive if not specified
       config.horizon
     );
   } else if (values.length >= 4) {
