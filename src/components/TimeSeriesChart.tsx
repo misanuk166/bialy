@@ -412,7 +412,9 @@ export function TimeSeriesChart({
       ? new Date(forecastSnapshot.values[0].date)
       : null;
 
-    const aggregatedHistorical = aggregatedDataWithValues.filter(d => !forecastStartDate || d.date < forecastStartDate);
+    // Show ALL actual data, even when overlapping with forecast
+    // This allows comparison of actual vs forecast values
+    const aggregatedHistorical = aggregatedDataWithValues;
     const aggregatedForecast = aggregatedDataWithValues.filter(d => forecastStartDate && d.date >= forecastStartDate);
 
     return {
