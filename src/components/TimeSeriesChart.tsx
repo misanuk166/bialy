@@ -1196,22 +1196,24 @@ export function TimeSeriesChart({
         .y(d => yScale(d.value))
         .curve(curveLinear);
 
-      // Connect last data point to first forecast point with a thin line
+      // Only draw connector if forecast starts AFTER data ends
       const lastDataPoint = displayData[displayData.length - 1];
       const firstForecastPoint = forecastResult.forecast[0];
 
-      chartGroup.append('line')
-        .attr('class', 'forecast-connector')
-        .attr('x1', xScale(lastDataPoint.date))
-        .attr('y1', yScale(lastDataPoint.value))
-        .attr('x2', xScale(firstForecastPoint.date))
-        .attr('y2', yScale(firstForecastPoint.value))
-        .attr('stroke', '#3b82f6')
-        .attr('stroke-width', 1)
-        .attr('stroke-dasharray', '2,2')
-        .attr('opacity', 0.5);
+      if (firstForecastPoint && firstForecastPoint.date > lastDataPoint.date) {
+        chartGroup.append('line')
+          .attr('class', 'forecast-connector')
+          .attr('x1', xScale(lastDataPoint.date))
+          .attr('y1', yScale(lastDataPoint.value))
+          .attr('x2', xScale(firstForecastPoint.date))
+          .attr('y2', yScale(firstForecastPoint.value))
+          .attr('stroke', '#3b82f6')
+          .attr('stroke-width', 1)
+          .attr('stroke-dasharray', '2,2')
+          .attr('opacity', 0.5);
+      }
 
-      // Draw forecast line (dashed)
+      // Draw forecast line (dashed) for entire forecast period
       const forecastPath = chartGroup.append('path')
         .datum(forecastResult.forecast)
         .attr('class', 'forecast-line')
