@@ -390,7 +390,15 @@ export function TimeSeriesChart({
   const aggregatedDataMemo = useMemo(() => {
     if (!aggregationConfig?.enabled) return null;
 
-    // Combine historical data with forecast for aggregation
+    // Aggregate actual data only
+    const aggregatedData = applyAggregation(series.data, aggregationConfig);
+
+    const aggregatedDataWithValues = aggregatedData.map(d => ({
+      date: d.date,
+      value: d.numerator / d.denominator
+    }));
+
+    // Aggregate forecast data separately
     const forecastAsTimeSeriesPoints: TimeSeriesPoint[] = forecastConfig?.enabled && forecastSnapshot
       ? forecastSnapshot.values.map(f => ({
           date: new Date(f.date),
@@ -399,10 +407,11 @@ export function TimeSeriesChart({
         }))
       : [];
 
-    const combinedData = [...series.data, ...forecastAsTimeSeriesPoints];
-    const aggregatedData = applyAggregation(combinedData, aggregationConfig);
+    const aggregatedForecastData = forecastAsTimeSeriesPoints.length > 0
+      ? applyAggregation(forecastAsTimeSeriesPoints, aggregationConfig)
+      : [];
 
-    const aggregatedDataWithValues = aggregatedData.map(d => ({
+    const aggregatedForecast = aggregatedForecastData.map(d => ({
       date: d.date,
       value: d.numerator / d.denominator
     }));
@@ -412,10 +421,8 @@ export function TimeSeriesChart({
       ? new Date(forecastSnapshot.values[0].date)
       : null;
 
-    // Show ALL actual data, even when overlapping with forecast
-    // This allows comparison of actual vs forecast values
+    // Show ALL actual data
     const aggregatedHistorical = aggregatedDataWithValues;
-    const aggregatedForecast = aggregatedDataWithValues.filter(d => forecastStartDate && d.date >= forecastStartDate);
 
     return {
       aggregatedData,
