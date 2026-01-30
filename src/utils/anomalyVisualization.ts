@@ -3,10 +3,11 @@
  * To be integrated into TimeSeriesChart.tsx
  */
 
-import { select, Selection } from 'd3-selection';
-import { ScaleTime, ScaleLinear } from 'd3-scale';
+import { select, type Selection } from 'd3-selection';
+import 'd3-transition'; // Augments d3-selection with transition() method
+import type { ScaleTime, ScaleLinear } from 'd3-scale';
 import { area as d3Area, curveLinear } from 'd3-shape';
-import type { AnomalyPoint, ConfidenceBand, AnomalyResult } from '../types/anomaly';
+import type { AnomalyPoint, ConfidenceBand } from '../types/anomaly';
 
 /**
  * Render confidence bands (shaded area showing expected range)
